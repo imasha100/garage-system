@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, ArrowLeft } from 'lucide-react';
-// 👇 මෙන්න මෙතනින් අපි අපේ local ඉමේජ් එක ප්‍රොජෙක්ට් එකට import කරගන්නවා
+
 import mechanicBg from '../../assets/mechanic-bg.jpg'; 
 
 export default function CustomerLogin({ onNavigate }) {
@@ -9,7 +9,7 @@ export default function CustomerLogin({ onNavigate }) {
     <div 
       className="w-screen h-screen max-h-screen overflow-hidden flex flex-col justify-between relative text-white font-sans selection:bg-cyan-500 selection:text-slate-950 bg-cover bg-center bg-no-repeat"
       style={{ 
-        // 🛠️ ලින්ක් එක වෙනුවට import කරපු Variable එක මෙතනට දැම්මා
+       
         backgroundImage: `url(${mechanicBg})` 
       }}
     >
@@ -18,10 +18,10 @@ export default function CustomerLogin({ onNavigate }) {
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px] z-0" />
 
       {/* TECH NEON GLOWS */}
-      <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] bg-cyan-500/5 rounded-full blur-[120px] pointer-events-none z-0" />
-      <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-red-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="absolute top-1/3 left-1/4 w-100 h-100 bg-cyan-500/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div className="absolute bottom-1/3 right-1/4 w-100 h-100 bg-red-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
-      {/* ==================== 1. TOP NAVBAR ==================== */}
+      {/* 1. TOP NAVBAR  */}
       <div className="w-full h-16 border-b border-slate-900/60 bg-slate-950/50 backdrop-blur-md px-6 flex items-center justify-between z-10">
         <button 
           onClick={() => onNavigate('start')} 
@@ -35,12 +35,12 @@ export default function CustomerLogin({ onNavigate }) {
         </div>
       </div>
 
-      {/* ==================== 2. CENTER CONTENT ==================== */}
+      {/*  2. CENTER CONTENT  */}
       <div className="flex flex-col items-center justify-center text-center z-10 my-auto px-4 animate-fade-in">
-        <h2 className="text-5xl md:text-6xl font-black tracking-wide uppercase mb-4 max-w-4xl bg-clip-text text-transparent bg-gradient-to-b from-white via-slate-100 to-slate-300 drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
+        <h2 className="text-5xl md:text-6xl font-black tracking-wide uppercase mb-4 max-w-4xl bg-clip-text text-transparent bg-linear-to-b from-white via-slate-100 to-slate-300 drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
           DO YOU WANT HELP?
         </h2>
-        <p className="text-slate-200 text-base md:text-lg tracking-wide max-w-xl mb-12 font-medium drop-shadow-[0_2px_15px_rgba(0,0,0,0.9)]">
+        <p className="text-slate-200 text-base md:text-4xl tracking-wide max-w-xl mb-12 font-medium drop-shadow-[0_2px_15px_rgba(0,0,0,0.9)]">
           If your vehicle has suffered a breakdown or emergency, select an option below.
         </p>
 
@@ -76,7 +76,7 @@ export default function CustomerLogin({ onNavigate }) {
         </div>
       </div>
 
-      {/* ==================== 3. FOOTER ==================== */}
+      {/* 3. FOOTER  */}
       <div className="w-full text-center py-6 text-[10px] tracking-widest text-slate-400 font-bold uppercase z-10">
         SwiftGarage AI • Emergency Routing System
       </div>

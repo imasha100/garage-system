@@ -136,7 +136,7 @@ export default function GarageMap() {
   );
 
   // =========================================================================
-  // 🧾 INTERFACE 5: INVOICE LEDGER MODULE
+  //  INTERFACE 5: INVOICE LEDGER MODULE
   // =========================================================================
   if (activeTab === 'invoice') {
     return (
@@ -283,7 +283,7 @@ export default function GarageMap() {
                     <div className="sm:col-span-1 flex items-end">
                       <button 
                         type="submit"
-                        className="w-full bg-slate-900 border border-slate-800 text-sky-400 hover:bg-sky-950/30 hover:border-sky-500/40 p-2 text-xs font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer h-[34px] flex items-center justify-center"
+                        className="w-full bg-slate-900 border border-slate-800 text-sky-400 hover:bg-sky-950/30 hover:border-sky-500/40 p-2 text-xs font-bold uppercase tracking-wider rounded-sm transition-all cursor-pointer h-8.5 flex items-center justify-center"
                       >
                         Add
                       </button>
@@ -358,7 +358,7 @@ export default function GarageMap() {
   }
 
   // =========================================================================
-  // 📈 INTERFACE 3: LIVE PROGRESS MODULE
+  //  INTERFACE 3: LIVE PROGRESS MODULE
   // =========================================================================
   if (activeTab === 'progress') {
     return (
@@ -427,7 +427,7 @@ export default function GarageMap() {
                     />
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#5ef7c3] rounded-full border-2 border-[#0e151d] flex items-center justify-center shadow">
-                    <Check className="w-2.5 h-2.5 text-slate-950 stroke-[3]" />
+                    <Check className="w-2.5 h-2.5 text-slate-950 stroke-3" />
                   </div>
                 </div>
                 <div>
@@ -505,7 +505,7 @@ export default function GarageMap() {
             </div>
 
             <div className="flex-1 flex flex-col lg:flex-row gap-4 md:gap-6">
-              <div className="flex-1 bg-[#090b16] border border-slate-900 rounded relative overflow-hidden min-h-[300px] md:min-h-[350px]">
+              <div className="flex-1 bg-[#090b16] border border-slate-900 rounded relative overflow-hidden min-h-75 md:min-h-87.5">
                 <div 
                   className="absolute inset-0 z-0 opacity-40 bg-cover bg-center bg-no-repeat pointer-events-none"
                   style={{ 
@@ -514,7 +514,7 @@ export default function GarageMap() {
                     filter: 'brightness(0.15) contrast(1.6) saturate(0.5) hue-rotate(200deg)'
                   }} 
                 />
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f1123_1px,transparent_1px),linear-gradient(to_bottom,#0f1123_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-25 z-0" />
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f1123_1px,transparent_1px),linear-gradient(to_bottom,#0f1123_1px,transparent_1px)] bg-size-[3rem_3rem] opacity-25 z-0" />
 
                 <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" xmlns="http://www.w3.org/2000/svg">
                   <path 
@@ -544,7 +544,7 @@ export default function GarageMap() {
                 </div>
               </div>
 
-              <div className="w-full lg:w-[350px] bg-[#090b16] border border-slate-900 rounded p-4 md:p-6 flex flex-col justify-between shadow-xl">
+              <div className="w-full lg:w-87.5 bg-[#090b16] border border-slate-900 rounded p-4 md:p-6 flex flex-col justify-between shadow-xl">
                 <div>
                   <div className="flex justify-between items-start mb-6">
                     <div>
@@ -596,7 +596,7 @@ export default function GarageMap() {
   }
 
   // =========================================================================
-  // 🚨 INTERFACE 4: EMERGENCY LOGISTICS & FLEET DISPATCH MODULE
+  // INTERFACE 4: EMERGENCY LOGISTICS & FLEET DISPATCH MODULE
   // =========================================================================
   if (activeTab === 'mobility') {
     return (
