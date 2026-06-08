@@ -40,7 +40,7 @@ export default function CustomerLogin({ onNavigate }) {
         <h2 className="text-5xl md:text-6xl font-black tracking-wide uppercase mb-4 max-w-4xl bg-clip-text text-transparent bg-linear-to-b from-white via-slate-100 to-slate-300 drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
           DO YOU WANT HELP?
         </h2>
-        <p className="text-slate-200 text-base md:text-lg tracking-wide max-w-xl mb-12 font-medium drop-shadow-[0_2px_15px_rgba(0,0,0,0.9)]">
+        <p className="text-slate-200 text-base md:text-4xl tracking-wide max-w-xl mb-12 font-medium drop-shadow-[0_2px_15px_rgba(0,0,0,0.9)]">
           If your vehicle has suffered a breakdown or emergency, select an option below.
         </p>
 
