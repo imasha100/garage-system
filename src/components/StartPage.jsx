@@ -117,7 +117,7 @@ export default function StartPage({ onNavigate }) {
             transition={{ duration: 0.6 }}
             whileHover={{ y: -4 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => alert("Roadside Assistance Portal")}
+            onClick={() => onNavigate("assistance-dashboard")}
             className="group flex items-center md:flex-col p-6 bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-700 transition-all duration-300 hover:border-amber-500/50 cursor-pointer gap-6 md:gap-4"
           >
             <div className="p-4 bg-amber-500/10 rounded-2xl text-amber-400 group-hover:scale-110 transition-all duration-300 shrink-0">

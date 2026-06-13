@@ -13,7 +13,7 @@ export default function GarageMap() {
   
   // Tab control state: 'navigation' | 'mobility' | 'progress' | 'invoice'
   const [activeTab, setActiveTab] = useState('navigation'); 
-  // Mobility screen selection state
+  // Mobility screen selection state 
   const [vehicleStatus, setVehicleStatus] = useState('driveable'); 
 
   // =========================================================================
