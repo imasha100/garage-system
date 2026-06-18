@@ -13,7 +13,9 @@ import AssistanceSidebar from "./AssistanceSidebar";
 import IncidentDispatch from "./IncidentDispatch";
 import CustomerCommunication from "./CustomerCommunication";
 import ResourceSchedule from "./ResourceSchedule";
-import CounterReceipt from "./CounterReceipt"; // අලුතින් එක් කළ ගොනුව
+import CounterReceipt from "./CounterReceipt";
+import ExperienceAudit from "./ExperienceAudit";
+import AssistanceProfile from "./AssistanceProfile"; // අලුතින් එක් කළ ගොනුව
 
 import garageImg from "../../assets/GarageCapacityimg.jpg";
 import carQueueImg from "../../assets/PendingVehicles.png";
@@ -61,6 +63,12 @@ export default function AssistanceDashboard() {
 
       case "Counter Ledger": // අලුතින් එක් කළ Case එක
         return <CounterReceipt />;
+
+      case "Experience Audit":
+        return <ExperienceAudit />;
+
+      case "Assistance Profile":
+        return <AssistanceProfile />;
 
       default:
         return (
