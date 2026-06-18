@@ -24,11 +24,7 @@ const IncidentDispatch = ({ onBack }) => {
       {/* Header */}
       <header className="flex justify-between items-center mb-8 gap-4">
         
-
-        <div className="flex gap-4 text-gray-400">
-          <Bell size={26} className="cursor-pointer hover:text-white" />
-          <HelpCircle size={26} className="cursor-pointer hover:text-white" />
-        </div>
+        
       </header>
 
       {/* Main content grid */}

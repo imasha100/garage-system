@@ -9,6 +9,8 @@ export default function Sidebar({ activeItem, onNavigate, isOpen, toggleSidebar 
     { icon: CalendarDays, label: "Resource Schedule" },
     { icon: ReceiptText, label: "Counter Ledger" },
     { icon: ShieldCheck, label: "Experience Audit" },
+    { icon: User, label: "Assistance Profile" },
+
   ];
 
   return (
@@ -46,9 +48,7 @@ export default function Sidebar({ activeItem, onNavigate, isOpen, toggleSidebar 
           </nav>
         </div>
         
-        <button className="w-full flex items-center cursor-pointer gap-4 px-5 py-4 text-xs font-bold tracking-widest border border-[#1a1a1a] text-gray-500 hover:border-[#333] transition-all">
-          <User size={18} /> PROFILE
-        </button>
+        
       </aside>
     </>
   );
