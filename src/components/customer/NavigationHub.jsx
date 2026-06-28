@@ -10,6 +10,7 @@ import CustomerSidebar from "./CustomerSidebar";
 import MobilityRecovery from "./MobilityRecovery";
 import LiveProgress from "./LiveProgress";
 import InvoiceLedger from "./InvoiceLedger";
+import ExperienceAudit from "./ExperienceAudit";
 
 
 export default function NavigationHub({ onNavigate, selectedGarage }) {
@@ -229,6 +230,7 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
           {activeTab === "mobility" && <MobilityRecovery />}
           {activeTab === "progress" && <LiveProgress />}
           {activeTab === "invoice" && <InvoiceLedger />}
+          {activeTab === "audit" && <ExperienceAudit />}
 
 
         </div>
