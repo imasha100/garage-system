@@ -17,7 +17,7 @@ export default function TechnicianSidebar({ activeItem, onNavigate }) {
   ];
 
   return (
-    <div className="w-72 h-screen bg-[#070b0f] text-slate-400 flex flex-col justify-between border-r-4 border-emerald-500 font-mono">
+    <div className="w-72 h-screen bg-[#070b0f] text-slate-400 flex flex-col justify-between border-r-2 border-emerald-500 font-mono">
       {/* Header */}
       <div className="p-8">
         <h1 className="text-white font-black text-2xl tracking-widest">
@@ -37,7 +37,7 @@ export default function TechnicianSidebar({ activeItem, onNavigate }) {
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
-                className={`flex items-center gap-4 px-5 py-4 rounded-xl border transition-all duration-300 ${
+                className={`flex items-center gap-4 px-5 py-4 rounded-xl cursor-pointer border transition-all duration-300 ${
                   isActive
                     ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 shadow-lg shadow-emerald-500/10"
                     : "border-emerald-900/40 bg-[#0a0e1a] text-emerald-300/60 hover:text-emerald-300 hover:border-emerald-500/50 hover:bg-emerald-500/5"
@@ -57,7 +57,7 @@ export default function TechnicianSidebar({ activeItem, onNavigate }) {
       <div className="p-6 border-t border-emerald-500/20">
         <button
           onClick={() => onNavigate("start")}
-          className="w-full flex items-center gap-4 px-5 py-4 rounded-xl border border-emerald-500/40 bg-[#0a0e1a] text-emerald-300 hover:bg-emerald-500/5 hover:border-red-500/50 transition-all duration-300"
+          className="w-full flex items-center gap-4 px-5 py-4 rounded-xl border cursor-pointer  border-emerald-500/40 bg-[#0a0e1a] text-emerald-300 hover:bg-emerald-500/5 hover:border-red-500/50 transition-all duration-300"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
           <span className="text-sm font-bold uppercase tracking-wider">

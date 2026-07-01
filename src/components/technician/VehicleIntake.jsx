@@ -67,23 +67,23 @@ export default function VehicleIntake() {
       </div>
 
       {/* WORKSPACE CONTENT */}
-      <div className="p-4 md:p-8">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Intake Terminal</h1>
-          <p className="text-slate-500 text-sm">Register new vehicle arrivals for the current shift.</p>
+          <h1 className="text-3xl font-bold text-white">Intake Terminal</h1>
+          <p className="text-slate-500 text-xl">Register new vehicle arrivals for the current shift.</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-[#10121b] border border-slate-800 p-6 rounded-lg">
             <form onSubmit={handleAddToWorkload}>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="flex items-center gap-2 text-white font-bold"><Car size={18} /> Vehicle Intake</h2>
+                <h2 className="flex items-center gap-2 text-white text-2xl font-bold"><Car size={18} /> Vehicle Intake</h2>
                 <span className="text-[10px] bg-slate-900 px-2 py-1 rounded border border-slate-700">ENTRY-702</span>
               </div>
-              <label className="text-[10px] uppercase text-slate-500 block mb-2">Vehicle License Plate</label>
+              <label className="text-[12px] uppercase text-slate-500 block mb-2">Vehicle License Plate</label>
               <input type="text" defaultValue="WP CAS 1234" className="w-full bg-[#06080e] border border-slate-700 p-3 rounded mb-4 text-white" />
               
-              <label className="text-[10px] uppercase text-slate-500 block mb-2">Estimated Repair Duration</label>
+              <label className="text-[12px] uppercase text-slate-500 block mb-2">Estimated Repair Duration</label>
               <input 
                 required
                 type="text" 
@@ -93,7 +93,7 @@ export default function VehicleIntake() {
                 className="w-full bg-[#06080e] border border-slate-700 p-3 rounded mb-6 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500" 
               />
               
-              <button type="submit" className="w-full bg-[#5244E9] py-3 rounded font-bold text-white text-sm hover:bg-[#4338ca] transition">
+              <button type="submit" className="w-full bg-[#5244E9] py-3 rounded font-bold text-white text-2xl cursor-pointer hover:bg-[#4338ca] transition">
                 <Plus size={16} className="inline mr-2" /> Add to Active Workload
               </button>
             </form>
@@ -110,12 +110,12 @@ export default function VehicleIntake() {
 
         <div className="bg-[#10121b] border border-slate-800 rounded-lg p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-white font-bold text-sm flex items-center gap-2"><Car size={16} /> Active Queue</h2>
+            <h2 className="text-white font-bold text-2xl flex items-center gap-2"><Car size={16} /> Active Queue</h2>
             <span className="text-emerald-500 text-[10px] flex items-center gap-1">● Live Updates Enabled</span>
           </div>
           <table className="w-full text-xs text-slate-400">
             <thead>
-              <tr className="border-b border-slate-800 text-[10px] uppercase">
+              <tr className="border-b border-slate-800 text-[12px] uppercase">
                 <th className="text-left pb-4">Plate</th>
                 <th className="text-left pb-4">Duration</th>
                 <th className="text-left pb-4">Time In</th>

@@ -14,6 +14,8 @@ const ResourceSchedule = () => {
     title: "",
     message: "",
     color: "#52f0ac",
+    showCancel: false, 
+    requestData: null,
   });
 
   // Details Modal State
@@ -126,11 +128,14 @@ const ResourceSchedule = () => {
     setEmergencyRequests(updatedRequests);
     setSelectedReq(updatedRequests[0] ? { ...updatedRequests[0], status: "pending" } : null);
 
+    // Popup with Cancel option
     setPopup({
       show: true,
       title: "REQUEST ACCEPTED",
       message: `${selectedReq.id} has been accepted successfully.`,
       color: "#52f0ac",
+      showCancel: true,
+      requestData: acceptedReq
     });
   };
 
@@ -151,6 +156,26 @@ const ResourceSchedule = () => {
       message: `${selectedReq.id} has been rejected successfully.`,
       color: "#f59e0b",
     });
+  };
+
+  // Cancel Handler
+  const handleCancel = (req) => {
+    setAcceptedRequests((prev) => prev.filter((r) => r.id !== req.id));
+    setCurrentCapacity((prev) => Math.max(prev - 1, 0));
+    setEmergencyRequests((prev) => [...prev, { ...req, status: "pending" }]);
+    setSelectedReq({ ...req, status: "pending" });
+    setPopup({ show: false, title: "", message: "", color: "#52f0ac", showCancel: false });
+  };
+
+  const handleListCancel = (id) => {
+    if (!window.confirm("Are you sure you want to cancel this request?")) return;
+    const request = acceptedRequests.find((r) => r.id === id);
+    if (!request) return;
+    setAcceptedRequests((prev) => prev.filter((r) => r.id !== id));
+    setCurrentCapacity((prev) => Math.max(prev - 1, 0));
+    setEmergencyRequests((prev) => [...prev, { ...request, status: "pending" }]);
+    setSelectedReq({ ...request, status: "pending" });
+    setPopup({ show: true, title: "REQUEST CANCELLED", message: `${id} has been moved back to Pending Requests.`, color: "#f59e0b" });
   };
 
   return (
@@ -184,12 +209,22 @@ const ResourceSchedule = () => {
           <div className="bg-[#15191f] border border-[#2b313d] rounded-xl p-8 w-[420px] text-center shadow-xl">
             <h2 className="text-2xl font-bold mb-4" style={{ color: popup.color }}>{popup.title}</h2>
             <p className="text-[#cbd5e1] mb-6">{popup.message}</p>
-            <button
-              onClick={() => setPopup({ show: false, title: "", message: "", color: "#52f0ac" })}
-              className="bg-[#3b82f6] hover:bg-[#45cc92] text-black font-bold px-6 py-2 rounded-lg cursor-pointer"
-            >
-              OK
-            </button>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setPopup({ show: false, title: "", message: "", color: "#52f0ac", showCancel: false })}
+                className="bg-[#3b82f6] hover:bg-[#45cc92] text-black font-bold px-6 py-2 rounded-lg cursor-pointer"
+              >
+                OK
+              </button>
+              {popup.showCancel && (
+                <button
+                  onClick={() => handleCancel(popup.requestData)}
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2 rounded-lg cursor-pointer"
+                >
+                  CANCEL
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -223,16 +258,12 @@ const ResourceSchedule = () => {
           {/* Selected Request Details */}
           {selectedReq ? (
             <div className="bg-[#15191f] rounded-xl border border-[#1a1f26] p-6 flex flex-col">
-              {/* Updated Map Section with Blue ETA/Distance */}
+              {/* Map Section */}
               <div className="h-48 rounded-lg bg-[#0b0e14] border border-[#1a1f26] flex flex-col justify-center items-center mb-6 relative overflow-hidden">
                  <MapPin size={50} className="text-[#3b82f6] animate-pulse" />
                  <div className="flex gap-4 mt-4 bg-black/40 px-4 py-2 rounded-lg border border-[#3b82f6]/30">
-                    <div className="flex items-center gap-2 text-[#3b82f6]">
-                        <Clock size={16} /> <span className="font-bold">{selectedReq.eta}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[#3b82f6]">
-                        <Navigation size={16} /> <span className="font-bold">{selectedReq.dist}</span>
-                    </div>
+                    <div className="flex items-center gap-2 text-[#3b82f6]"><Clock size={16} /> <span className="font-bold">{selectedReq.eta}</span></div>
+                    <div className="flex items-center gap-2 text-[#3b82f6]"><Navigation size={16} /> <span className="font-bold">{selectedReq.dist}</span></div>
                  </div>
                  <p className="mt-2 text-[10px] text-[#3b82f6] uppercase tracking-widest">{selectedReq.loc}</p>
               </div>
@@ -261,7 +292,7 @@ const ResourceSchedule = () => {
           )}
         </div>
 
-        {/* Bottom Section: Technicians */}
+        {/* Bottom Section */}
         <div className="grid xl:grid-cols-2 gap-6">
           <div className="bg-[#15191f] rounded-xl border border-[#1a1f26] p-6">
             <h2 className="text-[#3b82f6] font-bold mb-5">AVAILABLE TECHNICIANS</h2>
@@ -298,7 +329,10 @@ const ResourceSchedule = () => {
             {acceptedRequests.map(req => (
               <div key={req.id} className="bg-[#0b0e14] border border-[#1a2e26] rounded-lg p-4 mb-3 flex justify-between items-center">
                 <div><p className="text-white font-bold">{req.id} - {req.vNo}</p><p className="text-xs text-[#52f0ac]">Accepted</p></div>
-                <button onClick={() => setShowDetailsModal(req)} className="bg-[#3b82f6] text-black px-3 py-1 rounded text-xs font-bold cursor-pointer">VIEW DETAILS</button>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowDetailsModal(req)} className="bg-[#3b82f6] text-black px-3 py-1 rounded text-xs font-bold cursor-pointer">VIEW DETAILS</button>
+                  
+                </div>
               </div>
             ))}
           </div>

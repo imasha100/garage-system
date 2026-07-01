@@ -32,14 +32,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="px-6 max-w-7xl mx-auto py-8">
         {/* Welcome Section */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-xl font-bold text-white">Welcome Back, Alex Chen</h1>
-            <p className="text-slate-500 text-sm">You have 4 remaining high-priority diagnostics today.</p>
+            <h1 className="text-3xl font-bold text-white">Welcome Back, Alex Chen</h1>
+            <p className="text-slate-500 text-xl">You have 4 remaining high-priority diagnostics today.</p>
           </div>
-          <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 font-bold transition text-sm">
+          <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 font-bold transition text-xl">
             <Plus size={16} /> Start New Intake
           </button>
         </div>
@@ -53,7 +53,7 @@ export default function Dashboard() {
           ].map((card, i) => (
             <div key={i} className="bg-[#10121b] border border-slate-800 p-5 rounded-xl relative overflow-hidden">
               <div className="flex justify-between items-start mb-2">
-                <p className="text-slate-400 text-[10px] uppercase tracking-widest">{card.label}</p>
+                <p className="text-slate-400 text-[12px] uppercase tracking-widest">{card.label}</p>
                 <span className="text-[8px] border border-slate-700 px-1.5 py-0.5 rounded text-slate-500">{card.tag}</span>
               </div>
               <h2 className="text-3xl font-black text-white">{card.value}</h2>
@@ -84,7 +84,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-6">
             {/* Current Active Task */}
             <div className="bg-[#10121b] border border-slate-800 p-6 rounded-xl">
-              <h3 className="text-white font-bold text-sm mb-4">Current Active Task</h3>
+              <h3 className="text-white font-bold text-2xl mb-4">Current Active Task</h3>
               <div className="flex justify-between text-xs mb-2">
                 <p className="font-bold text-white">B-7729-TX</p>
                 <span className="bg-slate-800 px-2 rounded text-[9px]">IN_PROGRESS</span>
@@ -96,7 +96,7 @@ export default function Dashboard() {
 
             {/* Queue Preview */}
             <div className="bg-[#10121b] border border-slate-800 p-6 rounded-xl">
-              <div className="flex justify-between mb-4"><h3 className="text-white font-bold text-sm">Queue Preview</h3><span className="text-[10px] text-slate-500 cursor-pointer">View All</span></div>
+              <div className="flex justify-between mb-4"><h3 className="text-white font-bold text-2xl">Queue Preview</h3><span className="text-[10px] text-slate-500 cursor-pointer">View All</span></div>
               {[["09", "VW Golf GTI", "Brake Pad Replacement"], ["10", "Audi RS6", "Oil System Flush"], ["11", "Ford F-150", "Suspension Tuning"]].map((item, i) => (
                 <div key={i} className="flex items-center gap-4 border-b border-slate-800/50 py-3 last:border-0">
                   <span className="text-[10px] bg-slate-900 px-2 py-1 rounded">{item[0]}</span>
