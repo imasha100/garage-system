@@ -1,11 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Bell, HelpCircle, Plus } from 'lucide-react';
 import avatarImage from '../../assets/profile.png'; 
 
 export default function TechnicianProfile() {
   const [isOnShift, setIsOnShift] = useState(true);
+  const [shiftStartTime, setShiftStartTime] = useState(Date.now());
+  const [duration, setDuration] = useState("00:00:00");
   const [skills, setSkills] = useState(['Hybrid Expert', 'Electrical Specialist', 'Brake Systems L2']);
   const [newSkill, setNewSkill] = useState('');
+  
+  // Shift History State
+  const [shiftHistory, setShiftHistory] = useState([
+    { date: 'Oct 24, 2023', dur: '08h 12m', status: 'VERIFIED' },
+    { date: 'Oct 23, 2023', dur: '07h 55m', status: 'VERIFIED' },
+    { date: 'Oct 22, 2023', dur: '09h 05m', status: 'PENDING' }
+  ]);
+
+  // Shift Timer Logic
+  useEffect(() => {
+    let interval;
+    if (isOnShift) {
+      interval = setInterval(() => {
+        const diff = Date.now() - shiftStartTime;
+
+        const hours = Math.floor(diff / 1000 / 60 / 60);
+        const minutes = Math.floor((diff / 1000 / 60) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+
+        setDuration(
+          `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+        );
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isOnShift, shiftStartTime]);
+
+  const toggleShift = () => {
+    if (isOnShift) {
+      // Shift OFF කරන විට දත්තය Recent Shifts වලට එකතු කරන්න
+      const newEntry = {
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        dur: duration.split(':')[0] + 'h ' + duration.split(':')[1] + 'm',
+        status: 'VERIFIED'
+      };
+      setShiftHistory([newEntry, ...shiftHistory]);
+      setIsOnShift(false);
+    } else {
+      // Shift ON කරන විට
+      setShiftStartTime(Date.now());
+      setDuration("00:00:00");
+      setIsOnShift(true);
+    }
+  };
 
   const addSkill = (e) => {
     e.preventDefault();
@@ -21,7 +67,6 @@ export default function TechnicianProfile() {
 
   return (
     <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono">
-      
       {/* PROFESSIONAL ENTERPRISE HEADER */}
       <div className="bg-[#111827]/90 backdrop-blur-xl border-b border-slate-800 px-6 py-3 flex items-center">
         <div className="flex items-center gap-3 w-48">
@@ -48,20 +93,19 @@ export default function TechnicianProfile() {
         </div>
       </div>
 
-      <div className="p-8 max-w-7xl mx-auto">
-        {/* Title Section */}
+      <div className="py-8 px-6 max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-white">Technician Profile</h1>
-            <p className="text-slate-500 text-sm">Manage your professional credentials and shift availability.</p>
+            <h1 className="text-3xl font-bold text-white">Technician Profile</h1>
+            <p className="text-slate-500 text-xl">Manage your professional credentials and shift availability.</p>
           </div>
-          <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold transition text-xs uppercase tracking-widest">
+          <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md font-bold transition text-sm cursor-pointer uppercase tracking-widest">
             Save Changes
           </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Personal Info with Animation */}
+          {/* Left Column: Personal Info */}
           <div className="bg-[#10121b] border border-slate-800 p-8 rounded-xl text-center">
             <div className="relative w-32 h-32 mx-auto mb-4 flex items-center justify-center">
               <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500 via-emerald-400 to-indigo-500 animate-spin-slow" />
@@ -72,10 +116,6 @@ export default function TechnicianProfile() {
             </div>
             <h2 className="text-xl font-bold text-white">Marco Rossi</h2>
             <p className="text-indigo-400 text-xs uppercase tracking-widest mb-6">Master Technician</p>
-            <div className="bg-[#0a0d14] p-4 rounded-lg text-left border border-slate-800 space-y-2">
-              <div className="flex justify-between text-[10px]"><span className="text-slate-500">WORKSHOP BAY</span><span className="text-white">Bay 01 - Hybrid/EV</span></div>
-              <div className="flex justify-between text-[10px]"><span className="text-slate-500">SECURITY CLEARANCE</span><span className="text-amber-500 font-bold">LEVEL 4</span></div>
-            </div>
           </div>
 
           {/* Right Column: Attendance & Shifts */}
@@ -87,20 +127,30 @@ export default function TechnicianProfile() {
                     <h3 className="text-xl font-bold text-white">Shift Status</h3>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-[10px] px-3 py-1 rounded-full flex items-center gap-2 ${isOnShift ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                      <div className={`w-2 h-2 rounded-full ${isOnShift ? 'bg-emerald-500' : 'bg-rose-500'}`} /> 
+                    <span className={`text-[10px] px-3 py-1 cursor-pointer rounded-full flex items-center gap-2 ${isOnShift ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                      <div className={`w-2 h-2 cursor-pointer rounded-full ${isOnShift ? 'bg-emerald-500' : 'bg-rose-500'}`} /> 
                       {isOnShift ? 'Currently On-Shift' : 'Currently Off-Shift'}
                     </span>
-                    <button onClick={() => setIsOnShift(!isOnShift)} className={`w-12 h-6 rounded-full p-1 transition-all duration-300 ${isOnShift ? 'bg-emerald-500' : 'bg-slate-700'}`}>
+                    <button onClick={toggleShift} className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-all duration-300 ${isOnShift ? 'bg-emerald-500' : 'bg-slate-700'}`}>
                       <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isOnShift ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
                   </div>
                </div>
-               <h2 className="text-4xl font-black text-white mb-2">08:42 <span className="text-sm font-normal text-slate-500">Current Duration</span></h2>
+               
+               <h2 className="text-4xl font-black text-white mb-2">
+                 {duration}
+                 <span className="text-sm font-normal text-slate-500 ml-2">Current Duration</span>
+               </h2>
+               
                <div className="w-full bg-slate-800 h-2 rounded-full mb-6">
                  <div className={`h-full rounded-full transition-all duration-500 ${isOnShift ? 'w-2/3 bg-indigo-500' : 'w-0'}`} />
                </div>
-               <p className="text-[10px] text-slate-500">{isOnShift ? "Shift began at 07:30 AM." : "Shift is currently inactive."}</p>
+               
+               <p className="text-[10px] text-slate-500">
+                {isOnShift 
+                  ? `Shift began at ${new Date(shiftStartTime).toLocaleTimeString()}` 
+                  : "Shift is currently inactive."}
+               </p>
             </div>
           </div>
         </div>
@@ -111,8 +161,8 @@ export default function TechnicianProfile() {
              <h3 className="text-white font-bold text-sm mb-4">Skill Categories</h3>
              {skills.map((skill, i) => (
                <div key={i} className="bg-[#0a0d14] border border-slate-800 p-3 mb-2 rounded text-[11px] text-slate-300 flex justify-between">
-                 {skill}
-                 <button onClick={() => removeSkill(i)} className="text-red-500 hover:text-red-300">×</button>
+                  {skill}
+                  <button onClick={() => removeSkill(i)} className="text-red-500 hover:text-red-300">×</button>
                </div>
              ))}
              <form onSubmit={addSkill} className="flex gap-2 mt-4">
@@ -130,13 +180,10 @@ export default function TechnicianProfile() {
                  </tr>
                </thead>
                <tbody>
-                  {[
-                    {date: 'Oct 24, 2023', dur: '08h 12m', status: 'VERIFIED'},
-                    {date: 'Oct 23, 2023', dur: '07h 55m', status: 'VERIFIED'},
-                    {date: 'Oct 22, 2023', dur: '09h 05m', status: 'PENDING'}
-                  ].map((row, i) => (
+                  {shiftHistory.map((row, i) => (
                     <tr key={i} className="border-b border-slate-800/50">
-                      <td className="py-3">{row.date}</td><td className="py-3">{row.dur}</td>
+                      <td className="py-3">{row.date}</td>
+                      <td className="py-3">{row.dur}</td>
                       <td className={`py-3 ${row.status === 'PENDING' ? 'text-amber-500' : 'text-emerald-500'}`}>{row.status}</td>
                     </tr>
                   ))}
