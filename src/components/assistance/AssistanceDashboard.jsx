@@ -15,13 +15,13 @@ import CustomerCommunication from "./CustomerCommunication";
 import ResourceSchedule from "./ResourceSchedule";
 import CounterReceipt from "./CounterReceipt";
 import ExperienceAudit from "./ExperienceAudit";
-import AssistanceProfile from "./AssistanceProfile"; // අලුතින් එක් කළ ගොනුව
+import AssistanceProfile from "./AssistanceProfile";
 
 import garageImg from "../../assets/GarageCapacityimg.jpg";
 import carQueueImg from "../../assets/PendingVehicles.png";
 import techImg from "../../assets/Tech.jpg";
 
-export default function AssistanceDashboard() {
+export default function AssistanceDashboard({ resourceRequests = [] }) {
   const [view, setView] = useState("Dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -38,7 +38,7 @@ export default function AssistanceDashboard() {
     },
     {
       label: "Pending Vehicles",
-      val: "04",
+      val: String(resourceRequests.length + 4).padStart(2, "0"),
       icon: Car,
       img: carQueueImg,
     },
@@ -59,9 +59,9 @@ export default function AssistanceDashboard() {
         return <CustomerCommunication />;
 
       case "Resource Schedule":
-        return <ResourceSchedule />;
+        return <ResourceSchedule resourceRequests={resourceRequests} />;
 
-      case "Counter Ledger": // අලුතින් එක් කළ Case එක
+      case "Counter Ledger":
         return <CounterReceipt />;
 
       case "Experience Audit":
@@ -87,9 +87,7 @@ export default function AssistanceDashboard() {
               {stats.map((stat, i) => (
                 <div
                   key={i}
-                  style={{
-                    animationDelay: `${i * 0.2}s`,
-                  }}
+                  style={{ animationDelay: `${i * 0.2}s` }}
                   className="opacity-0 animate-[fadeIn_0.8s_ease-out_forwards] bg-gradient-to-b from-blue-950/30 to-black rounded-2xl border border-blue-900/40 overflow-hidden transition-all duration-300 hover:-translate-y-3 hover:scale-[1.02] hover:border-blue-500 hover:shadow-[0_0_30px_rgba(59,130,246,0.35)]"
                 >
                   <div className="w-full h-64 overflow-hidden">
