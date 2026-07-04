@@ -15,7 +15,7 @@ export default function Sidebar({ activeItem, onNavigate, isOpen, toggleSidebar 
 
   return (
     <>
-      {/* Mobile Overlay: Sidebar එක විවෘත විට පිටුපස අඳුරු කරන ස්ථරය */}
+      
       {isOpen && (
         <div className="md:hidden fixed inset-0 bg-black/80 z-40" onClick={toggleSidebar}></div>
       )}
