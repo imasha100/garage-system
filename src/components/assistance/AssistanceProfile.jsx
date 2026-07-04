@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Upload, Power, PowerOff, User, Save, X } from "lucide-react";
+import { Upload, Power, PowerOff, User, Save, X, Mail, Phone } from "lucide-react";
 import { motion } from "framer-motion";
 
 const AssistanceProfile = () => {
   const [profile, setProfile] = useState({
     name: "Assistance Officer",
-    role: "Technical Support Agent",
+    email: "assistance@gmail.com",
+    contactNumber: "0771234567",
     shiftOn: true,
     photo: null,
   });
@@ -94,16 +95,39 @@ const AssistanceProfile = () => {
             placeholder="Name"
           />
 
-          <input
-            type="text"
-            value={profile.role}
-            onChange={(e) => {
-              setProfile({ ...profile, role: e.target.value });
-              setSaved(false);
-            }}
-            className="w-full p-3 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
-            placeholder="Role"
-          />
+          <div className="relative">
+            <Mail
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+            />
+            <input
+              type="email"
+              value={profile.email}
+              onChange={(e) => {
+                setProfile({ ...profile, email: e.target.value });
+                setSaved(false);
+              }}
+              className="w-full p-3 pl-10 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
+              placeholder="Email"
+            />
+          </div>
+
+          <div className="relative">
+            <Phone
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+            />
+            <input
+              type="tel"
+              value={profile.contactNumber}
+              onChange={(e) => {
+                setProfile({ ...profile, contactNumber: e.target.value });
+                setSaved(false);
+              }}
+              className="w-full p-3 pl-10 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
+              placeholder="Contact Number"
+            />
+          </div>
         </div>
 
         {/* SHIFT STATUS */}
@@ -161,11 +185,11 @@ const AssistanceProfile = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.85, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="w-full max-w-sm bg-[#0b0e14] border border-cyan-500/40 rounded-2xl p-6 shadow-2xl text-center"
+            className="relative w-full max-w-sm bg-[#0b0e14] border border-cyan-500/40 rounded-2xl p-6 shadow-2xl text-center"
           >
             <button
               onClick={() => setShowConfirm(false)}
-              className="absolute mt-0 ml-[300px] text-gray-400 hover:text-white"
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
             >
               <X size={22} />
             </button>
@@ -190,7 +214,9 @@ const AssistanceProfile = () => {
               Are you sure you want to turn your shift{" "}
               <span
                 className={
-                  nextStatus === "ON" ? "text-green-400 font-bold" : "text-red-400 font-bold"
+                  nextStatus === "ON"
+                    ? "text-green-400 font-bold"
+                    : "text-red-400 font-bold"
                 }
               >
                 {nextStatus}
