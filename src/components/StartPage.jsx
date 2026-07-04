@@ -11,11 +11,9 @@ import { motion } from "framer-motion";
 export default function StartPage({ onNavigate }) {
   return (
     <div className="w-full min-h-screen bg-slate-950 flex flex-col justify-between p-4 md:p-12 relative overflow-hidden text-white">
-      {/* Background Glow */}
       <div className="absolute top-20 left-0 w-72 h-72 md:w-[500px] md:h-[500px] bg-teal-500/10 rounded-full blur-[140px]" />
       <div className="absolute bottom-20 right-0 w-72 h-72 md:w-[500px] md:h-[500px] bg-red-500/10 rounded-full blur-[140px]" />
 
-      {/* Logo Section */}
       <motion.div
         initial={{ opacity: 0, y: -25 }}
         animate={{ opacity: 1, y: 0 }}
@@ -34,7 +32,6 @@ export default function StartPage({ onNavigate }) {
         </h1>
       </motion.div>
 
-      {/* Emergency Button */}
       <div className="flex flex-col items-center justify-center flex-1 z-10 py-8">
         <motion.button
           initial={{ opacity: 0, y: 30, scale: 0.96 }}
@@ -61,7 +58,6 @@ export default function StartPage({ onNavigate }) {
         </motion.button>
       </div>
 
-      {/* Bottom Cards */}
       <motion.div
         initial={{ opacity: 0, y: 35 }}
         animate={{ opacity: 1, y: 0 }}
@@ -71,12 +67,10 @@ export default function StartPage({ onNavigate }) {
         <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent mb-6" />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-
-          {/* Garage Owner */}
           <motion.button
             whileHover={{ y: -4 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => onNavigate("Live Dashboard")}
+            onClick={() => onNavigate("garage-owner-login")}
             className="group flex items-center md:flex-col p-6 bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-700 transition-all duration-300 hover:border-blue-500/50 cursor-pointer gap-6 md:gap-4"
           >
             <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-400 group-hover:scale-110 transition-all duration-300 shrink-0">
@@ -88,11 +82,10 @@ export default function StartPage({ onNavigate }) {
             </span>
           </motion.button>
 
-          {/* Technician */}
           <motion.button
             whileHover={{ y: -4 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => onNavigate("technician-intake")}
+            onClick={() => onNavigate("technician-login")}
             className="group flex items-center md:flex-col p-6 bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-700 transition-all duration-300 hover:border-emerald-500/50 cursor-pointer gap-6 md:gap-4"
           >
             <div className="p-4 bg-emerald-500/10 rounded-2xl text-emerald-400 group-hover:scale-110 transition-all duration-300 shrink-0">
@@ -104,11 +97,10 @@ export default function StartPage({ onNavigate }) {
             </span>
           </motion.button>
 
-          {/* Assistance */}
           <motion.button
             whileHover={{ y: -4 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => onNavigate("assistance-dashboard")}
+            onClick={() => onNavigate("assistance-login")}
             className="group flex items-center md:flex-col p-6 bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-700 transition-all duration-300 hover:border-amber-500/50 cursor-pointer gap-6 md:gap-4"
           >
             <div className="p-4 bg-amber-500/10 rounded-2xl text-amber-400 group-hover:scale-110 transition-all duration-300 shrink-0">
@@ -119,7 +111,6 @@ export default function StartPage({ onNavigate }) {
               Assistance
             </span>
           </motion.button>
-
         </div>
       </motion.div>
     </div>

@@ -4,16 +4,31 @@ import {
   LayoutDashboard,
   ClipboardList,
   User,
-  Settings,
   LogOut,
 } from "lucide-react";
 
 export default function TechnicianSidebar({ activeItem, onNavigate }) {
   const menuItems = [
-    { id: "technician-intake", label: "Vehicle Intake", icon: Wrench },
-    { id: "technician-dashboard", label: "Work Dashboard", icon: LayoutDashboard },
-    { id: "task-logs", label: "Task History", icon: ClipboardList },
-    { id: "technician-profile", label: "Profile", icon: User },
+    {
+      id: "technician-dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      id: "technician-intake",
+      label: "Vehicle Intake",
+      icon: Wrench,
+    },
+    {
+      id: "task-logs",
+      label: "Task History",
+      icon: ClipboardList,
+    },
+    {
+      id: "technician-profile",
+      label: "Profile",
+      icon: User,
+    },
   ];
 
   return (
@@ -23,6 +38,7 @@ export default function TechnicianSidebar({ activeItem, onNavigate }) {
         <h1 className="text-white font-black text-2xl tracking-widest">
           TECHSUITE
         </h1>
+
         <p className="text-xs text-emerald-500 uppercase tracking-[0.2em] mt-2">
           Precision Ops
         </p>
@@ -44,6 +60,7 @@ export default function TechnicianSidebar({ activeItem, onNavigate }) {
                 }`}
               >
                 <Icon className="w-5 h-5 shrink-0" />
+
                 <span className="text-sm font-bold uppercase tracking-wider text-left">
                   {item.label}
                 </span>
@@ -57,9 +74,10 @@ export default function TechnicianSidebar({ activeItem, onNavigate }) {
       <div className="p-6 border-t border-emerald-500/20">
         <button
           onClick={() => onNavigate("start")}
-          className="w-full flex items-center gap-4 px-5 py-4 rounded-xl border cursor-pointer  border-emerald-500/40 bg-[#0a0e1a] text-emerald-300 hover:bg-emerald-500/5 hover:border-red-500/50 transition-all duration-300"
+          className="w-full flex items-center gap-4 px-5 py-4 rounded-xl border cursor-pointer border-emerald-500/40 bg-[#0a0e1a] text-emerald-300 hover:bg-emerald-500/5 hover:border-red-500/50 transition-all duration-300"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
+
           <span className="text-sm font-bold uppercase tracking-wider">
             Logout
           </span>
