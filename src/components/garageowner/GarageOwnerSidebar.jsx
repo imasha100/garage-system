@@ -8,6 +8,7 @@ import {
   User,
   LogOut,
   X,
+  Settings2,
 } from "lucide-react";
 
 export default function GarageOwnerSidebar({
@@ -22,6 +23,7 @@ export default function GarageOwnerSidebar({
     { icon: BarChart3, label: "Performance Audit" },
     { icon: ShieldCheck, label: "Service Quality" },
     { icon: DollarSign, label: "Profit Loss" },
+    { icon: Settings2, label: "Registration" },
     { icon: User, label: "Owner Profile" },
   ];
 
@@ -35,10 +37,6 @@ export default function GarageOwnerSidebar({
 
   const handleLogout = () => {
     onNavigate("logout");
-
-    if (window.innerWidth < 768) {
-      closeSidebar();
-    }
   };
 
   return (

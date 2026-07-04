@@ -20,6 +20,9 @@ import PerformanceAudit from "./components/garageOwner/PerformanceAudit";
 import ServiceQuality from "./components/garageOwner/ServiceQuality";
 import ProfitLoss from "./components/garageOwner/ProfitLoss";
 import OwnerProfile from "./components/garageOwner/OwnerProfile";
+import RegistrationCenter from "./components/garageOwner/RegistrationCenter";
+import TechRegistration from "./components/garageOwner/TechRegistration";
+import TruckRegistration from "./components/garageOwner/TruckRegistration";
 
 function App() {
   const [currentPage, setCurrentPage] = useState("start");
@@ -27,21 +30,13 @@ function App() {
   const [resourceRequests, setResourceRequests] = useState([]);
   const [ownerSidebarOpen, setOwnerSidebarOpen] = useState(false);
 
-  const openOwnerSidebar = () => {
-    setOwnerSidebarOpen(true);
-  };
-
-  const closeOwnerSidebar = () => {
-    setOwnerSidebarOpen(false);
-  };
-
   const handleNavigate = (page) => {
     if (page === "logout") {
       localStorage.clear();
       sessionStorage.clear();
       setSelectedGarage(null);
       setResourceRequests([]);
-      closeOwnerSidebar();
+      setOwnerSidebarOpen(false);
       setCurrentPage("start");
       return;
     }
@@ -49,7 +44,7 @@ function App() {
     setCurrentPage(page);
 
     if (window.innerWidth < 768) {
-      closeOwnerSidebar();
+      setOwnerSidebarOpen(false);
     }
   };
 
@@ -62,9 +57,7 @@ function App() {
         />
       </div>
 
-      <main className="flex-1 h-screen overflow-y-auto">
-        {children}
-      </main>
+      <main className="flex-1 h-screen overflow-y-auto">{children}</main>
     </div>
   );
 
@@ -74,7 +67,7 @@ function App() {
         activeItem={currentPage}
         onNavigate={handleNavigate}
         isOpen={ownerSidebarOpen}
-        closeSidebar={closeOwnerSidebar}
+        closeSidebar={() => setOwnerSidebarOpen(false)}
       />
 
       <main className="flex-1 h-screen overflow-y-auto w-full">
@@ -147,42 +140,66 @@ function App() {
     case "Live Dashboard":
       return (
         <GarageOwnerLayout>
-          <LiveDashboard toggleSidebar={openOwnerSidebar} />
+          <LiveDashboard toggleSidebar={() => setOwnerSidebarOpen(true)} />
         </GarageOwnerLayout>
       );
 
     case "Resource Matrix":
       return (
         <GarageOwnerLayout>
-          <ResourceMatrix toggleSidebar={openOwnerSidebar} />
+          <ResourceMatrix toggleSidebar={() => setOwnerSidebarOpen(true)} />
         </GarageOwnerLayout>
       );
 
     case "Performance Audit":
       return (
         <GarageOwnerLayout>
-          <PerformanceAudit toggleSidebar={openOwnerSidebar} />
+          <PerformanceAudit toggleSidebar={() => setOwnerSidebarOpen(true)} />
         </GarageOwnerLayout>
       );
 
     case "Service Quality":
       return (
         <GarageOwnerLayout>
-          <ServiceQuality toggleSidebar={openOwnerSidebar} />
+          <ServiceQuality toggleSidebar={() => setOwnerSidebarOpen(true)} />
         </GarageOwnerLayout>
       );
 
     case "Profit Loss":
       return (
         <GarageOwnerLayout>
-          <ProfitLoss toggleSidebar={openOwnerSidebar} />
+          <ProfitLoss toggleSidebar={() => setOwnerSidebarOpen(true)} />
+        </GarageOwnerLayout>
+      );
+
+    case "Registration":
+      return (
+        <GarageOwnerLayout>
+          <RegistrationCenter
+            toggleSidebar={() => setOwnerSidebarOpen(true)}
+            onNavigate={handleNavigate}
+          />
+        </GarageOwnerLayout>
+      );
+
+    case "technician-registration":
+      return (
+        <GarageOwnerLayout>
+          <TechRegistration toggleSidebar={() => setOwnerSidebarOpen(true)} />
+        </GarageOwnerLayout>
+      );
+
+    case "truck-registration":
+      return (
+        <GarageOwnerLayout>
+          <TruckRegistration toggleSidebar={() => setOwnerSidebarOpen(true)} />
         </GarageOwnerLayout>
       );
 
     case "Owner Profile":
       return (
         <GarageOwnerLayout>
-          <OwnerProfile toggleSidebar={openOwnerSidebar} />
+          <OwnerProfile toggleSidebar={() => setOwnerSidebarOpen(true)} />
         </GarageOwnerLayout>
       );
 
