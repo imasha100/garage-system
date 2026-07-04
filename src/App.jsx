@@ -10,10 +10,13 @@ import TechnicianDashboard from "./components/technician/TechnicianDashboard";
 import TechnicianSidebar from "./components/technician/TechnicianSidebar";
 import TechnicianProfile from "./components/technician/TechnicianProfile";
 import TaskHistory from "./components/technician/TaskHistory";
+import TechLogin from "./components/technician/TechLogin";
 
 import AssistanceDashboard from "./components/assistance/AssistanceDashboard";
+import AssistanceLogin from "./components/assistance/AssistanceLogin";
 
 import GarageOwnerSidebar from "./components/garageOwner/GarageOwnerSidebar";
+import GarageOwnerLogin from "./components/garageOwner/GarageOwnerLogin";
 import LiveDashboard from "./components/garageOwner/LiveDashboard";
 import ResourceMatrix from "./components/garageOwner/ResourceMatrix";
 import PerformanceAudit from "./components/garageOwner/PerformanceAudit";
@@ -82,6 +85,15 @@ function App() {
 
     case "customer-login":
       return <CustomerLogin onNavigate={handleNavigate} />;
+
+    case "garage-owner-login":
+      return <GarageOwnerLogin onNavigate={handleNavigate} />;
+
+    case "technician-login":
+      return <TechLogin onNavigate={handleNavigate} />;
+
+    case "assistance-login":
+      return <AssistanceLogin onNavigate={handleNavigate} />;
 
     case "garage-map":
       return (
