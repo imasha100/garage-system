@@ -7,7 +7,6 @@ import {
   RotateCcw,
   MessageSquare,
   Filter,
-  TrendingUp,
   Cloud,
 } from "lucide-react";
 
@@ -80,12 +79,14 @@ export default function ServiceQuality({ toggleSidebar }) {
         <div className="flex items-center justify-between md:justify-end gap-5">
           <Bell size={18} className="text-gray-300" />
           <div className="h-8 w-px bg-white/10" />
+
           <div>
             <p className="text-xs font-bold tracking-widest">Master Admin</p>
             <p className="text-[10px] text-indigo-400 uppercase">
               Owner Level
             </p>
           </div>
+
           <div className="w-9 h-9 rounded-xl border border-indigo-400 flex items-center justify-center text-xs">
             MA
           </div>
@@ -203,46 +204,8 @@ export default function ServiceQuality({ toggleSidebar }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="bg-[#191923] border border-white/10 rounded-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-[11px] font-bold tracking-[0.25em] text-gray-500 uppercase">
-                7-Day Sentiment Variance
-              </h2>
-              <TrendingUp size={17} className="text-gray-400" />
-            </div>
-
-            <div className="relative h-56 border border-white/10 rounded bg-[#12121a] overflow-hidden">
-              <div className="absolute inset-0 opacity-20 bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)] bg-[size:40px_30px]" />
-              <svg
-                viewBox="0 0 500 220"
-                className="absolute inset-0 w-full h-full"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M0 200 C80 190, 70 120, 130 110 C190 100, 210 70, 260 85 C320 100, 340 40, 390 60 C430 70, 440 10, 500 20"
-                  fill="none"
-                  stroke="#1d4ed8"
-                  strokeWidth="4"
-                  opacity="0.7"
-                />
-                <path
-                  d="M0 210 C80 205, 80 150, 150 130 C230 110, 240 95, 300 90 C360 85, 380 55, 430 40 C460 25, 470 5, 500 10"
-                  fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="3"
-                  opacity="0.5"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <p className="text-[10px] text-gray-400 font-mono">
-                  Real-time Sentiment Stream [ENCRYPTED]
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[#191923] border border-white/10 rounded-lg p-6">
+        <div className="flex justify-center">
+          <div className="bg-[#191923] border border-white/10 rounded-lg p-6 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-10">
               <h2 className="text-[11px] font-bold tracking-[0.25em] text-gray-500 uppercase">
                 Common Customer Complaints

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 
-// 👇 local image import (change path according to your folder)
+//  local image import (change path according to your folder)
 import techImage from "../../assets/profile.png";
 
 export default function LiveProgress() {

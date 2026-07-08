@@ -1,13 +1,33 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Plus,
-  Minus,
   X,
   Clock,
   MapPin,
   User,
   Users,
 } from "lucide-react";
+
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  CircleMarker,
+} from "react-leaflet";
+
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 export default function GarageMap({
   onNavigate,
@@ -18,6 +38,7 @@ export default function GarageMap({
   const [isRequested, setIsRequested] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [userLocation, setUserLocation] = useState([6.9271, 79.8612]);
 
   const [requestData, setRequestData] = useState({
     customerName: "",
@@ -25,6 +46,22 @@ export default function GarageMap({
     vehicleNumber: "",
     vehicleType: "",
   });
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([
+            position.coords.latitude,
+            position.coords.longitude,
+          ]);
+        },
+        () => {
+          setUserLocation([6.9271, 79.8612]);
+        }
+      );
+    }
+  }, []);
 
   const garagesData = {
     malabe: {
@@ -36,12 +73,15 @@ export default function GarageMap({
       status: "NEAREST & RECOMMENDED",
       specialization: "Hybrid Powertrain Experts Available",
       specDesc: "Node specialized in Toyota/Lexus/Honda high-voltage systems.",
+      lat: 6.9068,
+      lng: 79.9696,
       freeTechs: [
         { name: "Kamal Silva", expert: "Hybrid & EV Battery Diagnosis" },
         { name: "Nuwan Perera", expert: "Auto Electrical & ECU Tuning" },
         { name: "Sahan Fernando", expert: "Suspension & Brake Systems" },
       ],
     },
+
     kadawatha: {
       id: "KADAWATHA",
       name: "KADAWATHA HIGHWAY HUB",
@@ -52,8 +92,11 @@ export default function GarageMap({
       specialization: "Heavy Mechanical Specialists",
       specDesc:
         "Expertise in diesel turbo engines, transmission rebuilds, and highway recovery.",
+      lat: 7.0013,
+      lng: 79.9497,
       freeTechs: [],
     },
+
     kaduwela: {
       id: "KADUWELA",
       name: "KADUWELA CENTRAL HUB",
@@ -64,6 +107,8 @@ export default function GarageMap({
       specialization: "General Mechanical & Scanning",
       specDesc:
         "Multi-brand vehicle scanners and quick routine recovery support.",
+      lat: 6.9344,
+      lng: 79.9845,
       freeTechs: [
         { name: "Roshan Alwis", expert: "Engine Overhauling & Scanning" },
       ],
@@ -125,7 +170,6 @@ export default function GarageMap({
     const updatedRequests = [newRequest, ...oldRequests];
 
     sessionStorage.setItem("resourceRequests", JSON.stringify(updatedRequests));
-
     window.dispatchEvent(new Event("resourceRequestsUpdated"));
 
     if (setResourceRequests) {
@@ -144,12 +188,15 @@ export default function GarageMap({
   };
 
   return (
-    <div className="w-screen h-screen max-h-screen overflow-hidden bg-[#02050b] text-[#cbd5e1] font-mono flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+    <div className="w-screen h-screen max-h-screen overflow-hidden bg-[#02050b] text-[#cbd5e1] font-mono flex flex-col">
       <div className="w-full h-14 border-b border-slate-900 bg-[#02050b]/90 backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-20 text-xs shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="flex h-2 w-2 relative shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+          </span>
+          <span className="text-slate-400 font-bold tracking-widest">
+            LIVE GARAGE MAP
           </span>
         </div>
 
@@ -170,124 +217,70 @@ export default function GarageMap({
       </div>
 
       <div className="flex-1 w-full relative overflow-hidden">
-        <div
-          className="absolute inset-0 z-0 opacity-[0.22] bg-cover bg-center bg-no-repeat pointer-events-none"
-          style={{
-            backgroundImage:
-              "url('https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?auto=format&fit=crop&w=1600&q=90')",
-            WebkitFilter:
-              "brightness(0.3) contrast(1.8) saturate(0.4) hue-rotate(185deg)",
-            filter:
-              "brightness(0.3) contrast(1.8) saturate(0.4) hue-rotate(185deg)",
-          }}
-        />
-
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(2,5,11,0.05)_0%,#02050b_95%)] pointer-events-none z-0" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#081022_1px,transparent_1px),linear-gradient(to_bottom,#081022_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-30 z-0 pointer-events-none" />
-
-        <div
-          onClick={() => handleSelectGarage(garagesData.kadawatha)}
-          className="absolute top-[6%] left-[2%] md:top-[12%] md:left-[12%] cursor-pointer group z-10 transition-all w-[58vw] md:w-auto"
+        <MapContainer
+          center={userLocation}
+          zoom={12}
+          scrollWheelZoom={true}
+          className="w-full h-full z-0"
         >
-          <div className="flex flex-col items-start">
-            <div className="w-3.5 h-3.5 bg-[#ff9eaf] rotate-45 mb-2 ml-6 md:ml-10 shadow-[0_0_12px_rgba(255,158,175,0.8)] group-hover:scale-110 transition-transform shrink-0" />
-            <div className="bg-[#101424]/90 border border-[#ff9eaf]/40 px-3 py-2.5 rounded-sm shadow-2xl backdrop-blur-md w-full md:w-[280px]">
-              <div className="text-slate-300 text-[12px] leading-snug md:text-[15px] font-bold tracking-wide font-mono break-words">
-                Kadawatha Hub
-                <span className="block md:inline"> [15.8 KM | 35 Mins]</span>
-              </div>
+          <TileLayer
+            attribution='&copy; OpenStreetMap contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-              <div className="flex flex-col md:flex-row justify-between md:items-center mt-2 border-t border-slate-900/80 pt-1.5 gap-1 text-[11px] md:text-[12px]">
-                <div className="text-[#ff9eaf] tracking-wide font-medium flex items-center gap-1">
-                  <span>→</span> Workload: 95%
+          <CircleMarker
+            center={userLocation}
+            radius={10}
+            pathOptions={{
+              color: "#b49eff",
+              fillColor: "#b49eff",
+              fillOpacity: 0.8,
+            }}
+          >
+            <Popup>
+              <strong>Your Current Location</strong>
+            </Popup>
+          </CircleMarker>
+
+          {Object.values(garagesData).map((garage) => (
+            <Marker
+              key={garage.id}
+              position={[garage.lat, garage.lng]}
+              eventHandlers={{
+                click: () => handleSelectGarage(garage),
+              }}
+            >
+              <Popup>
+                <div>
+                  <strong>{garage.name}</strong>
+                  <br />
+                  Distance: {garage.distance}
+                  <br />
+                  Time: {garage.time}
+                  <br />
+                  Workload: {garage.workload}
+                  <br />
+                  Free Technicians: {garage.freeTechs.length}
+                  <br />
+                  <button
+                    onClick={() => handleSelectGarage(garage)}
+                    style={{
+                      marginTop: "8px",
+                      padding: "6px 10px",
+                      background: "#4f46e5",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    View Details
+                  </button>
                 </div>
-                <div className="text-slate-400 flex items-center gap-1">
-                  <Users className="w-3 h-3 text-slate-500 shrink-0" />
-                  Free:
-                  <span className="text-white font-bold">
-                    {garagesData.kadawatha.freeTechs.length}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute top-[42%] left-[50%] -translate-x-1/2 -translate-y-1/2 text-center z-10 w-[68vw] md:w-auto">
-          <div className="flex flex-col items-center">
-            <div className="w-4 h-4 md:w-5 md:h-5 bg-[#b49eff] rotate-45 mb-2 shadow-[0_0_15px_rgba(180,158,255,0.8)] shrink-0" />
-            <div className="bg-[#101424]/95 border border-[#b49eff]/50 px-3 py-2 rounded-sm shadow-2xl backdrop-blur-md w-full md:min-w-[200px]">
-              <div className="font-black tracking-widest text-[#b49eff] text-[11px] md:text-[12px] whitespace-nowrap">
-                YOUR CURRENT LOCATION
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          onClick={() => handleSelectGarage(garagesData.malabe)}
-          className="absolute top-[8%] right-[2%] md:top-[16%] md:right-[22%] cursor-pointer group z-10 transition-all w-[58vw] md:w-auto"
-        >
-          <div className="flex flex-col items-start">
-            <div className="w-3.5 h-3.5 bg-[#00ffaa] rotate-45 mb-2 ml-6 md:ml-10 shadow-[0_0_12px_rgba(0,255,170,0.8)] group-hover:scale-110 transition-transform shrink-0" />
-            <div className="bg-[#101424]/90 border border-[#00ffaa]/40 px-3 py-2.5 rounded-sm shadow-2xl backdrop-blur-md w-full md:w-[280px]">
-              <div className="text-slate-300 text-[12px] leading-snug md:text-[15px] font-bold tracking-wide font-mono break-words">
-                Malabe Hub
-                <span className="block md:inline"> [8.4 KM | 14 Mins]</span>
-              </div>
-
-              <div className="flex flex-col md:flex-row justify-between md:items-center mt-2 border-t border-slate-900/80 pt-1.5 gap-1 text-[11px] md:text-[12px]">
-                <div className="text-[#00ffaa] tracking-wide font-medium flex items-center gap-1">
-                  <span>→</span> Workload: 28%
-                </div>
-                <div className="text-slate-400 flex items-center gap-1">
-                  <Users className="w-3 h-3 text-slate-500 shrink-0" />
-                  Free:
-                  <span className="text-[#00ffaa] font-bold">
-                    {garagesData.malabe.freeTechs.length}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          onClick={() => handleSelectGarage(garagesData.kaduwela)}
-          className="absolute bottom-[20%] left-[2%] md:bottom-[18%] md:left-[16%] cursor-pointer group z-10 transition-all w-[58vw] md:w-auto"
-        >
-          <div className="flex flex-col items-start">
-            <div className="w-3.5 h-3.5 bg-[#ff9d00] rotate-45 mb-2 ml-8 md:ml-14 shadow-[0_0_12px_rgba(255,157,0,0.8)] group-hover:scale-110 transition-transform shrink-0" />
-            <div className="bg-[#101424]/90 border border-[#ff9d00]/40 px-3 py-2.5 rounded-sm shadow-2xl backdrop-blur-md w-full md:w-[280px]">
-              <div className="text-slate-300 text-[12px] leading-snug md:text-[15px] font-bold tracking-wide font-mono break-words">
-                Kaduwela Hub
-                <span className="block md:inline"> [12.1 KM | 22 Mins]</span>
-              </div>
-
-              <div className="flex flex-col md:flex-row justify-between md:items-center mt-2 border-t border-slate-900/80 pt-1.5 gap-1 text-[11px] md:text-[12px]">
-                <div className="text-[#ff9d00] tracking-wide font-medium flex items-center gap-1">
-                  <span>→</span> Workload: 60%
-                </div>
-                <div className="text-slate-400 flex items-center gap-1">
-                  <Users className="w-3 h-3 text-slate-500 shrink-0" />
-                  Free:
-                  <span className="text-[#ff9d00] font-bold">
-                    {garagesData.kaduwela.freeTechs.length}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute bottom-4 right-4 flex flex-col gap-1 z-20">
-          <button className="w-7 h-7 bg-[#0c1020] border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center rounded-sm cursor-pointer shadow-lg">
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-          <button className="w-7 h-7 bg-[#0c1020] border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center rounded-sm cursor-pointer shadow-lg">
-            <Minus className="w-3.5 h-3.5" />
-          </button>
-        </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
 
         <div
           className={`fixed bottom-0 left-0 w-full h-[78vh] md:h-full md:absolute md:top-0 md:right-0 md:left-auto md:w-[400px] bg-[#040713] border-t md:border-t-0 md:border-l border-slate-900/90 backdrop-blur-md transition-all duration-300 ease-in-out flex flex-col justify-between overflow-y-auto z-30 shadow-2xl ${

@@ -215,7 +215,7 @@ export default function ProfitLoss({ toggleSidebar }) {
 
       <main className="p-4 md:p-8">
         <h1 className="text-3xl md:text-4xl font-black mb-4">
-          DAILY PROFIT & LOSS ANALYTICS
+          DAILY PROFIT & LOSS ANALYTICS , SPARE PARTS
         </h1>
 
         <p className="text-gray-400 text-sm md:text-base max-w-3xl mb-10">
@@ -236,9 +236,7 @@ export default function ProfitLoss({ toggleSidebar }) {
               {formatLKR(totalRevenue)}
             </h2>
 
-            <p className="text-[11px] text-emerald-400 font-bold mt-4">
-              AUTO CALCULATED
-            </p>
+            
           </div>
 
           <div className="bg-[#1c1c25] border border-white/10 rounded-lg p-6">
@@ -253,9 +251,7 @@ export default function ProfitLoss({ toggleSidebar }) {
               {formatLKR(totalExpenses)}
             </h2>
 
-            <p className="text-[11px] text-red-300 font-bold mt-4">
-              AUTO CALCULATED
-            </p>
+            
           </div>
 
           <div className="bg-[#1c1c25] border border-white/10 rounded-lg p-6">
@@ -274,9 +270,7 @@ export default function ProfitLoss({ toggleSidebar }) {
               {formatLKR(netProfit)}
             </h2>
 
-            <p className="text-[11px] text-cyan-400 font-bold mt-4">
-              REVENUE - EXPENSES
-            </p>
+            
           </div>
         </div>
 
