@@ -12,7 +12,6 @@ import {
   Users,
   ChevronRight,
   Phone,
-  Navigation,
   Route,
 } from "lucide-react";
 
@@ -154,7 +153,10 @@ export default function MobilityRecovery() {
       status: "Navigation Started",
     };
 
-    localStorage.setItem("currentCustomerRequest", JSON.stringify(updatedRequest));
+    localStorage.setItem(
+      "currentCustomerRequest",
+      JSON.stringify(updatedRequest)
+    );
 
     alert(`Navigation started to ${selectedGarage.name}`);
     setShowPopup(false);
@@ -172,7 +174,10 @@ export default function MobilityRecovery() {
       status: "Tow Truck Assigned",
     };
 
-    localStorage.setItem("currentCustomerRequest", JSON.stringify(updatedRequest));
+    localStorage.setItem(
+      "currentCustomerRequest",
+      JSON.stringify(updatedRequest)
+    );
 
     alert("Truck Assigned Successfully!");
     setShowPopup(false);
@@ -233,7 +238,9 @@ export default function MobilityRecovery() {
               [...Array(g.freeTrucks)].map((_, index) => (
                 <Truck
                   key={index}
-                  className={`w-3 h-3 md:w-3.5 md:h-3.5 ${textColor[g.color]}`}
+                  className={`w-3 h-3 md:w-3.5 md:h-3.5 ${
+                    textColor[g.color]
+                  }`}
                 />
               ))
             ) : (
@@ -246,9 +253,7 @@ export default function MobilityRecovery() {
               g.freeTrucks > 0 ? textColor[g.color] : "text-rose-400"
             }`}
           >
-            {g.freeTrucks > 0
-              ? `${g.freeTrucks} Free`
-              : "No Free"}
+            {g.freeTrucks > 0 ? `${g.freeTrucks} Free` : "No Free"}
           </span>
         </div>
       </div>
@@ -435,7 +440,9 @@ export default function MobilityRecovery() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <MapPin className={`w-4 h-4 ${textColor[g.color]}`} />
+                            <MapPin
+                              className={`w-4 h-4 ${textColor[g.color]}`}
+                            />
                             <span className="text-white font-bold text-sm">
                               {g.name}
                             </span>
@@ -512,17 +519,18 @@ export default function MobilityRecovery() {
               </button>
 
               <div className={mapClass}>
-                <div
-                  className="absolute inset-0 opacity-20"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)",
-                    backgroundSize: "40px 40px",
-                  }}
-                ></div>
+                <iframe
+                  title="Nearby Tow Truck Map"
+                  src="https://www.google.com/maps?q=Malabe,Sri%20Lanka&z=13&output=embed"
+                  className="absolute inset-0 w-full h-full border-0"
+                  loading="lazy"
+                  allowFullScreen
+                />
+
+                <div className="absolute inset-0 bg-black/35"></div>
 
                 <div className="absolute top-4 left-4 z-10">
-                  <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500">
+                  <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-white">
                     Nearby Tow Truck Map
                   </span>
                 </div>

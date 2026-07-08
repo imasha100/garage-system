@@ -1,10 +1,16 @@
 import React, { useState } from "react";
+import { Bell, User, Menu, X } from "lucide-react";
+
 import {
-  Bell,
-  User,
-  Menu,
-  X,
-} from "lucide-react";
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+} from "react-leaflet";
+
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
 import CustomerSidebar from "./CustomerSidebar";
 import MobilityRecovery from "./MobilityRecovery";
@@ -12,6 +18,16 @@ import LiveProgress from "./LiveProgress";
 import InvoiceLedger from "./InvoiceLedger";
 import ExperienceAudit from "./ExperienceAudit";
 
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 export default function NavigationHub({ onNavigate, selectedGarage }) {
   const [activeTab, setActiveTab] = useState("navigation");
@@ -24,6 +40,7 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
           <h2 className="text-3xl font-black text-slate-300">
             NO MISSION ACTIVE
           </h2>
+
           <p className="text-slate-500 mt-2 mb-6">
             Please select a service hub from the map.
           </p>
@@ -39,55 +56,22 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
     );
   }
 
-  const getRoute = () => {
-    switch (selectedGarage?.id) {
-      case "MALABE":
-        return (
-          <>
-            <path
-              d="M 50 520 Q 180 430 280 300 T 620 160"
-              stroke="#7c83ff"
-              strokeWidth="4"
-              fill="none"
-              strokeDasharray="10 8"
-            />
-            <circle cx="50" cy="520" r="7" fill="#8b5cf6" />
-            <rect x="620" y="150" width="12" height="12" fill="#22c55e" />
-          </>
-        );
+  const customerLocation = [6.9271, 79.8612];
 
-      case "KADAWATHA":
-        return (
-          <>
-            <path
-              d="M 80 520 Q 150 380 120 250 T 90 80"
-              stroke="#ff8fa3"
-              strokeWidth="4"
-              fill="none"
-              strokeDasharray="10 8"
-            />
-            <circle cx="80" cy="520" r="7" fill="#8b5cf6" />
-            <rect x="90" y="70" width="12" height="12" fill="#ff8fa3" />
-          </>
-        );
+  const garageLocation =
+    selectedGarage?.lat && selectedGarage?.lng
+      ? [selectedGarage.lat, selectedGarage.lng]
+      : customerLocation;
 
-      default:
-        return null;
-    }
-  };
+  const routeLine = [customerLocation, garageLocation];
 
-  const formatValue = (value) =>
-    value ? value.split(" ")[0] : "--";
+  const formatValue = (value) => (value ? value.split(" ")[0] : "--");
 
   return (
     <div className="w-screen h-screen bg-[#070814] text-slate-200 font-mono flex overflow-hidden">
-
-      {/* SIDEBAR (DESKTOP) */}
+      {/* SIDEBAR DESKTOP */}
       <div className="hidden md:block">
-        <CustomerSidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-        />
+        <CustomerSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
       {/* MOBILE OVERLAY */}
@@ -107,7 +91,7 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
         <div className="relative h-full">
           <button
             onClick={() => setSidebarOpen(false)}
-            className="absolute top-4 right-4 p-2 bg-slate-900 border border-slate-700 rounded"
+            className="absolute top-4 right-4 p-2 bg-slate-900 border border-slate-700 rounded z-50"
           >
             <X className="w-5 h-5 text-white" />
           </button>
@@ -124,11 +108,8 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
 
       {/* MAIN */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* HEADER (FIXED RIGHT ALIGN) */}
-        <div className="h-16 border-b border-slate-900 bg-[#0c0d19]/60 backdrop-blur px-4 flex items-center">
-
-          {/* MOBILE MENU */}
+        {/* HEADER */}
+        <div className="h-16 border-b border-slate-900 bg-[#0c0d19]/60 backdrop-blur px-4 flex items-center shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="md:hidden p-2 border border-slate-700 rounded"
@@ -136,16 +117,10 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
             <Menu className="w-6 h-6 text-white" />
           </button>
 
-          {/* PUSH RIGHT */}
           <div className="ml-auto flex items-center gap-5">
-
-            {/* Bell */}
             <Bell className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white transition" />
 
-            {/* USER */}
             <div className="flex items-center gap-3">
-
-              {/* Name */}
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-white leading-none">
                   AMILA PERERA
@@ -155,38 +130,60 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
                 </p>
               </div>
 
-              {/* Avatar */}
               <div className="w-9 h-9 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center">
                 <User className="w-5 h-5 text-white" />
               </div>
-
             </div>
           </div>
         </div>
 
         {/* CONTENT */}
-        <div className="flex-1 p-8">
-
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
           {activeTab === "navigation" && (
             <div className="max-w-6xl mx-auto">
-
-              <h1 className="text-2xl font-bold text-white mb-6">
+              <h1 className="text-xl md:text-2xl font-bold text-white mb-6">
                 {selectedGarage.name} - LOGISTICS SYNC
               </h1>
 
               <div className="grid lg:grid-cols-3 gap-8">
+                {/* LEAFLET MAP */}
+                <div className="lg:col-span-2 h-[450px] bg-black border border-slate-800 rounded overflow-hidden relative">
+                  <MapContainer
+                    center={garageLocation}
+                    zoom={12}
+                    scrollWheelZoom={true}
+                    className="w-full h-full z-0"
+                  >
+                    <TileLayer
+                      attribution='&copy; OpenStreetMap contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
 
-                {/* MAP */}
-                <div className="lg:col-span-2 h-[450px] bg-black border rounded relative flex items-center justify-center">
-                  <svg className="absolute w-full h-full" viewBox="0 0 800 600">
-                    {getRoute()}
-                  </svg>
-                  GPS Navigation Active
+                    <Marker position={customerLocation}>
+                      <Popup>Customer Location</Popup>
+                    </Marker>
+
+                    <Marker position={garageLocation}>
+                      <Popup>{selectedGarage.name}</Popup>
+                    </Marker>
+
+                    <Polyline
+                      positions={routeLine}
+                      pathOptions={{
+                        color: "#7c83ff",
+                        weight: 5,
+                        dashArray: "10 8",
+                      }}
+                    />
+                  </MapContainer>
+
+                  <div className="absolute top-4 left-4 z-[999] bg-black/70 border border-slate-700 text-white px-4 py-2 rounded text-xs font-bold">
+                    GPS Navigation Active
+                  </div>
                 </div>
 
                 {/* INFO */}
-                <div className="bg-[#0c0d19] border p-6 rounded">
-
+                <div className="bg-[#0c0d19] border border-slate-800 p-6 rounded">
                   <h2 className="text-white font-bold mb-4">
                     MISSION METRICS
                   </h2>
@@ -211,17 +208,16 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
                     </div>
                   </div>
 
-                  <button className="w-full mt-6 bg-indigo-600 cursor-pointer py-3 rounded font-bold">
+                  <button className="w-full mt-6 bg-indigo-600 hover:bg-indigo-500 cursor-pointer py-3 rounded font-bold">
                     START AUTO PILOT
                   </button>
 
                   <button
                     onClick={() => onNavigate("garage-map")}
-                    className="w-full mt-3 border border-slate-600 cursor-pointer  text-slate-300 py-3 rounded font-bold hover:bg-slate-800"
+                    className="w-full mt-3 border border-slate-600 cursor-pointer text-slate-300 py-3 rounded font-bold hover:bg-slate-800"
                   >
                     REROUTE TO SECONDARY
                   </button>
-
                 </div>
               </div>
             </div>
@@ -231,8 +227,6 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
           {activeTab === "progress" && <LiveProgress />}
           {activeTab === "invoice" && <InvoiceLedger />}
           {activeTab === "audit" && <ExperienceAudit />}
-
-
         </div>
       </div>
     </div>

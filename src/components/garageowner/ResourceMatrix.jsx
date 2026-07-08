@@ -49,12 +49,14 @@ export default function ResourceMatrix({ toggleSidebar }) {
       vehicle: "WP-KV-1122",
       technician: "John Doe",
       metric: "● +15 Mins Overrun",
+      reason: "Engine diagnostics took longer than expected",
       color: "text-red-300",
     },
     {
       vehicle: "SP-HN-4455",
       technician: "David Kim",
       metric: "● +08 Mins Overrun",
+      reason: "Waiting for spare part confirmation",
       color: "text-orange-400",
     },
   ];
@@ -230,12 +232,13 @@ export default function ResourceMatrix({ toggleSidebar }) {
 
           <div className="bg-[#191923] border border-white/10 rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-[750px] md:w-full text-left">
+              <table className="w-[950px] md:w-full text-left">
                 <thead className="bg-white/5 text-gray-400 text-xs">
                   <tr>
                     <th className="px-8 py-5">Vehicle ID</th>
                     <th className="px-8 py-5">Assigned Technician</th>
                     <th className="px-8 py-5">Overrun Metric</th>
+                    <th className="px-8 py-5">Overrun Reason</th>
                   </tr>
                 </thead>
 
@@ -249,6 +252,9 @@ export default function ResourceMatrix({ toggleSidebar }) {
                       <td className="px-8 py-5">{item.technician}</td>
                       <td className={`px-8 py-5 font-mono ${item.color}`}>
                         {item.metric}
+                      </td>
+                      <td className="px-8 py-5 text-gray-400">
+                        {item.reason}
                       </td>
                     </tr>
                   ))}

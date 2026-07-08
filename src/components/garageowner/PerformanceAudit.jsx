@@ -5,8 +5,6 @@ import {
   Menu,
   Info,
   User,
-  BarChart3,
-  ChartColumn,
 } from "lucide-react";
 
 export default function PerformanceAudit({ toggleSidebar }) {
@@ -222,107 +220,6 @@ export default function PerformanceAudit({ toggleSidebar }) {
                 )}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Bottom Cards */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="bg-[#181820] border border-white/10 rounded-lg p-6">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-xs font-bold tracking-widest text-gray-300">
-                REPAIR TIME VARIANCE
-              </h2>
-              <BarChart3 size={18} className="text-cyan-400" />
-            </div>
-
-            <div className="relative h-56 border-b border-gray-700">
-              <div className="absolute left-0 right-0 top-12 border-t border-white/10" />
-              <div className="absolute left-0 right-0 top-28 border-t border-white/10" />
-
-              <svg
-                viewBox="0 0 500 200"
-                className="w-full h-full"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M0 140 C70 80, 120 140, 180 100 C240 50, 270 20, 320 70 C370 120, 350 200, 420 180 C460 160, 470 80, 500 30"
-                  fill="none"
-                  stroke="#22d3ee"
-                  strokeWidth="4"
-                />
-                <path
-                  d="M0 140 C70 80, 120 140, 180 100 C240 50, 270 20, 320 70 C370 120, 350 200, 420 180 C460 160, 470 80, 500 30 L500 200 L0 200 Z"
-                  fill="url(#auditGradient)"
-                  opacity="0.25"
-                />
-                <defs>
-                  <linearGradient id="auditGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22d3ee" />
-                    <stop offset="100%" stopColor="#020617" />
-                  </linearGradient>
-                </defs>
-              </svg>
-
-              <div className="flex justify-between text-[10px] text-gray-500 font-mono mt-2">
-                <span>08:00</span>
-                <span>10:00</span>
-                <span>12:00</span>
-                <span>14:00</span>
-                <span>16:00</span>
-                <span>18:00</span>
-              </div>
-            </div>
-
-            <div className="flex gap-5 mt-5 text-[10px] font-bold tracking-widest">
-              <span className="text-cyan-400">● VARIANCE %</span>
-              <span className="text-emerald-400">● TARGET %</span>
-            </div>
-          </div>
-
-          <div className="bg-[#181820] border border-white/10 rounded-lg p-6">
-            <div className="flex justify-between items-center mb-10">
-              <h2 className="text-xs font-bold tracking-widest text-gray-300">
-                EXTENSION REASON ANALYSIS
-              </h2>
-              <ChartColumn size={18} className="text-yellow-400" />
-            </div>
-
-            <div className="space-y-8">
-              <div>
-                <div className="flex justify-between text-[11px] mb-2">
-                  <span className="text-gray-400">PART DELAY</span>
-                  <span className="text-cyan-400">42%</span>
-                </div>
-                <div className="h-3 bg-gray-800 rounded">
-                  <div className="h-3 bg-cyan-400 rounded w-[42%]" />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-[11px] mb-2">
-                  <span className="text-gray-400">SKILL GAP</span>
-                  <span className="text-yellow-400">28%</span>
-                </div>
-                <div className="h-3 bg-gray-800 rounded">
-                  <div className="h-3 bg-yellow-400 rounded w-[28%]" />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-[11px] mb-2">
-                  <span className="text-gray-400">TOOLING ISSUE</span>
-                  <span className="text-red-300">15%</span>
-                </div>
-                <div className="h-3 bg-gray-800 rounded">
-                  <div className="h-3 bg-red-300 rounded w-[15%]" />
-                </div>
-              </div>
-            </div>
-
-            <p className="text-xs italic text-gray-500 mt-10">
-              * Data aggregated from last 50 service requests. Part delays
-              remain the leading bottleneck in operational flow.
-            </p>
           </div>
         </div>
       </main>
