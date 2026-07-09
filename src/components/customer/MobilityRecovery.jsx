@@ -15,6 +15,35 @@ import {
   Route,
 } from "lucide-react";
 
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  CircleMarker,
+  Polyline,
+} from "react-leaflet";
+
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+const truckIcon = new L.Icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/1048/1048313.png",
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+});
+
 export default function MobilityRecovery() {
   const [vehicleStatus, setVehicleStatus] = useState("driveable");
   const [showPopup, setShowPopup] = useState(false);
@@ -22,98 +51,153 @@ export default function MobilityRecovery() {
   const [selectedGarage, setSelectedGarage] = useState(null);
   const [selectedTruck, setSelectedTruck] = useState(null);
 
+  const saegisLocation = [6.8728, 79.8887];
+
+  const calculateTowPrice = (distanceKm) => {
+    const baseCharge = 3500;
+    const perKmCharge = 600;
+    return baseCharge + distanceKm * perKmCharge;
+  };
+
+  const formatLKR = (amount) => {
+    return `LKR ${Math.round(amount).toLocaleString("en-LK")}`;
+  };
+
   const garages = [
     {
-      id: "kadawatha",
-      name: "Kadawatha Hub",
-      distanceKm: 15.8,
-      etaMins: 35,
-      freeTrucks: 0,
-      x: 12,
-      y: 14,
-      color: "rose",
-      parkedTrucks: [],
-    },
-    {
-      id: "kaduwela",
-      name: "Kaduwela Hub",
-      distanceKm: 12.1,
-      etaMins: 22,
-      freeTrucks: 1,
-      x: 20,
-      y: 78,
-      color: "amber",
-      parkedTrucks: [{ xOffset: 5, yOffset: -5 }],
-    },
-    {
-      id: "malabe",
-      name: "Malabe Hub",
-      distanceKm: 6.4,
-      etaMins: 11,
+      id: "kohuwala",
+      name: "Kohuwala Auto Care",
+      distanceKm: 0.4,
+      etaMins: 3,
       freeTrucks: 2,
-      x: 55,
-      y: 55,
       color: "emerald",
-      parkedTrucks: [
-        { xOffset: 5, yOffset: -5 },
-        { xOffset: 9, yOffset: 3 },
-      ],
+      lat: 6.8721,
+      lng: 79.8852,
+    },
+    {
+      id: "nugegoda",
+      name: "Nugegoda Service Hub",
+      distanceKm: 1.2,
+      etaMins: 6,
+      freeTrucks: 1,
+      color: "emerald",
+      lat: 6.8729,
+      lng: 79.8996,
+    },
+    {
+      id: "kirulapone",
+      name: "Kirulapone Garage Point",
+      distanceKm: 1.8,
+      etaMins: 8,
+      freeTrucks: 2,
+      color: "amber",
+      lat: 6.8797,
+      lng: 79.8746,
+    },
+    {
+      id: "dehiwala",
+      name: "Dehiwala Motor Works",
+      distanceKm: 3.2,
+      etaMins: 13,
+      freeTrucks: 1,
+      color: "amber",
+      lat: 6.8519,
+      lng: 79.8655,
+    },
+    {
+      id: "maharagama",
+      name: "Maharagama Auto Tech",
+      distanceKm: 5.0,
+      etaMins: 18,
+      freeTrucks: 1,
+      color: "amber",
+      lat: 6.848,
+      lng: 79.9265,
+    },
+    {
+      id: "piliyandala",
+      name: "Piliyandala Recovery Hub",
+      distanceKm: 8.7,
+      etaMins: 28,
+      freeTrucks: 0,
+      color: "rose",
+      lat: 6.8018,
+      lng: 79.9227,
     },
   ];
 
-  const nearbyTrucks = [
+  const parkedTrucks = [
     {
       id: "truck-1",
       number: "TRK-8842",
       driverName: "Kamal Perera",
       phone: "071-2345678",
-      etaMins: 12,
-      price: "LKR 8,500",
-      garageId: "malabe",
-      x: 70,
-      y: 30,
+      garageId: "kohuwala",
     },
     {
       id: "truck-2",
       number: "TRK-5521",
       driverName: "Nuwan Silva",
       phone: "077-4567890",
-      etaMins: 8,
-      price: "LKR 7,800",
-      garageId: "malabe",
-      x: 84,
-      y: 35,
+      garageId: "kohuwala",
     },
     {
       id: "truck-3",
       number: "TRK-9920",
       driverName: "Saman Jayasuriya",
       phone: "075-9876543",
-      etaMins: 15,
-      price: "LKR 9,200",
-      garageId: "kaduwela",
-      x: 72,
-      y: 58,
+      garageId: "nugegoda",
     },
     {
       id: "truck-4",
       number: "TRK-6612",
       driverName: "Kasun Fernando",
       phone: "076-2223344",
-      etaMins: 22,
-      price: "LKR 10,000",
-      garageId: "kaduwela",
-      x: 88,
-      y: 52,
+      garageId: "kirulapone",
+    },
+    {
+      id: "truck-5",
+      number: "TRK-7401",
+      driverName: "Lahiru Fernando",
+      phone: "078-1112233",
+      garageId: "kirulapone",
+    },
+    {
+      id: "truck-6",
+      number: "TRK-3188",
+      driverName: "Milan Jayasinghe",
+      phone: "070-6677889",
+      garageId: "dehiwala",
+    },
+    {
+      id: "truck-7",
+      number: "TRK-4567",
+      driverName: "Dilan Perera",
+      phone: "072-4455667",
+      garageId: "maharagama",
     },
   ];
 
-  const selectedDispatch = selectedTruck || nearbyTrucks[0];
+  const selectedDispatch = selectedTruck || parkedTrucks[0];
 
-  const dotColor = {
-    rose: "bg-rose-500 shadow-rose-500/50",
-    amber: "bg-amber-400 shadow-amber-400/50",
-    emerald: "bg-emerald-400 shadow-emerald-400/50",
+  const getGarageByTruck = (truck) => {
+    return garages.find((g) => g.id === truck?.garageId);
+  };
+
+  const getTrucksByGarage = (garageId) => {
+    return parkedTrucks.filter((truck) => truck.garageId === garageId);
+  };
+
+  const getTruckDistanceText = (truck) => {
+    const garage = getGarageByTruck(truck);
+    return garage
+      ? `${garage.distanceKm} KM • ${garage.etaMins} Minutes`
+      : "Distance N/A";
+  };
+
+  const getTowChargeByTruck = (truck) => {
+    const garage = getGarageByTruck(truck);
+    return formatLKR(calculateTowPrice(garage?.distanceKm || 0));
   };
 
   const textColor = {
@@ -130,7 +214,7 @@ export default function MobilityRecovery() {
   };
 
   const handleSelectTruck = (truck) => {
-    const garage = garages.find((g) => g.id === truck.garageId);
+    const garage = getGarageByTruck(truck);
     setSelectedTruck(truck);
     setSelectedGarage(garage || null);
   };
@@ -150,6 +234,7 @@ export default function MobilityRecovery() {
       ...existingRequest,
       vehicleStatus: "driveable",
       selectedGarage,
+      currentLocation: "Saegis Campus",
       status: "Navigation Started",
     };
 
@@ -158,19 +243,30 @@ export default function MobilityRecovery() {
       JSON.stringify(updatedRequest)
     );
 
-    alert(`Navigation started to ${selectedGarage.name}`);
+    alert(`Navigation started from Saegis Campus to ${selectedGarage.name}`);
     setShowPopup(false);
   };
 
   const handleDispatchTruck = () => {
+    const garage = getGarageByTruck(selectedTruck);
+    const towCharge = getTowChargeByTruck(selectedTruck);
+
     const existingRequest =
       JSON.parse(localStorage.getItem("currentCustomerRequest")) || {};
 
     const updatedRequest = {
       ...existingRequest,
       vehicleStatus: "non-driveable",
-      selectedTruck,
-      selectedGarage,
+      currentLocation: "Saegis Campus",
+      selectedTruck: {
+        ...selectedTruck,
+        price: towCharge,
+        distanceKm: garage?.distanceKm,
+        etaMins: garage?.etaMins,
+        status: "Parked at Garage",
+      },
+      selectedGarage: garage,
+      towCharge,
       status: "Tow Truck Assigned",
     };
 
@@ -179,86 +275,9 @@ export default function MobilityRecovery() {
       JSON.stringify(updatedRequest)
     );
 
-    alert("Truck Assigned Successfully!");
+    alert(`Truck Assigned Successfully! Charge: ${towCharge}`);
     setShowPopup(false);
   };
-
-  const renderGarageMarker = (g) => (
-    <div
-      key={g.id}
-      onClick={() => setSelectedGarage(g)}
-      className="absolute flex flex-col items-start cursor-pointer group z-10"
-      style={{ left: `${g.x}%`, top: `${g.y}%` }}
-    >
-      {g.parkedTrucks?.map((truck, idx) => (
-        <div
-          key={idx}
-          className="absolute z-0"
-          style={{
-            left: `${truck.xOffset * 7}px`,
-            top: `${truck.yOffset * 7}px`,
-          }}
-        >
-          <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-slate-800 border border-cyan-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Truck className="w-3 h-3 md:w-3.5 md:h-3.5 text-cyan-400" />
-          </div>
-        </div>
-      ))}
-
-      <div className="relative z-10">
-        <div
-          className={`w-4 h-4 md:w-5 md:h-5 rotate-45 ${dotColor[g.color]} shadow-lg transition-transform group-hover:scale-125`}
-        ></div>
-
-        {g.freeTrucks > 0 && (
-          <div className="absolute -top-4 -right-4 min-w-[22px] h-[22px] rounded-full bg-cyan-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg">
-            {g.freeTrucks}
-          </div>
-        )}
-      </div>
-
-      <div
-        className={`mt-3 px-2 md:px-3 py-2 rounded-lg border backdrop-blur-sm transition-all max-w-[150px] md:max-w-none ${
-          selectedGarage?.id === g.id
-            ? "border-cyan-400 bg-[#111321]"
-            : "border-slate-700 bg-[#11132170] group-hover:border-slate-500"
-        }`}
-      >
-        <p className="text-[10px] md:text-[12px] font-bold text-white whitespace-nowrap">
-          {g.name}
-        </p>
-
-        <p className="text-[10px] md:text-[11px] text-slate-400 mt-1">
-          {g.distanceKm} KM • {g.etaMins} Mins
-        </p>
-
-        <div className="flex items-center gap-1 md:gap-2 mt-2">
-          <div className="flex items-center gap-1">
-            {g.freeTrucks > 0 ? (
-              [...Array(g.freeTrucks)].map((_, index) => (
-                <Truck
-                  key={index}
-                  className={`w-3 h-3 md:w-3.5 md:h-3.5 ${
-                    textColor[g.color]
-                  }`}
-                />
-              ))
-            ) : (
-              <Truck className="w-3 h-3 md:w-3.5 md:h-3.5 text-rose-400" />
-            )}
-          </div>
-
-          <span
-            className={`text-[10px] md:text-[11px] font-semibold ${
-              g.freeTrucks > 0 ? textColor[g.color] : "text-rose-400"
-            }`}
-          >
-            {g.freeTrucks > 0 ? `${g.freeTrucks} Free` : "No Free"}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
 
   const modalShellClass =
     "w-full max-w-6xl h-[92vh] md:h-[650px] bg-[#0c0d19] border border-slate-700 rounded-2xl flex flex-col md:flex-row overflow-hidden relative";
@@ -268,6 +287,106 @@ export default function MobilityRecovery() {
 
   const sidePanelClass =
     "w-full md:w-[350px] h-[50vh] md:h-full border-t md:border-t-0 md:border-l border-slate-700 bg-[#0c0d19] flex flex-col";
+
+  const renderMap = (type = "garage") => (
+    <MapContainer
+      center={saegisLocation}
+      zoom={13}
+      scrollWheelZoom={true}
+      className="w-full h-full z-0"
+    >
+      <TileLayer
+        attribution='&copy; OpenStreetMap contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      <CircleMarker
+        center={saegisLocation}
+        radius={11}
+        pathOptions={{
+          color: "#a78bfa",
+          fillColor: "#a78bfa",
+          fillOpacity: 0.9,
+        }}
+      >
+        <Popup>
+          <strong>Saegis Campus</strong>
+          <br />
+          Current Location
+        </Popup>
+      </CircleMarker>
+
+      {garages.map((garage) => {
+        const garageTrucks = getTrucksByGarage(garage.id);
+
+        return (
+          <Marker
+            key={garage.id}
+            position={[garage.lat, garage.lng]}
+            eventHandlers={{
+              click: () => setSelectedGarage(garage),
+            }}
+          >
+            <Popup>
+              <strong>{garage.name}</strong>
+              <br />
+              Distance: {garage.distanceKm} KM
+              <br />
+              ETA: {garage.etaMins} Mins
+              <br />
+              Parked Trucks: {garageTrucks.length}
+            </Popup>
+          </Marker>
+        );
+      })}
+
+      {type === "truck" &&
+        parkedTrucks.map((truck, index) => {
+          const garage = getGarageByTruck(truck);
+          if (!garage) return null;
+
+          const offset = (index % 3) * 0.00045;
+
+          return (
+            <Marker
+              key={truck.id}
+              position={[garage.lat + offset, garage.lng + offset]}
+              icon={truckIcon}
+              eventHandlers={{
+                click: () => handleSelectTruck(truck),
+              }}
+            >
+              <Popup>
+                <strong>{truck.number}</strong>
+                <br />
+                Driver: {truck.driverName}
+                <br />
+                Phone: {truck.phone}
+                <br />
+                Status: Parked at Garage
+                <br />
+                Garage: {garage.name}
+                <br />
+                Distance / ETA: {garage.distanceKm} KM • {garage.etaMins} Mins
+                <br />
+                Price: {getTowChargeByTruck(truck)}
+              </Popup>
+            </Marker>
+          );
+        })}
+
+      {selectedGarage && (
+        <Polyline
+          positions={[saegisLocation, [selectedGarage.lat, selectedGarage.lng]]}
+          pathOptions={{
+            color: "#22d3ee",
+            weight: 5,
+            dashArray: "10 8",
+          }}
+        />
+      )}
+    </MapContainer>
+  );
 
   return (
     <div className="w-full max-w-5xl mx-auto px-4 md:px-0">
@@ -280,8 +399,7 @@ export default function MobilityRecovery() {
 
         <p className="text-slate-400 mt-6 max-w-2xl text-sm leading-7">
           Select your current vehicle condition to continue recovery support.
-          Your request is already saved, so this step only updates the recovery
-          method.
+          Current location is fixed as Saegis Campus.
         </p>
       </div>
 
@@ -366,52 +484,7 @@ export default function MobilityRecovery() {
                 <X className="w-5 h-5" />
               </button>
 
-              <div className={mapClass}>
-                <div
-                  className="absolute inset-0 opacity-20"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)",
-                    backgroundSize: "40px 40px",
-                  }}
-                ></div>
-
-                <div className="absolute top-4 left-4 z-10">
-                  <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Garage Navigation Map
-                  </span>
-                </div>
-
-                <div
-                  className="absolute flex flex-col items-center z-10"
-                  style={{ left: "78%", top: "42%" }}
-                >
-                  <div className="relative">
-                    <div className="absolute -inset-5 md:-inset-6 rounded-full bg-violet-500/10 animate-ping"></div>
-                    <div className="w-4 h-4 md:w-5 md:h-5 rotate-45 bg-violet-400 shadow-lg shadow-violet-400/60"></div>
-                  </div>
-
-                  <div className="mt-3 px-2 md:px-3 py-1.5 rounded-lg bg-[#11132190] border border-violet-500/40 backdrop-blur-sm">
-                    <span className="text-[9px] md:text-[11px] font-bold uppercase tracking-wider text-violet-300">
-                      Your Location
-                    </span>
-                  </div>
-                </div>
-
-                {garages.map((g) => renderGarageMarker(g))}
-
-                {selectedGarage && (
-                  <div
-                    className="absolute border-t-2 border-dashed border-cyan-400/70 z-0 hidden md:block"
-                    style={{
-                      left: `${selectedGarage.x + 2}%`,
-                      top: `${selectedGarage.y + 2}%`,
-                      width: "260px",
-                      transform: "rotate(-18deg)",
-                    }}
-                  ></div>
-                )}
-              </div>
+              <div className={mapClass}>{renderMap("garage")}</div>
 
               <div className={sidePanelClass}>
                 <div className="p-4 md:p-5 border-b border-slate-700">
@@ -419,8 +492,7 @@ export default function MobilityRecovery() {
                     Select Garage
                   </h2>
                   <p className="text-slate-500 text-xs mt-1">
-                    No new request is created. Select a garage to start
-                    navigation.
+                    Select garage around Saegis Campus.
                   </p>
                 </div>
 
@@ -428,12 +500,12 @@ export default function MobilityRecovery() {
                   {garages
                     .slice()
                     .sort((a, b) => a.distanceKm - b.distanceKm)
-                    .map((g) => (
+                    .map((garage) => (
                       <div
-                        key={g.id}
-                        onClick={() => setSelectedGarage(g)}
+                        key={garage.id}
+                        onClick={() => setSelectedGarage(garage)}
                         className={`cursor-pointer rounded-xl border p-3 md:p-4 transition-all ${
-                          selectedGarage?.id === g.id
+                          selectedGarage?.id === garage.id
                             ? "border-cyan-500 bg-cyan-500/10"
                             : "border-slate-700 bg-[#10111f] hover:border-slate-500"
                         }`}
@@ -441,27 +513,27 @@ export default function MobilityRecovery() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <MapPin
-                              className={`w-4 h-4 ${textColor[g.color]}`}
+                              className={`w-4 h-4 ${textColor[garage.color]}`}
                             />
                             <span className="text-white font-bold text-sm">
-                              {g.name}
+                              {garage.name}
                             </span>
                           </div>
 
-                          {selectedGarage?.id === g.id && (
+                          {selectedGarage?.id === garage.id && (
                             <Check className="w-4 h-4 text-cyan-400" />
                           )}
                         </div>
 
                         <div className="flex items-center gap-3 md:gap-4 mt-3 text-xs text-slate-400">
-                          <span>{g.distanceKm} KM</span>
+                          <span>{garage.distanceKm} KM</span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {g.etaMins} Mins
+                            {garage.etaMins} Mins
                           </span>
                           <span className="flex items-center gap-1">
                             <Truck className="w-3 h-3" />
-                            {g.freeTrucks} Free
+                            {getTrucksByGarage(garage.id).length} Parked
                           </span>
                         </div>
                       </div>
@@ -476,10 +548,14 @@ export default function MobilityRecovery() {
                     </div>
 
                     <div className="mt-3 space-y-2 text-xs text-slate-300">
+                      <p>From: Saegis Campus</p>
                       <p>Destination: {selectedGarage.name}</p>
                       <p>Distance: {selectedGarage.distanceKm} KM</p>
                       <p>Estimated Time: {selectedGarage.etaMins} Minutes</p>
-                      <p>Free Trucks: {selectedGarage.freeTrucks}</p>
+                      <p>
+                        Parked Trucks:{" "}
+                        {getTrucksByGarage(selectedGarage.id).length}
+                      </p>
                     </div>
                   </div>
                 )}
@@ -518,78 +594,7 @@ export default function MobilityRecovery() {
                 <X className="w-5 h-5" />
               </button>
 
-              <div className={mapClass}>
-                <iframe
-                  title="Nearby Tow Truck Map"
-                  src="https://www.google.com/maps?q=Malabe,Sri%20Lanka&z=13&output=embed"
-                  className="absolute inset-0 w-full h-full border-0"
-                  loading="lazy"
-                  allowFullScreen
-                />
-
-                <div className="absolute inset-0 bg-black/35"></div>
-
-                <div className="absolute top-4 left-4 z-10">
-                  <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-white">
-                    Nearby Tow Truck Map
-                  </span>
-                </div>
-
-                <div
-                  className="absolute flex flex-col items-center z-10"
-                  style={{ left: "78%", top: "42%" }}
-                >
-                  <div className="relative">
-                    <div className="absolute -inset-5 md:-inset-6 rounded-full bg-violet-500/10 animate-ping"></div>
-                    <div className="w-4 h-4 md:w-5 md:h-5 rotate-45 bg-violet-400 shadow-lg shadow-violet-400/60"></div>
-                  </div>
-
-                  <div className="mt-3 px-2 md:px-3 py-1.5 rounded-lg bg-[#11132190] border border-violet-500/40 backdrop-blur-sm">
-                    <span className="text-[9px] md:text-[11px] font-bold uppercase tracking-wider text-violet-300">
-                      Your Location
-                    </span>
-                  </div>
-                </div>
-
-                {garages.map((g) => renderGarageMarker(g))}
-
-                {nearbyTrucks.map((truck) => (
-                  <div
-                    key={truck.id}
-                    onClick={() => handleSelectTruck(truck)}
-                    className="absolute flex flex-col items-center group cursor-pointer z-10"
-                    style={{ left: `${truck.x}%`, top: `${truck.y}%` }}
-                  >
-                    <div
-                      className={`w-9 h-9 md:w-11 md:h-11 rounded-full border flex items-center justify-center shadow-lg transition-all duration-300 ${
-                        selectedTruck?.id === truck.id
-                          ? "bg-cyan-500 border-cyan-200 shadow-cyan-500/50 scale-110"
-                          : "bg-red-600 border-red-300 shadow-red-500/50 group-hover:scale-110"
-                      }`}
-                    >
-                      <Truck className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                    </div>
-
-                    <div
-                      className={`mt-2 transition-all duration-300 bg-[#111321] rounded-lg px-2 md:px-3 py-2 whitespace-nowrap border ${
-                        selectedTruck?.id === truck.id
-                          ? "opacity-100 border-cyan-400"
-                          : "opacity-0 group-hover:opacity-100 border-red-500/40"
-                      }`}
-                    >
-                      <p className="text-[10px] md:text-xs font-bold text-white">
-                        {truck.number}
-                      </p>
-                      <p className="text-[10px] md:text-[11px] text-slate-400">
-                        {truck.driverName}
-                      </p>
-                      <p className="text-[10px] md:text-[11px] text-cyan-400">
-                        ETA {truck.etaMins} mins
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <div className={mapClass}>{renderMap("truck")}</div>
 
               <div className={sidePanelClass}>
                 <div className="p-4 md:p-5 border-b border-slate-700">
@@ -597,18 +602,24 @@ export default function MobilityRecovery() {
                     Select Tow Truck
                   </h2>
                   <p className="text-slate-500 text-xs mt-1">
-                    Existing request will be updated with assigned truck.
+                    All trucks are parked at garages. Distance and ETA are based
+                    on the garage location.
                   </p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3">
-                  {nearbyTrucks
+                  {parkedTrucks
                     .slice()
-                    .sort((a, b) => a.etaMins - b.etaMins)
-                    .map((truck) => {
-                      const garage = garages.find(
-                        (g) => g.id === truck.garageId
+                    .sort((a, b) => {
+                      const garageA = getGarageByTruck(a);
+                      const garageB = getGarageByTruck(b);
+                      return (
+                        (garageA?.distanceKm || 0) -
+                        (garageB?.distanceKm || 0)
                       );
+                    })
+                    .map((truck) => {
+                      const garage = getGarageByTruck(truck);
 
                       return (
                         <div
@@ -645,13 +656,13 @@ export default function MobilityRecovery() {
                             </p>
 
                             <p className="flex items-center gap-2">
-                              <Clock className="w-3 h-3" />
-                              ETA {truck.etaMins} Minutes
+                              <MapPin className="w-3 h-3" />
+                              Parked at {garage?.name || "Garage"}
                             </p>
 
                             <p className="flex items-center gap-2">
-                              <MapPin className="w-3 h-3" />
-                              {garage?.name || "Nearest Hub"}
+                              <Clock className="w-3 h-3" />
+                              {getTruckDistanceText(truck)}
                             </p>
                           </div>
 
@@ -660,7 +671,7 @@ export default function MobilityRecovery() {
                               Tow Charge
                             </span>
                             <span className="text-sm font-bold text-white">
-                              {truck.price}
+                              {getTowChargeByTruck(truck)}
                             </span>
                           </div>
                         </div>
@@ -708,7 +719,7 @@ export default function MobilityRecovery() {
 
               {selectedGarage && (
                 <p className="text-center text-xs text-cyan-400 uppercase tracking-wide mt-2">
-                  From {selectedGarage.name}
+                  Parked at {selectedGarage.name}
                 </p>
               )}
 
@@ -735,16 +746,16 @@ export default function MobilityRecovery() {
                 </div>
 
                 <div className="flex justify-between gap-4">
-                  <span className="text-slate-400">ETA</span>
+                  <span className="text-slate-400">Distance / ETA</span>
                   <span className="text-white text-right">
-                    {selectedDispatch.etaMins} Minutes
+                    {getTruckDistanceText(selectedDispatch)}
                   </span>
                 </div>
 
                 <div className="flex justify-between gap-4">
                   <span className="text-slate-400">Price</span>
                   <span className="text-white font-bold text-right">
-                    {selectedDispatch.price}
+                    {getTowChargeByTruck(selectedDispatch)}
                   </span>
                 </div>
               </div>
@@ -801,9 +812,16 @@ export default function MobilityRecovery() {
                 </div>
 
                 <div className="flex justify-between">
-                  <span className="text-slate-400">ETA</span>
+                  <span className="text-slate-400">Distance / ETA</span>
                   <span className="text-white">
-                    {selectedDispatch.etaMins} Minutes
+                    {getTruckDistanceText(selectedDispatch)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Tow Charge</span>
+                  <span className="text-white font-bold">
+                    {getTowChargeByTruck(selectedDispatch)}
                   </span>
                 </div>
               </div>

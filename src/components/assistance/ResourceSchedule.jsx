@@ -1,9 +1,40 @@
 import React, { useEffect, useState } from "react";
-import { User, AlertCircle, MapPin, X, Clock, Navigation } from "lucide-react";
+import {
+  User,
+  AlertCircle,
+  MapPin,
+  X,
+  Clock,
+  Navigation,
+} from "lucide-react";
+
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+} from "react-leaflet";
+
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 const ResourceSchedule = () => {
   const [currentCapacity, setCurrentCapacity] = useState(7);
   const maxCapacity = 10;
+
+  const saegisLocation = [6.8728, 79.8887];
 
   const [popup, setPopup] = useState({
     show: false,
@@ -28,12 +59,32 @@ const ResourceSchedule = () => {
     window.dispatchEvent(new Event("resourceRequestsUpdated"));
   };
 
+  const addDefaultLocation = (req) => {
+    if (!req) return req;
+
+    const locationMap = {
+      "Colombo 07": { lat: 6.9108, lng: 79.8668 },
+      Nugegoda: { lat: 6.8729, lng: 79.8996 },
+      Kohuwala: { lat: 6.8721, lng: 79.8852 },
+      Dehiwala: { lat: 6.8519, lng: 79.8655 },
+      Maharagama: { lat: 6.848, lng: 79.9265 },
+    };
+
+    const matched = locationMap[req.loc] || locationMap[req.garageName];
+
+    return {
+      ...req,
+      lat: req.lat || matched?.lat || 6.9108,
+      lng: req.lng || matched?.lng || 79.8668,
+    };
+  };
+
   const [emergencyRequests, setEmergencyRequests] = useState(() => {
-    return getRequests();
+    return getRequests().map(addDefaultLocation);
   });
 
   const [selectedReq, setSelectedReq] = useState(() => {
-    const requests = getRequests();
+    const requests = getRequests().map(addDefaultLocation);
     return requests.length > 0 ? { ...requests[0], status: "pending" } : null;
   });
 
@@ -59,7 +110,7 @@ const ResourceSchedule = () => {
 
   useEffect(() => {
     const loadRequests = () => {
-      const requests = getRequests();
+      const requests = getRequests().map(addDefaultLocation);
 
       setEmergencyRequests(requests);
 
@@ -210,11 +261,63 @@ const ResourceSchedule = () => {
     });
   };
 
+  const RequestMap = ({ request, height = "h-64" }) => {
+    const customerLocation = [
+      request?.lat || 6.9108,
+      request?.lng || 79.8668,
+    ];
+
+    return (
+      <div
+        className={`${height} rounded-lg overflow-hidden border border-[#1a1f26] mb-6`}
+      >
+        <MapContainer
+          center={customerLocation}
+          zoom={12}
+          scrollWheelZoom={true}
+          className="w-full h-full z-0"
+        >
+          <TileLayer
+            attribution="&copy; OpenStreetMap contributors"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+
+          <Marker position={saegisLocation}>
+            <Popup>
+              <strong>Saegis Campus</strong>
+              <br />
+              Dispatch Center
+            </Popup>
+          </Marker>
+
+          <Marker position={customerLocation}>
+            <Popup>
+              <strong>{request?.name}</strong>
+              <br />
+              {request?.vehicle} ({request?.vNo})
+              <br />
+              {request?.loc}
+            </Popup>
+          </Marker>
+
+          <Polyline
+            positions={[saegisLocation, customerLocation]}
+            pathOptions={{
+              color: "#3b82f6",
+              weight: 5,
+              dashArray: "10 8",
+            }}
+          />
+        </MapContainer>
+      </div>
+    );
+  };
+
   return (
-    <div className="w-full h-full bg-[#0b0e14] text-[#a0a8b7] p-8 font-sans overflow-y-auto relative">
+    <div className="w-full h-full bg-[#0b0e14] text-[#a0a8b7] p-4 md:p-8 font-sans overflow-y-auto relative">
       {showDetailsModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#15191f] border border-[#2b313d] rounded-xl p-8 w-full max-w-lg relative">
+          <div className="bg-[#15191f] border border-[#2b313d] rounded-xl p-5 md:p-8 w-full max-w-lg relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowDetailsModal(null)}
               className="absolute top-4 right-4 text-gray-500 hover:text-white"
@@ -226,23 +329,20 @@ const ResourceSchedule = () => {
               Request Details: {showDetailsModal.id}
             </h2>
 
-            <div className="h-40 rounded-lg bg-[#0b0e14] border border-[#1a1f26] flex flex-col justify-center items-center mb-6">
-              <MapPin size={45} className="text-[#3b82f6]" />
-              <p className="mt-3 text-xs uppercase">{showDetailsModal.loc}</p>
-            </div>
+            <RequestMap request={showDetailsModal} height="h-56" />
 
             <div className="space-y-4 text-white">
               <p>
                 Customer:{" "}
-                <span className="text-[#3b82f6]">
-                  {showDetailsModal.name}
-                </span>
+                <span className="text-[#3b82f6]">{showDetailsModal.name}</span>
               </p>
               <p>Contact: {showDetailsModal.contact}</p>
               <p>
                 Vehicle: {showDetailsModal.vehicle} ({showDetailsModal.vNo})
               </p>
-              <p>Garage: {showDetailsModal.garageName || showDetailsModal.loc}</p>
+              <p>
+                Garage: {showDetailsModal.garageName || showDetailsModal.loc}
+              </p>
               <p>
                 Status:{" "}
                 <span
@@ -263,8 +363,8 @@ const ResourceSchedule = () => {
       )}
 
       {popup.show && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-[#15191f] border border-[#2b313d] rounded-xl p-8 w-[420px] text-center shadow-xl">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#15191f] border border-[#2b313d] rounded-xl p-6 md:p-8 w-full max-w-[420px] text-center shadow-xl">
             <h2
               className="text-2xl font-bold mb-4"
               style={{ color: popup.color }}
@@ -304,7 +404,7 @@ const ResourceSchedule = () => {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
         <h1 className="text-white text-2xl font-bold uppercase tracking-wider">
           Dispatch Center
         </h1>
@@ -373,7 +473,10 @@ const ResourceSchedule = () => {
               ))
             ) : (
               <div className="bg-[#15191f] rounded-xl border border-[#1a1f26] p-8 text-center">
-                <AlertCircle size={45} className="text-[#3b82f6] mx-auto mb-4" />
+                <AlertCircle
+                  size={45}
+                  className="text-[#3b82f6] mx-auto mb-4"
+                />
                 <h2 className="text-white font-bold">No Pending Requests</h2>
                 <p className="text-sm text-[#6e7681] mt-2">
                   Customer requests will appear here automatically.
@@ -384,43 +487,41 @@ const ResourceSchedule = () => {
 
           {selectedReq ? (
             <div className="bg-[#15191f] rounded-xl border border-[#1a1f26] p-6 flex flex-col">
-              <div className="h-48 rounded-lg bg-[#0b0e14] border border-[#1a1f26] flex flex-col justify-center items-center mb-6 relative overflow-hidden">
-                <MapPin size={50} className="text-[#3b82f6] animate-pulse" />
+              <RequestMap request={selectedReq} height="h-64" />
 
-                <div className="flex gap-4 mt-4 bg-black/40 px-4 py-2 rounded-lg border border-[#3b82f6]/30">
-                  <div className="flex items-center gap-2 text-[#3b82f6]">
-                    <Clock size={16} />
-                    <span className="font-bold">{selectedReq.eta}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-[#3b82f6]">
-                    <Navigation size={16} />
-                    <span className="font-bold">{selectedReq.dist}</span>
-                  </div>
+              <div className="flex gap-4 mb-4 bg-black/40 px-4 py-3 rounded-lg border border-[#3b82f6]/30">
+                <div className="flex items-center gap-2 text-[#3b82f6]">
+                  <Clock size={16} />
+                  <span className="font-bold">{selectedReq.eta}</span>
                 </div>
 
-                <p className="mt-2 text-[10px] text-[#3b82f6] uppercase tracking-widest">
-                  {selectedReq.loc}
-                </p>
+                <div className="flex items-center gap-2 text-[#3b82f6]">
+                  <Navigation size={16} />
+                  <span className="font-bold">{selectedReq.dist}</span>
+                </div>
               </div>
 
+              <p className="mb-4 text-[10px] text-[#3b82f6] uppercase tracking-widest">
+                {selectedReq.loc}
+              </p>
+
               <div className="bg-[#0b0e14] border border-[#1a1f26] rounded-lg p-4 mb-4 space-y-3 text-sm">
-  <div className="flex justify-between">
-    <span className="text-[#6e7681]">Contact</span>
-    <span className="text-white font-medium">
-      {selectedReq.contact}
-    </span>
-  </div>
+                <div className="flex justify-between">
+                  <span className="text-[#6e7681]">Contact</span>
+                  <span className="text-white font-medium">
+                    {selectedReq.contact}
+                  </span>
+                </div>
 
-  <div className="flex justify-between">
-    <span className="text-[#6e7681]">Status</span>
-    <span className="text-white font-bold">
-      {selectedReq.status.toUpperCase()}
-    </span>
-  </div>
-</div>
+                <div className="flex justify-between">
+                  <span className="text-[#6e7681]">Status</span>
+                  <span className="text-white font-bold">
+                    {selectedReq.status.toUpperCase()}
+                  </span>
+                </div>
+              </div>
 
-              <div className="flex gap-4 mt-auto">
+              <div className="flex flex-col md:flex-row gap-4 mt-auto">
                 <button
                   onClick={handleAccept}
                   className="flex-1 bg-[#52f0ac] hover:bg-[#45cc92] text-black py-3 rounded font-bold cursor-pointer"
