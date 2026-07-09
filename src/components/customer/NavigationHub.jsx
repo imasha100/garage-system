@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Bell, User, Menu, X } from "lucide-react";
 
 import {
@@ -6,10 +6,13 @@ import {
   TileLayer,
   Marker,
   Popup,
-  Polyline,
+  useMap,
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
+import "leaflet-routing-machine";
+import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
+
 import L from "leaflet";
 
 import CustomerSidebar from "./CustomerSidebar";
@@ -29,9 +32,129 @@ L.Icon.Default.mergeOptions({
     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
+const carIcon = new L.Icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/744/744465.png",
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
+});
+
+function RoutingMachine({
+  customerLocation,
+  garageLocation,
+  isAutoPilot,
+  setMovingPosition,
+  setProgress,
+  setIsAutoPilot,
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !customerLocation || !garageLocation) return;
+
+    let routeCoordinates = [];
+
+    const routingControl = L.Routing.control({
+      waypoints: [
+        L.latLng(customerLocation[0], customerLocation[1]),
+        L.latLng(garageLocation[0], garageLocation[1]),
+      ],
+      routeWhileDragging: false,
+      addWaypoints: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: true,
+      show: false,
+      createMarker: () => null,
+      lineOptions: {
+        styles: [
+          {
+            color: "#7c83ff",
+            weight: 6,
+            opacity: 0.9,
+          },
+        ],
+      },
+    }).addTo(map);
+
+    routingControl.on("routesfound", function (e) {
+      routeCoordinates = e.routes[0].coordinates;
+
+      window.currentRouteCoordinates = routeCoordinates;
+    });
+
+    return () => {
+      map.removeControl(routingControl);
+    };
+  }, [map, customerLocation, garageLocation]);
+
+  useEffect(() => {
+    if (!isAutoPilot) return;
+
+    const routeCoordinates = window.currentRouteCoordinates || [];
+
+    if (routeCoordinates.length === 0) {
+      setIsAutoPilot(false);
+      return;
+    }
+
+    let index = 0;
+    const total = routeCoordinates.length - 1;
+
+    const interval = setInterval(() => {
+      if (index >= routeCoordinates.length) {
+        clearInterval(interval);
+        setMovingPosition(garageLocation);
+        setProgress(100);
+        setIsAutoPilot(false);
+        return;
+      }
+
+      const point = routeCoordinates[index];
+      setMovingPosition([point.lat, point.lng]);
+
+      const progressValue = Math.round((index / total) * 100);
+      setProgress(progressValue);
+
+      index += 1;
+    }, 80);
+
+    return () => clearInterval(interval);
+  }, [isAutoPilot, garageLocation, setMovingPosition, setProgress, setIsAutoPilot]);
+
+  return null;
+}
+
+function MapAutoCenter({ position }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (position) {
+      map.flyTo(position, 15, { duration: 0.5 });
+    }
+  }, [position, map]);
+
+  return null;
+}
+
 export default function NavigationHub({ onNavigate, selectedGarage }) {
   const [activeTab, setActiveTab] = useState("navigation");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const customerLocation = [6.8728, 79.8887];
+
+  const garageLocation =
+    selectedGarage?.lat && selectedGarage?.lng
+      ? [selectedGarage.lat, selectedGarage.lng]
+      : customerLocation;
+
+  const [isAutoPilot, setIsAutoPilot] = useState(false);
+  const [movingPosition, setMovingPosition] = useState(customerLocation);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    setMovingPosition(customerLocation);
+    setProgress(0);
+    setIsAutoPilot(false);
+  }, [selectedGarage]);
 
   if (!selectedGarage) {
     return (
@@ -56,25 +179,14 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
     );
   }
 
-  const customerLocation = [6.9271, 79.8612];
-
-  const garageLocation =
-    selectedGarage?.lat && selectedGarage?.lng
-      ? [selectedGarage.lat, selectedGarage.lng]
-      : customerLocation;
-
-  const routeLine = [customerLocation, garageLocation];
-
   const formatValue = (value) => (value ? value.split(" ")[0] : "--");
 
   return (
     <div className="w-screen h-screen bg-[#070814] text-slate-200 font-mono flex overflow-hidden">
-      {/* SIDEBAR DESKTOP */}
       <div className="hidden md:block">
         <CustomerSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
-      {/* MOBILE OVERLAY */}
       <div
         className={`fixed inset-0 bg-black/60 z-40 md:hidden transition-opacity duration-300 ${
           sidebarOpen ? "opacity-100 visible" : "opacity-0 invisible"
@@ -82,7 +194,6 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
         onClick={() => setSidebarOpen(false)}
       />
 
-      {/* MOBILE SIDEBAR */}
       <div
         className={`fixed top-0 left-0 h-full z-50 md:hidden transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -106,9 +217,7 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
         </div>
       </div>
 
-      {/* MAIN */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* HEADER */}
         <div className="h-16 border-b border-slate-900 bg-[#0c0d19]/60 backdrop-blur px-4 flex items-center shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -137,7 +246,6 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
           </div>
         </div>
 
-        {/* CONTENT */}
         <div className="flex-1 p-4 md:p-8 overflow-y-auto">
           {activeTab === "navigation" && (
             <div className="max-w-6xl mx-auto">
@@ -146,11 +254,10 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
               </h1>
 
               <div className="grid lg:grid-cols-3 gap-8">
-                {/* LEAFLET MAP */}
                 <div className="lg:col-span-2 h-[450px] bg-black border border-slate-800 rounded overflow-hidden relative">
                   <MapContainer
-                    center={garageLocation}
-                    zoom={12}
+                    center={customerLocation}
+                    zoom={14}
                     scrollWheelZoom={true}
                     className="w-full h-full z-0"
                   >
@@ -160,29 +267,56 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
                     />
 
                     <Marker position={customerLocation}>
-                      <Popup>Customer Location</Popup>
+                      <Popup>Current Location - Saegis Campus</Popup>
                     </Marker>
 
                     <Marker position={garageLocation}>
                       <Popup>{selectedGarage.name}</Popup>
                     </Marker>
 
-                    <Polyline
-                      positions={routeLine}
-                      pathOptions={{
-                        color: "#7c83ff",
-                        weight: 5,
-                        dashArray: "10 8",
-                      }}
+                    <Marker position={movingPosition} icon={carIcon}>
+                      <Popup>
+                        {progress >= 100
+                          ? "Arrived at Garage"
+                          : "Vehicle Moving on Road Route"}
+                      </Popup>
+                    </Marker>
+
+                    <RoutingMachine
+                      customerLocation={customerLocation}
+                      garageLocation={garageLocation}
+                      isAutoPilot={isAutoPilot}
+                      setMovingPosition={setMovingPosition}
+                      setProgress={setProgress}
+                      setIsAutoPilot={setIsAutoPilot}
                     />
+
+                    <MapAutoCenter position={movingPosition} />
                   </MapContainer>
 
                   <div className="absolute top-4 left-4 z-[999] bg-black/70 border border-slate-700 text-white px-4 py-2 rounded text-xs font-bold">
-                    GPS Navigation Active
+                    {isAutoPilot
+                      ? "MOVING ON ROAD ROUTE"
+                      : progress >= 100
+                      ? "ARRIVED AT GARAGE"
+                      : "GPS Navigation Ready"}
+                  </div>
+
+                  <div className="absolute bottom-4 left-4 right-4 z-[999] bg-black/75 border border-slate-700 p-3 rounded">
+                    <div className="flex justify-between text-xs text-slate-300 mb-2">
+                      <span>Route Progress</span>
+                      <span>{progress}%</span>
+                    </div>
+
+                    <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 transition-all duration-200"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* INFO */}
                 <div className="bg-[#0c0d19] border border-slate-800 p-6 rounded">
                   <h2 className="text-white font-bold mb-4">
                     MISSION METRICS
@@ -206,10 +340,44 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
                         {formatValue(selectedGarage.distance)} KM
                       </p>
                     </div>
+
+                    <div>
+                      <p className="text-xs text-slate-400">STATUS</p>
+                      <p className="text-lg font-black text-emerald-400">
+                        {progress >= 100
+                          ? "ARRIVED"
+                          : isAutoPilot
+                          ? "MOVING"
+                          : "READY"}
+                      </p>
+                    </div>
                   </div>
 
-                  <button className="w-full mt-6 bg-indigo-600 hover:bg-indigo-500 cursor-pointer py-3 rounded font-bold">
-                    START AUTO PILOT
+                  <button
+                    onClick={() => {
+                      setProgress(0);
+                      setMovingPosition(customerLocation);
+                      setIsAutoPilot(true);
+                    }}
+                    disabled={isAutoPilot}
+                    className={`w-full mt-6 py-3 rounded font-bold ${
+                      isAutoPilot
+                        ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+                        : "bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
+                    }`}
+                  >
+                    {isAutoPilot ? "MOVING..." : "START AUTO PILOT"}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setIsAutoPilot(false);
+                      setProgress(0);
+                      setMovingPosition(customerLocation);
+                    }}
+                    className="w-full mt-3 border border-slate-600 cursor-pointer text-slate-300 py-3 rounded font-bold hover:bg-slate-800"
+                  >
+                    RESET ROUTE
                   </button>
 
                   <button

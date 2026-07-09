@@ -15,15 +15,12 @@ import {
   BadgeCheck,
   Camera,
   BriefcaseBusiness,
-  Power,
 } from "lucide-react";
 
 export default function OwnerProfile({ toggleSidebar }) {
   const fileInputRef = useRef(null);
   const [editMode, setEditMode] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
-  const [shiftOn, setShiftOn] = useState(true);
-  const [showShiftConfirm, setShowShiftConfirm] = useState(false);
 
   const [profile, setProfile] = useState({
     name: "Master Admin",
@@ -63,11 +60,6 @@ export default function OwnerProfile({ toggleSidebar }) {
       ...prev,
       [name]: value,
     }));
-  };
-
-  const confirmShiftChange = () => {
-    setShiftOn((prev) => !prev);
-    setShowShiftConfirm(false);
   };
 
   const renderField = (Icon, label, value, name) => (
@@ -116,48 +108,6 @@ export default function OwnerProfile({ toggleSidebar }) {
 
   return (
     <div className="min-h-screen bg-[#0b0b13] text-white font-sans">
-      {showShiftConfirm && (
-        <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#191923] border border-white/10 rounded-2xl p-6 shadow-2xl">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center mb-5">
-              <Power size={22} className="text-cyan-400" />
-            </div>
-
-            <h2 className="text-xl font-black mb-3">
-              Confirm Shift {shiftOn ? "OFF" : "ON"}
-            </h2>
-
-            <p className="text-sm text-gray-400 mb-6">
-              Are you sure you want to turn the garage owner shift{" "}
-              <span className={shiftOn ? "text-red-300" : "text-emerald-400"}>
-                {shiftOn ? "OFF" : "ON"}
-              </span>
-              ?
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={confirmShiftChange}
-                className={`flex-1 py-3 rounded-xl font-bold text-xs tracking-widest ${
-                  shiftOn
-                    ? "bg-red-500/20 text-red-300 border border-red-500/30"
-                    : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                }`}
-              >
-                YES, TURN {shiftOn ? "OFF" : "ON"}
-              </button>
-
-              <button
-                onClick={() => setShowShiftConfirm(false)}
-                className="flex-1 py-3 rounded-xl font-bold text-xs tracking-widest bg-white/10 text-gray-300 border border-white/10"
-              >
-                CANCEL
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="min-h-16 border-b border-white/10 bg-[#191922] flex items-center justify-between gap-4 px-4 md:px-8">
         <button
           onClick={toggleSidebar}
@@ -200,24 +150,11 @@ export default function OwnerProfile({ toggleSidebar }) {
               GARAGE OWNER PROFILE
             </h1>
             <p className="text-gray-400 text-sm md:text-base max-w-3xl">
-              Manage owner identity, garage information, shift status, and
-              access level.
+              Manage owner identity, garage information, and access level.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => setShowShiftConfirm(true)}
-              className={`flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-bold tracking-widest border ${
-                shiftOn
-                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                  : "bg-red-500/15 text-red-300 border-red-500/30"
-              }`}
-            >
-              <Power size={15} />
-              SHIFT {shiftOn ? "ON" : "OFF"}
-            </button>
-
             {!editMode ? (
               <button
                 onClick={handleEdit}
@@ -287,17 +224,6 @@ export default function OwnerProfile({ toggleSidebar }) {
                   <BadgeCheck size={13} />
                   VERIFIED OWNER
                 </span>
-
-                <span
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold border ${
-                    shiftOn
-                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                      : "bg-red-500/15 text-red-300 border-red-500/30"
-                  }`}
-                >
-                  <Power size={12} />
-                  SHIFT {shiftOn ? "ACTIVE" : "INACTIVE"}
-                </span>
               </div>
 
               <p className="text-gray-400">
@@ -310,6 +236,7 @@ export default function OwnerProfile({ toggleSidebar }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
           {stats.map((item, index) => {
             const Icon = item.icon;
+
             return (
               <div
                 key={index}

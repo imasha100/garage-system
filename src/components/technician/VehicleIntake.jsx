@@ -1,52 +1,108 @@
-import React, { useState } from 'react';
-import { Search, Bell, HelpCircle, Car, MoreVertical, Plus, LogIn, User } from 'lucide-react';
-// Ensure your image path is correct
-import garageImage from '../../assets/garage-car.jpeg'; 
-import avatarImage from '../../assets/profile.png'; 
+import React, { useState } from "react";
+import {
+  Plus,
+  Search,
+  Bell,
+  HelpCircle,
+  ChevronRight,
+  ClipboardList,
+  CheckCircle,
+  Activity,
+  Clock,
+  Car,
+  AlertTriangle,
+} from "lucide-react";
+import avatarImage from "../../assets/profile.png";
 
-export default function VehicleIntake() {
-  const [repairDuration, setRepairDuration] = useState('');
-  const [searchQuery, setSearchQuery] = useState(''); 
-  const [openMenuId, setOpenMenuId] = useState(null); // Action menu එක සඳහා
-  
-  const [activeQueue] = useState([
-    { id: 1, plate: 'B-7412-HX', duration: '2 hrs', timeIn: '08:45 AM', status: 'IN-PROGRESS', color: 'bg-emerald-500/10 text-emerald-400' },
-    { id: 2, plate: 'TX-902-LK', duration: '30 min', timeIn: '09:12 AM', status: 'QUEUED', color: 'bg-amber-500/10 text-amber-400' },
-    { id: 3, plate: 'CAS-1120-W', duration: '1 hr', timeIn: '09:30 AM', status: 'IN-PROGRESS', color: 'bg-emerald-500/10 text-emerald-400' },
-    { id: 4, plate: 'DE-5544-ZZ', duration: '3+ hrs', timeIn: '09:45 AM', status: 'STALLED', color: 'bg-rose-500/10 text-rose-400' }
-  ]);
+export default function Dashboard() {
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredQueue = activeQueue.filter(item => 
-    item.plate.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const percentage = 66;
+  const radius = 65;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
 
-  const handleAddToWorkload = (e) => {
-    e.preventDefault();
-    if (!repairDuration.trim()) {
-      alert("Please fill in the Estimated Repair Duration!");
-      return;
-    }
-    setRepairDuration('');
-  };
+  const stats = [
+    {
+      label: "Assigned Vehicles",
+      value: "12",
+      sub: "Today workload",
+      icon: ClipboardList,
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/20",
+    },
+    {
+      label: "Completed Tasks",
+      value: "8 / 12",
+      sub: "Daily progress",
+      icon: CheckCircle,
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10",
+      border: "border-emerald-500/20",
+    },
+    {
+      label: "Efficiency Index",
+      value: "94%",
+      sub: "Performance KPI",
+      icon: Activity,
+      color: "text-purple-400",
+      bg: "bg-purple-500/10",
+      border: "border-purple-500/20",
+    },
+    {
+      label: "Avg Repair Time",
+      value: "42m",
+      sub: "Per vehicle",
+      icon: Clock,
+      color: "text-amber-400",
+      bg: "bg-amber-500/10",
+      border: "border-amber-500/20",
+    },
+  ];
+
+  const queue = [
+    {
+      no: "09",
+      vehicle: "VW Golf GTI",
+      job: "Brake Pad Replacement",
+      priority: "HIGH",
+      eta: "25m",
+    },
+    {
+      no: "10",
+      vehicle: "Audi RS6",
+      job: "Oil System Flush",
+      priority: "MEDIUM",
+      eta: "40m",
+    },
+    {
+      no: "11",
+      vehicle: "Ford F-150",
+      job: "Suspension Tuning",
+      priority: "LOW",
+      eta: "1h",
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono">
-      
-      {/* PROFESSIONAL ENTERPRISE HEADER */}
-      <div className="bg-[#111827]/90 backdrop-blur-xl border-b border-slate-800 px-6 py-3 flex items-center">
+    <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono overflow-y-auto">
+      <div className="bg-[#111827]/90 backdrop-blur-xl border-b border-slate-800 px-6 md:px-6 py-3 flex items-center gap-4 sticky top-0 z-50">
         <div className="flex items-center gap-3 w-48">
-          <h1 className="text-sm font-black tracking-[0.15em] text-white">TECHNICIANS</h1>
+          <h1 className="text-sm font-black tracking-[0.15em] text-white">
+            TECHNICIANS
+          </h1>
         </div>
 
         <div className="flex-1 flex justify-center">
           <div className="relative w-[420px]">
             <Search className="absolute left-3 top-2 text-slate-600" size={14} />
-            <input 
-              type="text" 
-              placeholder="Search Workshop..." 
+            <input
+              type="text"
+              placeholder="Search Workshop..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0a0d14] border border-slate-800 py-1.5 pl-9 pr-4 rounded-md text-xs focus:outline-none focus:border-indigo-500" 
+              className="w-full bg-[#0a0d14] border border-slate-800 py-1.5 pl-9 pr-4 rounded-md text-xs focus:outline-none focus:border-indigo-500"
             />
           </div>
         </div>
@@ -54,98 +110,286 @@ export default function VehicleIntake() {
         <div className="flex items-center gap-4 w-48 justify-end">
           <Bell size={16} className="text-slate-400 hover:text-white cursor-pointer" />
           <HelpCircle size={16} className="text-slate-400 hover:text-white cursor-pointer" />
+
           <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
             <div className="text-right">
               <p className="text-white text-[10px] font-bold">M. Anderson</p>
-              <p className="text-[9px] text-slate-500 uppercase">Senior Mechanic</p>
+              <p className="text-[9px] text-slate-500 uppercase">
+                Senior Mechanic
+              </p>
             </div>
+
             <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 overflow-hidden">
-               <img src={avatarImage} alt="Profile" className="w-full h-full object-cover" />
+              <img
+                src={avatarImage}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* WORKSPACE CONTENT */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-white">Intake Terminal</h1>
-          <p className="text-slate-500 text-xl">Register new vehicle arrivals for the current shift.</p>
-        </div>
+      <div className="px-4 md:px-6 max-w-7xl mx-auto py-6 md:py-8 pb-20">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mb-8">
+          <div>
+            <p className="text-indigo-400 text-xs font-bold tracking-[0.25em] uppercase mb-2">
+              Technician Workstation
+            </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-[#10121b] border border-slate-800 p-6 rounded-lg">
-            <form onSubmit={handleAddToWorkload}>
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="flex items-center gap-2 text-white text-2xl font-bold"><Car size={18} /> Vehicle Intake</h2>
-                <span className="text-[10px] bg-slate-900 px-2 py-1 rounded border border-slate-700">ENTRY-702</span>
-              </div>
-              <label className="text-[12px] uppercase text-slate-500 block mb-2">Vehicle License Plate</label>
-              <input type="text" defaultValue="WP CAS 1234" className="w-full bg-[#06080e] border border-slate-700 p-3 rounded mb-4 text-white" />
-              
-              <label className="text-[12px] uppercase text-slate-500 block mb-2">Estimated Repair Duration</label>
-              <input 
-                required
-                type="text" 
-                value={repairDuration} 
-                onChange={(e) => setRepairDuration(e.target.value)}
-                placeholder="e.g., 45 min" 
-                className="w-full bg-[#06080e] border border-slate-700 p-3 rounded mb-6 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500" 
-              />
-              
-              <button type="submit" className="w-full bg-[#5244E9] py-3 rounded font-bold text-white text-2xl cursor-pointer hover:bg-[#4338ca] transition">
-                <Plus size={16} className="inline mr-2" /> Add to Active Workload
-              </button>
-            </form>
+            <h1 className="text-3xl md:text-4xl font-black text-white">
+              Welcome Back, Alex Chen
+            </h1>
+
+            <p className="text-slate-500 text-sm md:text-base mt-2">
+              You have 4 remaining high-priority diagnostics today.
+            </p>
           </div>
 
-          <div className="bg-[#10121b] border border-slate-800 rounded-lg overflow-hidden relative flex flex-col justify-end">
-            <img src={garageImage} alt="Garage Bay" className="absolute inset-0 w-full h-full object-cover opacity-60" />
-            <div className="relative z-10 p-6 bg-gradient-to-t from-[#10121b] via-transparent to-transparent">
-              <p className="text-[10px] uppercase text-slate-300">Bay Status: Optimized</p>
-              <h3 className="text-xl font-bold text-white">4 Available Maintenance Slots</h3>
+          <button className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition text-sm uppercase tracking-widest">
+            <Plus size={16} />
+            Start New Intake
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
+          {stats.map((card, i) => {
+            const Icon = card.icon;
+
+            return (
+              <div
+                key={i}
+                className={`bg-[#10121b] border ${card.border} p-5 rounded-2xl relative overflow-hidden`}
+              >
+                <div className="flex justify-between items-start mb-5">
+                  <div>
+                    <p className="text-slate-500 text-[10px] uppercase tracking-widest">
+                      {card.label}
+                    </p>
+                    <p className="text-slate-600 text-[10px] mt-1">
+                      {card.sub}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}
+                  >
+                    <Icon size={18} className={card.color} />
+                  </div>
+                </div>
+
+                <h2 className="text-3xl font-black text-white">
+                  {card.value}
+                </h2>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-2 bg-[#10121b] border border-slate-800 p-6 rounded-2xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+              <div>
+                <h3 className="text-white font-bold text-xl">
+                  Daily Workflow Status
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Real-time task synchronization
+                </p>
+              </div>
+
+              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+                LIVE TRACKING
+              </span>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="relative w-40 h-40 flex items-center justify-center">
+                <svg width="160" height="160" className="-rotate-90 absolute">
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r={radius}
+                    stroke="#1e293b"
+                    strokeWidth="12"
+                    fill="none"
+                  />
+
+                  <circle
+                    cx="80"
+                    cy="80"
+                    r={radius}
+                    stroke="#6366f1"
+                    strokeWidth="12"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    className="transition-all duration-1000"
+                  />
+                </svg>
+
+                <div className="text-center z-10">
+                  <h2 className="text-4xl font-black text-white">
+                    {percentage}%
+                  </h2>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                    Completed
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4">
+                  <p className="text-[10px] text-slate-500 uppercase">
+                    Pending
+                  </p>
+                  <p className="text-2xl font-black text-white">4</p>
+                </div>
+
+                <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4">
+                  <p className="text-[10px] text-slate-500 uppercase">
+                    Completed
+                  </p>
+                  <p className="text-2xl font-black text-emerald-400">8</p>
+                </div>
+
+                <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4">
+                  <p className="text-[10px] text-slate-500 uppercase">
+                    Avg Time
+                  </p>
+                  <p className="text-2xl font-black text-amber-400">42m</p>
+                </div>
+
+                <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4">
+                  <p className="text-[10px] text-slate-500 uppercase">
+                    Efficiency
+                  </p>
+                  <p className="text-2xl font-black text-purple-400">94%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#10121b] border border-indigo-500/20 p-6 rounded-2xl">
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <h3 className="text-white font-bold text-xl">
+                  Current Active Task
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Live vehicle progress
+                </p>
+              </div>
+
+              <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-1 rounded text-[9px]">
+                IN_PROGRESS
+              </span>
+            </div>
+
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                <Car size={24} className="text-indigo-400" />
+              </div>
+
+              <div>
+                <p className="text-white font-black text-xl">B-7729-TX</p>
+                <p className="text-[11px] text-slate-500">
+                  Tesla Model 3 - Battery Diagnostic
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4 mb-4">
+              <div className="flex justify-between text-[11px] mb-2">
+                <span className="text-slate-500">Elapsed Time</span>
+                <span className="text-white font-bold">01:14:22</span>
+              </div>
+
+              <div className="w-full bg-slate-800 h-2 rounded-full">
+                <div className="bg-indigo-400 w-2/3 h-full rounded-full" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-amber-400 text-xs">
+              <AlertTriangle size={14} />
+              High voltage safety check required
             </div>
           </div>
         </div>
 
-        <div className="bg-[#10121b] border border-slate-800 rounded-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-white font-bold text-2xl flex items-center gap-2"><Car size={16} /> Active Queue</h2>
-            <span className="text-emerald-500 text-[10px] flex items-center gap-1">● Live Updates Enabled</span>
+        <div className="bg-[#10121b] border border-slate-800 p-6 rounded-2xl">
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <h3 className="text-white font-bold text-xl">Today’s Queue</h3>
+              <p className="text-[11px] text-slate-500">
+                Upcoming assigned vehicles
+              </p>
+            </div>
+
+            <span className="text-[10px] text-indigo-400 cursor-pointer">
+              View All
+            </span>
           </div>
-          <table className="w-full text-xs text-slate-400">
-            <thead>
-              <tr className="border-b border-slate-800 text-[12px] uppercase">
-                <th className="text-left pb-4">Plate</th>
-                <th className="text-left pb-4">Duration</th>
-                <th className="text-left pb-4">Time In</th>
-                <th className="text-left pb-4">Status</th>
-                <th className="text-right pb-4">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredQueue.map((item) => (
-                <tr key={item.id} className="border-b border-slate-800/50">
-                  <td className="py-4 text-white font-bold">{item.plate}</td>
-                  <td className="py-4">{item.duration}</td>
-                  <td className="py-4">{item.timeIn}</td>
-                  <td className="py-4"><span className={`px-2 py-1 rounded text-[10px] ${item.color}`}>{item.status}</span></td>
-                  <td className="py-4 text-right relative">
-                    <button onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}>
-                      <MoreVertical size={16} className="inline cursor-pointer hover:text-white" />
-                    </button>
-                    {/* Action Dropdown Menu */}
-                    {openMenuId === item.id && (
-                      <div className="absolute right-0 mt-2 w-40 bg-[#111827] border border-slate-700 rounded-md shadow-2xl z-50 text-left">
-                        
-                        <button className="block w-full px-4 py-2 text-[10px] text-red-400 hover:bg-slate-800 hover:text-red-300">Remove</button>
-                      </div>
-                    )}
-                  </td>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] text-xs text-slate-400">
+              <thead>
+                <tr className="border-b border-slate-800 uppercase text-[10px]">
+                  <th className="text-left pb-4">No</th>
+                  <th className="text-left pb-4">Vehicle</th>
+                  <th className="text-left pb-4">Job Type</th>
+                  <th className="text-left pb-4">Priority</th>
+                  <th className="text-left pb-4">ETA</th>
+                  <th className="text-right pb-4">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {queue.map((item, i) => (
+                  <tr
+                    key={i}
+                    className="border-b border-slate-800/50 last:border-0"
+                  >
+                    <td className="py-4">
+                      <span className="bg-slate-900 px-2 py-1 rounded">
+                        {item.no}
+                      </span>
+                    </td>
+
+                    <td className="py-4 text-white font-bold">
+                      {item.vehicle}
+                    </td>
+
+                    <td className="py-4">{item.job}</td>
+
+                    <td className="py-4">
+                      <span
+                        className={`px-2 py-1 rounded text-[10px] ${
+                          item.priority === "HIGH"
+                            ? "bg-red-500/10 text-red-400"
+                            : item.priority === "MEDIUM"
+                            ? "bg-amber-500/10 text-amber-400"
+                            : "bg-emerald-500/10 text-emerald-400"
+                        }`}
+                      >
+                        {item.priority}
+                      </span>
+                    </td>
+
+                    <td className="py-4">{item.eta}</td>
+
+                    <td className="py-4 text-right">
+                      <ChevronRight
+                        size={16}
+                        className="inline text-slate-600 hover:text-white cursor-pointer"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

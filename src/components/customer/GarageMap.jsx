@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  X,
-  Clock,
-  MapPin,
-  User,
-  Users,
-} from "lucide-react";
+import { X, Clock, MapPin, User, Users } from "lucide-react";
 
 import {
   MapContainer,
@@ -38,7 +32,9 @@ export default function GarageMap({
   const [isRequested, setIsRequested] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [userLocation, setUserLocation] = useState([6.9271, 79.8612]);
+
+  // Fixed current location: Saegis Campus, Nugegoda
+  const [userLocation, setUserLocation] = useState([6.8728, 79.8887]);
 
   const [requestData, setRequestData] = useState({
     customerName: "",
@@ -47,70 +43,126 @@ export default function GarageMap({
     vehicleType: "",
   });
 
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const getGarageWithLiveDistance = (garage) => {
+    const distanceKm = calculateDistance(
+      userLocation[0],
+      userLocation[1],
+      garage.lat,
+      garage.lng
+    );
+
+    const averageSpeedKmH = 35;
+    const timeMins = Math.max(
+      1,
+      Math.round((distanceKm / averageSpeedKmH) * 60)
+    );
+
+    return {
+      ...garage,
+      distance: `${distanceKm.toFixed(1)} KM`,
+      time: `${timeMins} MINS`,
+    };
+  };
+
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([
-            position.coords.latitude,
-            position.coords.longitude,
-          ]);
-        },
-        () => {
-          setUserLocation([6.9271, 79.8612]);
-        }
-      );
-    }
+    setUserLocation([6.8728, 79.8887]);
   }, []);
 
   const garagesData = {
-    malabe: {
-      id: "MALABE",
-      name: "MALABE PREMIUM HUB",
-      distance: "8.4 KM",
-      time: "14 MINS",
-      workload: "28%",
+    kohuwala: {
+      id: "KOHUWALA",
+      name: "KOHUWALA AUTO CARE",
+      workload: "30%",
       status: "NEAREST & RECOMMENDED",
-      specialization: "Hybrid Powertrain Experts Available",
-      specDesc: "Node specialized in Toyota/Lexus/Honda high-voltage systems.",
-      lat: 6.9068,
-      lng: 79.9696,
+      specialization: "General Vehicle Repair",
+      specDesc: "Quick repair support near Saegis Campus / Kohuwala area.",
+      lat: 6.8721,
+      lng: 79.8852,
       freeTechs: [
-        { name: "Kamal Silva", expert: "Hybrid & EV Battery Diagnosis" },
-        { name: "Nuwan Perera", expert: "Auto Electrical & ECU Tuning" },
-        { name: "Sahan Fernando", expert: "Suspension & Brake Systems" },
+        { name: "Kamal Silva", expert: "Engine Diagnosis" },
+        { name: "Nuwan Perera", expert: "Auto Electrical" },
       ],
     },
 
-    kadawatha: {
-      id: "KADAWATHA",
-      name: "KADAWATHA HIGHWAY HUB",
-      distance: "15.8 KM",
-      time: "35 MINS",
-      workload: "95%",
+    nugegoda: {
+      id: "NUGEGODA",
+      name: "NUGEGODA SERVICE HUB",
+      workload: "55%",
+      status: "MODERATE AVAILABLE",
+      specialization: "Mechanical & Scanning",
+      specDesc: "Multi-brand scanner and general mechanical support.",
+      lat: 6.8729,
+      lng: 79.8996,
+      freeTechs: [{ name: "Roshan Alwis", expert: "Engine Scanning" }],
+    },
+
+    kirulapone: {
+      id: "KIRULAPONE",
+      name: "KIRULAPONE GARAGE POINT",
+      workload: "42%",
+      status: "AVAILABLE",
+      specialization: "Brake, Suspension & Tune-up",
+      specDesc: "Fast service for brake, suspension and routine maintenance.",
+      lat: 6.8797,
+      lng: 79.8746,
+      freeTechs: [
+        { name: "Sahan Fernando", expert: "Brake Systems" },
+        { name: "Isuru Madushan", expert: "Suspension Repair" },
+      ],
+    },
+
+    maharagama: {
+      id: "MAHARAGAMA",
+      name: "MAHARAGAMA AUTO TECH",
+      workload: "68%",
+      status: "BUSY",
+      specialization: "Hybrid & EV Support",
+      specDesc: "Hybrid vehicle diagnosis and battery inspection support.",
+      lat: 6.848,
+      lng: 79.9265,
+      freeTechs: [{ name: "Dilan Perera", expert: "Hybrid Diagnosis" }],
+    },
+
+    piliyandala: {
+      id: "PILIYANDALA",
+      name: "PILIYANDALA RECOVERY HUB",
+      workload: "75%",
       status: "HIGH WORKLOAD",
-      specialization: "Heavy Mechanical Specialists",
-      specDesc:
-        "Expertise in diesel turbo engines, transmission rebuilds, and highway recovery.",
-      lat: 7.0013,
-      lng: 79.9497,
+      specialization: "Recovery & Mechanical Repair",
+      specDesc: "Tow recovery and heavy mechanical repair support.",
+      lat: 6.8018,
+      lng: 79.9227,
       freeTechs: [],
     },
 
-    kaduwela: {
-      id: "KADUWELA",
-      name: "KADUWELA CENTRAL HUB",
-      distance: "12.1 KM",
-      time: "22 MINS",
-      workload: "60%",
-      status: "MODERATE AVAILABLE",
-      specialization: "General Mechanical & Scanning",
-      specDesc:
-        "Multi-brand vehicle scanners and quick routine recovery support.",
-      lat: 6.9344,
-      lng: 79.9845,
+    dehiwala: {
+      id: "DEHIWALA",
+      name: "DEHIWALA MOTOR WORKS",
+      workload: "38%",
+      status: "AVAILABLE",
+      specialization: "Electrical & AC Repair",
+      specDesc: "Vehicle electrical, AC repair and quick diagnostic support.",
+      lat: 6.8519,
+      lng: 79.8655,
       freeTechs: [
-        { name: "Roshan Alwis", expert: "Engine Overhauling & Scanning" },
+        { name: "Lahiru Fernando", expert: "Vehicle AC Repair" },
+        { name: "Milan Jayasinghe", expert: "Auto Electrical Systems" },
       ],
     },
   };
@@ -125,11 +177,13 @@ export default function GarageMap({
   };
 
   const handleSelectGarage = (garage) => {
+    const updatedGarage = getGarageWithLiveDistance(garage);
+
     setIsRequested(false);
     setShowRequestForm(false);
     setShowSuccessMessage(false);
     resetForm();
-    setSelectedGarage(garage);
+    setSelectedGarage(updatedGarage);
   };
 
   const handleCloseDetails = () => {
@@ -187,6 +241,8 @@ export default function GarageMap({
     resetForm();
   };
 
+  const liveGarages = Object.values(garagesData).map(getGarageWithLiveDistance);
+
   return (
     <div className="w-screen h-screen max-h-screen overflow-hidden bg-[#02050b] text-[#cbd5e1] font-mono flex flex-col">
       <div className="w-full h-14 border-b border-slate-900 bg-[#02050b]/90 backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-20 text-xs shrink-0">
@@ -219,7 +275,7 @@ export default function GarageMap({
       <div className="flex-1 w-full relative overflow-hidden">
         <MapContainer
           center={userLocation}
-          zoom={12}
+          zoom={14}
           scrollWheelZoom={true}
           className="w-full h-full z-0"
         >
@@ -230,19 +286,21 @@ export default function GarageMap({
 
           <CircleMarker
             center={userLocation}
-            radius={10}
+            radius={11}
             pathOptions={{
               color: "#b49eff",
               fillColor: "#b49eff",
-              fillOpacity: 0.8,
+              fillOpacity: 0.9,
             }}
           >
             <Popup>
-              <strong>Your Current Location</strong>
+              <strong>Saegis Campus</strong>
+              <br />
+              Current Location
             </Popup>
           </CircleMarker>
 
-          {Object.values(garagesData).map((garage) => (
+          {liveGarages.map((garage) => (
             <Marker
               key={garage.id}
               position={[garage.lat, garage.lng]}

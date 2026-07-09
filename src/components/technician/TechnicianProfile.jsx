@@ -11,14 +11,16 @@ import {
 import avatarImage from "../../assets/profile.png";
 
 export default function TechnicianProfile() {
-  const [isOnShift, setIsOnShift] = useState(true);
-  const [shiftStartTime, setShiftStartTime] = useState(Date.now());
+  const [isOnShift, setIsOnShift] = useState(false);
+  const [shiftStartTime, setShiftStartTime] = useState(null);
   const [duration, setDuration] = useState("00:00:00");
+
   const [skills, setSkills] = useState([
     "Hybrid Expert",
     "Electrical Specialist",
     "Brake Systems L2",
   ]);
+
   const [newSkill, setNewSkill] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -31,7 +33,7 @@ export default function TechnicianProfile() {
   useEffect(() => {
     let interval;
 
-    if (isOnShift) {
+    if (isOnShift && shiftStartTime) {
       interval = setInterval(() => {
         const diff = Date.now() - shiftStartTime;
         const hours = Math.floor(diff / 1000 / 60 / 60);
@@ -68,6 +70,8 @@ export default function TechnicianProfile() {
 
       setShiftHistory([newEntry, ...shiftHistory]);
       setIsOnShift(false);
+      setShiftStartTime(null);
+      setDuration("00:00:00");
     } else {
       setShiftStartTime(Date.now());
       setDuration("00:00:00");
@@ -94,7 +98,6 @@ export default function TechnicianProfile() {
 
   return (
     <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono relative">
-      {/* HEADER */}
       <div className="bg-[#111827]/90 backdrop-blur-xl border-b border-slate-800 px-6 py-3 flex items-center">
         <div className="flex items-center gap-3 w-48">
           <h1 className="text-sm font-black tracking-[0.15em] text-white">
@@ -153,7 +156,6 @@ export default function TechnicianProfile() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* LEFT COLUMN */}
           <div className="bg-[#10121b] border border-slate-800 p-8 rounded-xl text-center">
             <div className="relative w-32 h-32 mx-auto mb-4 flex items-center justify-center">
               <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500 via-emerald-400 to-indigo-500 animate-spin-slow" />
@@ -173,7 +175,6 @@ export default function TechnicianProfile() {
             </p>
           </div>
 
-          {/* RIGHT COLUMN */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-[#10121b] border border-slate-800 p-8 rounded-xl">
               <div className="flex justify-between items-center mb-6">
@@ -235,7 +236,7 @@ export default function TechnicianProfile() {
               </div>
 
               <p className="text-[10px] text-slate-500">
-                {isOnShift
+                {isOnShift && shiftStartTime
                   ? `Shift began at ${new Date(
                       shiftStartTime
                     ).toLocaleTimeString()}`
@@ -245,7 +246,6 @@ export default function TechnicianProfile() {
           </div>
         </div>
 
-        {/* BOTTOM SECTION */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
           <div className="bg-[#10121b] border border-slate-800 p-6 rounded-xl">
             <h3 className="text-white font-bold text-sm mb-4">
@@ -321,7 +321,6 @@ export default function TechnicianProfile() {
         </div>
       </div>
 
-      {/* CUSTOM DISPLAY POPUP */}
       {showConfirm && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="relative w-full max-w-md bg-[#10121b] border border-slate-700 rounded-2xl p-6 shadow-2xl text-center">
