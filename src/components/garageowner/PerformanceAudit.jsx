@@ -128,17 +128,13 @@ export default function PerformanceAudit({ toggleSidebar }) {
         <div className="bg-[#181820] border border-white/10 rounded-lg overflow-hidden mb-10">
           <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
             <p className="text-[11px] text-cyan-400 font-bold tracking-[0.25em]">
-              ● LIVE EFFICIENCY METRICS
+               LIVE EFFICIENCY METRICS
             </p>
 
-            <div className="flex gap-2">
-              <span className="w-2 h-2 rounded-full bg-gray-600" />
-              <span className="w-2 h-2 rounded-full bg-gray-600" />
-              <span className="w-2 h-2 rounded-full bg-gray-600" />
-            </div>
+            
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto cursor-pointer">
             <table className="w-[850px] md:w-full text-left">
               <thead className="text-gray-400 text-[11px] tracking-widest">
                 <tr className="border-b border-white/10">
