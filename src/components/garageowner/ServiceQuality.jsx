@@ -4,7 +4,6 @@ import {
   Bell,
   Menu,
   Star,
-  RotateCcw,
   MessageSquare,
   Filter,
   Cloud,
@@ -46,7 +45,8 @@ export default function ServiceQuality({ toggleSidebar }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#0b0b13] text-white font-sans">
+    <div className="min-h-screen bg-[#0b0b13] text-white font-sans cursor-pointer">
+      {/* Header */}
       <div className="min-h-16 border-b border-white/10 bg-[#191922] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button
@@ -58,6 +58,7 @@ export default function ServiceQuality({ toggleSidebar }) {
 
           <div className="w-full md:w-80 h-10 border border-white/20 rounded-xl flex items-center gap-3 px-4 bg-[#0b0b12]">
             <Search size={15} className="text-gray-500 shrink-0" />
+
             <input
               type="text"
               value={searchText}
@@ -65,6 +66,7 @@ export default function ServiceQuality({ toggleSidebar }) {
               placeholder="Global search..."
               className="w-full bg-transparent outline-none text-sm text-white placeholder:text-gray-500"
             />
+
             {searchText && (
               <button
                 onClick={() => setSearchText("")}
@@ -78,6 +80,7 @@ export default function ServiceQuality({ toggleSidebar }) {
 
         <div className="flex items-center justify-between md:justify-end gap-5">
           <Bell size={18} className="text-gray-300" />
+
           <div className="h-8 w-px bg-white/10" />
 
           <div>
@@ -99,59 +102,56 @@ export default function ServiceQuality({ toggleSidebar }) {
         </h1>
 
         <p className="text-gray-400 text-sm md:text-base max-w-3xl mb-8">
-          Monitor post-service vehicle reliability, comeback rates, and live
-          customer feedback metrics across the workshop network.
+          Monitor post-service vehicle reliability and live customer feedback
+          metrics across the workshop network.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-          <div className="bg-[#1c1c25] border border-white/10 rounded-lg p-6 shadow-xl">
+        {/* Centered Cards */}
+        <div className="flex flex-col md:flex-row justify-center items-stretch gap-5 mb-8">
+          {/* Average Customer Rating */}
+          <div className="bg-[#1c1c25] border border-white/10 rounded-lg p-6 shadow-xl w-full md:w-[420px]">
             <div className="flex justify-between items-start mb-6">
               <p className="text-[10px] text-gray-500 font-bold tracking-[0.25em]">
-                Net Satisfaction Score (CSAT)
+                Average Customer Rating
               </p>
+
               <Star size={18} className="text-yellow-400 fill-yellow-400" />
             </div>
+
             <h2 className="text-2xl font-bold mb-5">4.7 / 5.0</h2>
+
             <p className="text-[11px] text-emerald-400 font-bold">
               ↗ +0.2% improvement
             </p>
           </div>
 
-          <div className="bg-[#1c1c25] border border-white/10 rounded-lg p-6 shadow-xl">
-            <div className="flex justify-between items-start mb-6">
-              <p className="text-[10px] text-gray-500 font-bold tracking-[0.25em]">
-                Vehicle Comeback Rate (14-Day)
-              </p>
-              <RotateCcw size={17} className="text-red-300" />
-            </div>
-            <h2 className="text-2xl font-bold mb-5">2.4%</h2>
-            <p className="text-[11px] text-gray-400">
-              Vehicles returning for repetitive breakdown symptoms - Target &lt;
-              3%
-            </p>
-          </div>
-
-          <div className="bg-[#1c1c25] border border-white/10 rounded-lg p-6 shadow-xl">
+          {/* Total Reviews Logged */}
+          <div className="bg-[#1c1c25] border border-white/10 rounded-lg p-6 shadow-xl w-full md:w-[420px]">
             <div className="flex justify-between items-start mb-6">
               <p className="text-[10px] text-gray-500 font-bold tracking-[0.25em]">
                 Total Reviews Logged
               </p>
+
               <MessageSquare size={17} className="text-cyan-400" />
             </div>
+
             <h2 className="text-2xl font-bold text-cyan-400 mb-5">
               142 Submissions
             </h2>
+
             <div className="w-full h-1 bg-gray-700 rounded">
               <div className="h-1 w-[75%] bg-cyan-400 rounded" />
             </div>
           </div>
         </div>
 
+        {/* Experience Matrix */}
         <div className="bg-[#191923] border border-white/10 rounded-lg overflow-hidden mb-8">
           <div className="p-5 border-b border-white/10 flex items-center justify-between">
             <h2 className="text-lg md:text-xl font-bold">
               Post-Service Experience Matrix
             </h2>
+
             <button className="w-8 h-8 bg-white/10 rounded flex items-center justify-center text-gray-300">
               <Filter size={14} />
             </button>
@@ -177,12 +177,15 @@ export default function ServiceQuality({ toggleSidebar }) {
                     <td className="px-8 py-6 font-mono text-indigo-300 text-sm">
                       {item.vehicle}
                     </td>
+
                     <td className="px-4 py-6 text-sm text-gray-300">
                       {item.tech}
                     </td>
+
                     <td className="px-4 py-6 text-sm font-mono text-yellow-400">
                       {item.rating}
                     </td>
+
                     <td className="px-4 py-6 text-sm text-gray-300 max-w-md">
                       "{item.feedback}"
                     </td>
@@ -204,12 +207,14 @@ export default function ServiceQuality({ toggleSidebar }) {
           </div>
         </div>
 
+        {/* Common Customer Complaints */}
         <div className="flex justify-center">
           <div className="bg-[#191923] border border-white/10 rounded-lg p-6 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-10">
               <h2 className="text-[11px] font-bold tracking-[0.25em] text-gray-500 uppercase">
                 Common Customer Complaints
               </h2>
+
               <Cloud size={18} className="text-gray-400" />
             </div>
 

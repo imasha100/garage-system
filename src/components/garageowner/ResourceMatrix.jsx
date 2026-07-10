@@ -48,14 +48,14 @@ export default function ResourceMatrix({ toggleSidebar }) {
     {
       vehicle: "WP-KV-1122",
       technician: "John Doe",
-      metric: "● +15 Mins Overrun",
+      metric: " +15 Mins Overrun",
       reason: "Engine diagnostics took longer than expected",
       color: "text-red-300",
     },
     {
       vehicle: "SP-HN-4455",
       technician: "David Kim",
-      metric: "● +08 Mins Overrun",
+      metric: " +08 Mins Overrun",
       reason: "Waiting for spare part confirmation",
       color: "text-orange-400",
     },
@@ -137,7 +137,7 @@ export default function ResourceMatrix({ toggleSidebar }) {
 
             <div className="flex items-center gap-4">
               <h2 className="text-3xl font-black">88%</h2>
-              <div className="w-14 h-6 bg-emerald-400/20" />
+              
             </div>
           </div>
 
