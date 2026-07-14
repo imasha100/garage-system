@@ -1,12 +1,21 @@
-import React, { useState, useRef } from "react";
-import { Search, Bell, HelpCircle, Calendar, Info } from "lucide-react";
+import React, { useMemo, useRef, useState } from "react";
+import {
+  Search,
+  Bell,
+  HelpCircle,
+  Calendar,
+  Info,
+} from "lucide-react";
+
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import avatarImage from "../../assets/profile.png";
 
 export default function TaskHistoryLogs() {
+  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [selectedDate, setSelectedDate] = useState(null);
+
   const calendarRef = useRef(null);
 
   const logs = [
@@ -39,76 +48,141 @@ export default function TaskHistoryLogs() {
     },
   ];
 
-  const filteredLogs = logs.filter((log) => {
-    const matchesStatus =
-      statusFilter === "All Statuses" || log.status === statusFilter;
+  const filteredLogs = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-    const logDate = new Date(log.date.split(" ")[0]);
+    return logs.filter((log) => {
+      const matchesStatus =
+        statusFilter === "All Statuses" ||
+        log.status === statusFilter;
 
-    const matchesDate =
-      !selectedDate || logDate.toDateString() === selectedDate.toDateString();
+      const logDate = new Date(
+        `${log.date.split(" ")[0]}T00:00:00`
+      );
 
-    return matchesStatus && matchesDate;
-  });
+      const matchesDate =
+        !selectedDate ||
+        logDate.toDateString() === selectedDate.toDateString();
+
+      const matchesSearch =
+        !query ||
+        [
+          log.date,
+          log.plate,
+          log.expected,
+          log.actual,
+          log.status,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+
+      return matchesStatus && matchesDate && matchesSearch;
+    });
+  }, [searchQuery, statusFilter, selectedDate]);
 
   return (
-    <div className="h-screen bg-[#0a0d14] text-slate-300 font-mono overflow-y-auto">
-      <div className="bg-[#111827]/90 backdrop-blur-xl border-b border-slate-800 px-6 py-3 flex items-center sticky top-0 z-50">
-        <div className="flex items-center gap-3 w-48">
+    <div className="h-screen overflow-y-auto bg-[#0a0d14] font-mono text-slate-300">
+      {/* Header */}
+      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-4 border-b border-slate-800 bg-[#111827]/95 px-6 backdrop-blur-xl">
+        <div className="w-auto shrink-0 md:w-48">
           <h1 className="text-sm font-black tracking-[0.15em] text-white">
             TECHNICIANS
           </h1>
         </div>
 
-        <div className="flex-1 flex justify-center">
-          <div className="relative w-[420px]">
-            <Search className="absolute left-3 top-2 text-slate-600" size={14} />
+        <div className="hidden flex-1 justify-center md:flex">
+          <div className="relative w-full max-w-[525px]">
+            <Search
+              size={16}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
+            />
+
             <input
-              type="text"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search Workshop..."
-              className="w-full bg-[#0a0d14] border border-slate-800 py-1.5 pl-9 pr-4 rounded-md text-xs focus:outline-none focus:border-indigo-500"
+              className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-11 pr-4 text-xs text-slate-300 outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-4 w-48 justify-end">
-          <Bell size={16} className="text-slate-400 hover:text-white cursor-pointer" />
-          <HelpCircle size={16} className="text-slate-400 hover:text-white cursor-pointer" />
+        <div className="ml-auto flex shrink-0 items-center gap-4">
+          <button
+            type="button"
+            className="text-slate-400 transition hover:text-white"
+          >
+            <Bell size={17} />
+          </button>
+
+          <button
+            type="button"
+            className="text-slate-400 transition hover:text-white"
+          >
+            <HelpCircle size={17} />
+          </button>
 
           <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
-            <div className="text-right">
-              <p className="text-white text-[10px] font-bold">M. Anderson</p>
-              <p className="text-[9px] text-slate-500 uppercase">
+            <div className="hidden text-right sm:block">
+              <p className="text-[10px] font-bold text-white">
+                M. Anderson
+              </p>
+
+              <p className="text-[9px] uppercase text-slate-500">
                 Senior Mechanic
               </p>
             </div>
 
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 overflow-hidden">
+            <div className="h-9 w-9 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
               <img
                 src={avatarImage}
-                alt="Profile"
-                className="w-full h-full object-cover"
+                alt="M. Anderson"
+                className="h-full w-full object-cover"
               />
             </div>
           </div>
         </div>
+      </header>
+
+      {/* Mobile Search */}
+      <div className="border-b border-slate-800 bg-[#111827] px-4 py-3 md:hidden">
+        <div className="relative">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600"
+          />
+
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search Workshop..."
+            className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-10 pr-4 text-xs text-slate-300 outline-none placeholder:text-slate-600 focus:border-indigo-500"
+          />
+        </div>
       </div>
 
-      <div className="py-8 px-6 max-w-7xl mx-auto pb-20">
+      <main className="mx-auto max-w-7xl px-4 py-6 pb-20 md:px-6 md:py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">Task History Logs</h1>
-          <p className="text-slate-500 text-xl">
+          <h1 className="text-3xl font-bold text-white">
+            Task History Logs
+          </h1>
+
+          <p className="text-base text-slate-500 md:text-xl">
             Reviewing precision workflow and exit compliance
           </p>
         </div>
 
-        <div className="flex gap-4 mb-6">
-          <div className="flex items-center bg-[#111827] border border-slate-800 px-3 py-1.5 rounded text-xs gap-2">
-            <Calendar
-              size={14}
-              className="text-slate-500 cursor-pointer hover:text-indigo-400"
-              onClick={() => calendarRef.current.setOpen(true)}
-            />
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+          <div className="flex items-center gap-2 rounded border border-slate-800 bg-[#111827] px-3 py-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => calendarRef.current?.setOpen(true)}
+              className="text-slate-500 transition hover:text-indigo-400"
+            >
+              <Calendar size={14} />
+            </button>
 
             <DatePicker
               ref={calendarRef}
@@ -116,19 +190,22 @@ export default function TaskHistoryLogs() {
               onChange={(date) => setSelectedDate(date)}
               showMonthDropdown
               showYearDropdown
-              scrollableYearDropdown={true}
+              scrollableYearDropdown
               yearDropdownItemNumber={20}
               dropdownMode="select"
               minDate={new Date(2026, 0, 1)}
-              className="bg-transparent focus:outline-none w-48 text-slate-300 placeholder-slate-500 cursor-pointer"
+              isClearable
+              className="w-48 cursor-pointer bg-transparent text-slate-300 outline-none placeholder:text-slate-500"
               placeholderText="Select a date"
             />
           </div>
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-[#111827] border border-slate-800 px-4 py-1.5 rounded text-xs focus:outline-none focus:border-indigo-500"
+            onChange={(event) =>
+              setStatusFilter(event.target.value)
+            }
+            className="rounded border border-slate-800 bg-[#111827] px-4 py-2 text-xs outline-none focus:border-indigo-500"
           >
             <option>All Statuses</option>
             <option>Cleared By Assistance</option>
@@ -136,17 +213,21 @@ export default function TaskHistoryLogs() {
           </select>
         </div>
 
-        <div className="bg-[#111827] border border-slate-800 rounded-lg overflow-hidden">
-          <div className="max-h-[520px] overflow-y-auto">
-            <table className="w-full text-xs text-slate-400">
-              <thead className="sticky top-0 bg-[#111827] z-20">
+        <div className="overflow-hidden rounded-lg border border-slate-800 bg-[#111827]">
+          <div className="max-h-[520px] overflow-auto">
+            <table className="w-full min-w-[760px] text-xs text-slate-400">
+              <thead className="sticky top-0 z-20 bg-[#111827]">
                 <tr className="border-b border-slate-800 text-[12px] uppercase">
-                  <th className="text-left p-4">Date & Time</th>
-                  <th className="text-left p-4">Vehicle Plate No</th>
-                  <th className="text-left p-4">Expected Time</th>
-                  <th className="text-left p-4">Actual Time</th>
-                  <th className="text-left p-4">Status Badge</th>
-                  <th className="text-right p-4">Action</th>
+                  <th className="p-4 text-left">Date & Time</th>
+                  <th className="p-4 text-left">
+                    Vehicle Plate No
+                  </th>
+                  <th className="p-4 text-left">
+                    Expected Time
+                  </th>
+                  <th className="p-4 text-left">Actual Time</th>
+                  <th className="p-4 text-left">Status Badge</th>
+                  <th className="p-4 text-right">Action</th>
                 </tr>
               </thead>
 
@@ -155,33 +236,39 @@ export default function TaskHistoryLogs() {
                   filteredLogs.map((log) => (
                     <tr
                       key={log.id}
-                      className="border-b border-slate-800/50 hover:bg-slate-800/20"
+                      className="border-b border-slate-800/50 transition hover:bg-slate-800/20"
                     >
-                      <td className="p-4 text-white">{log.date}</td>
+                      <td className="p-4 text-white">
+                        {log.date}
+                      </td>
 
                       <td className="p-4">
-                        <span className="bg-slate-800 px-2 py-1 rounded">
+                        <span className="rounded bg-slate-800 px-2 py-1">
                           {log.plate}
                         </span>
                       </td>
 
                       <td className="p-4">{log.expected}</td>
 
-                      <td className="p-4 text-emerald-400">{log.actual}</td>
+                      <td className="p-4 text-emerald-400">
+                        {log.actual}
+                      </td>
 
                       <td className="p-4">
                         <span
-                          className={`px-2 py-1 rounded text-[10px] ${log.statusColor}`}
+                          className={`rounded px-2 py-1 text-[10px] ${log.statusColor}`}
                         >
                           {log.status}
                         </span>
                       </td>
 
                       <td className="p-4 text-right">
-                        <Info
-                          size={16}
-                          className="inline cursor-pointer hover:text-white"
-                        />
+                        <button
+                          type="button"
+                          className="text-slate-400 transition hover:text-white"
+                        >
+                          <Info size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -189,9 +276,10 @@ export default function TaskHistoryLogs() {
                   <tr>
                     <td
                       colSpan="6"
-                      className="p-8 text-center text-slate-500 italic"
+                      className="p-8 text-center italic text-slate-500"
                     >
-                      No task logs found for the selected date.
+                      No task logs match the selected search or
+                      filters.
                     </td>
                   </tr>
                 )}
@@ -199,7 +287,7 @@ export default function TaskHistoryLogs() {
             </table>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
