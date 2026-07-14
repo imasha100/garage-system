@@ -1,5 +1,15 @@
+
 import React, { useState } from "react";
-import { Upload, Power, PowerOff, User, Save, X, Mail, Phone } from "lucide-react";
+import {
+  Upload,
+  Power,
+  PowerOff,
+  User,
+  Save,
+  X,
+  Mail,
+  Phone,
+} from "lucide-react";
 import { motion } from "framer-motion";
 
 const AssistanceProfile = () => {
@@ -19,7 +29,11 @@ const AssistanceProfile = () => {
     const file = e.target.files[0];
 
     if (file) {
-      setProfile((prev) => ({ ...prev, photo: file }));
+      setProfile((prev) => ({
+        ...prev,
+        photo: file,
+      }));
+
       setPreview(URL.createObjectURL(file));
       setSaved(false);
     }
@@ -41,7 +55,10 @@ const AssistanceProfile = () => {
 
   const handleSave = () => {
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+
+    setTimeout(() => {
+      setSaved(false);
+    }, 2000);
   };
 
   const nextStatus = profile.shiftOn ? "OFF" : "ON";
@@ -53,14 +70,6 @@ const AssistanceProfile = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-[#0b0e14] border border-[#1f2a36] rounded-2xl p-6 shadow-2xl"
       >
-        {/* HEADER */}
-        <div className="flex items-center gap-3 mb-6">
-          <User className="text-[#52f0ac]" />
-          <h2 className="text-4xl md:text-2xl font-bold">
-            Assistance Profile
-          </h2>
-        </div>
-
         {/* PROFILE IMAGE */}
         <div className="flex flex-col items-center mb-6">
           <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-cyan-400 bg-[#111] flex items-center justify-center shadow-lg">
@@ -78,7 +87,13 @@ const AssistanceProfile = () => {
           <label className="mt-3 cursor-pointer flex items-center gap-2 text-3xl md:text-sm text-cyan-400 hover:text-cyan-300">
             <Upload size={16} />
             Upload Photo
-            <input type="file" hidden onChange={handleImageUpload} />
+
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleImageUpload}
+            />
           </label>
         </div>
 
@@ -88,7 +103,11 @@ const AssistanceProfile = () => {
             type="text"
             value={profile.name}
             onChange={(e) => {
-              setProfile({ ...profile, name: e.target.value });
+              setProfile({
+                ...profile,
+                name: e.target.value,
+              });
+
               setSaved(false);
             }}
             className="w-full p-3 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
@@ -100,11 +119,16 @@ const AssistanceProfile = () => {
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
             />
+
             <input
               type="email"
               value={profile.email}
               onChange={(e) => {
-                setProfile({ ...profile, email: e.target.value });
+                setProfile({
+                  ...profile,
+                  email: e.target.value,
+                });
+
                 setSaved(false);
               }}
               className="w-full p-3 pl-10 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
@@ -117,11 +141,16 @@ const AssistanceProfile = () => {
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
             />
+
             <input
               type="tel"
               value={profile.contactNumber}
               onChange={(e) => {
-                setProfile({ ...profile, contactNumber: e.target.value });
+                setProfile({
+                  ...profile,
+                  contactNumber: e.target.value,
+                });
+
                 setSaved(false);
               }}
               className="w-full p-3 pl-10 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
@@ -134,7 +163,11 @@ const AssistanceProfile = () => {
         <div className="flex items-center justify-between bg-[#050608] p-4 rounded-lg border border-[#1f2a36] mb-7">
           <p className="font-semibold text-2xl md:text-base">
             Shift Status:{" "}
-            <span className={profile.shiftOn ? "text-green-400" : "text-red-400"}>
+            <span
+              className={
+                profile.shiftOn ? "text-green-400" : "text-red-400"
+              }
+            >
               {profile.shiftOn ? "ON" : "OFF"}
             </span>
           </p>
@@ -149,11 +182,13 @@ const AssistanceProfile = () => {
           >
             {profile.shiftOn ? (
               <>
-                <Power size={16} /> ON
+                <Power size={16} />
+                ON
               </>
             ) : (
               <>
-                <PowerOff size={16} /> OFF
+                <PowerOff size={16} />
+                OFF
               </>
             )}
           </button>
@@ -189,14 +224,16 @@ const AssistanceProfile = () => {
           >
             <button
               onClick={() => setShowConfirm(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+              className="absolute top-4 right-4 text-gray-400 hover:text-white cursor-pointer"
             >
               <X size={22} />
             </button>
 
             <div
               className={`mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center ${
-                profile.shiftOn ? "bg-red-500/20" : "bg-green-500/20"
+                profile.shiftOn
+                  ? "bg-red-500/20"
+                  : "bg-green-500/20"
               }`}
             >
               {profile.shiftOn ? (
@@ -227,14 +264,14 @@ const AssistanceProfile = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="w-1/2 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 font-bold"
+                className="w-1/2 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 font-bold cursor-pointer"
               >
                 Cancel
               </button>
 
               <button
                 onClick={confirmShiftChange}
-                className={`w-1/2 py-3 rounded-lg font-bold text-white ${
+                className={`w-1/2 py-3 rounded-lg font-bold text-white cursor-pointer ${
                   nextStatus === "ON"
                     ? "bg-green-600 hover:bg-green-700"
                     : "bg-red-600 hover:bg-red-700"
@@ -251,3 +288,4 @@ const AssistanceProfile = () => {
 };
 
 export default AssistanceProfile;
+

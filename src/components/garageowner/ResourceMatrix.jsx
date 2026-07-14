@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Search,
   Bell,
@@ -10,6 +10,7 @@ import {
 
 export default function ResourceMatrix({ toggleSidebar }) {
   const [searchText, setSearchText] = useState("");
+  const technicianScrollRef = useRef(null);
 
   const technicians = [
     {
@@ -48,14 +49,14 @@ export default function ResourceMatrix({ toggleSidebar }) {
     {
       vehicle: "WP-KV-1122",
       technician: "John Doe",
-      metric: " +15 Mins Overrun",
+      metric: "+15 Mins Overrun",
       reason: "Engine diagnostics took longer than expected",
       color: "text-red-300",
     },
     {
       vehicle: "SP-HN-4455",
       technician: "David Kim",
-      metric: " +08 Mins Overrun",
+      metric: "+08 Mins Overrun",
       reason: "Waiting for spare part confirmation",
       color: "text-orange-400",
     },
@@ -67,12 +68,26 @@ export default function ResourceMatrix({ toggleSidebar }) {
       .includes(searchText.toLowerCase())
   );
 
+  const handleTechnicianWheel = (event) => {
+    const scrollContainer = technicianScrollRef.current;
+
+    if (!scrollContainer) return;
+
+    event.preventDefault();
+
+    scrollContainer.scrollBy({
+      left: event.deltaY,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#0b0b13] text-white font-sans">
       {/* Top Bar */}
       <div className="min-h-16 border-b border-white/10 bg-[#191922] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button
+            type="button"
             onClick={toggleSidebar}
             className="md:hidden w-10 h-10 rounded-lg border border-white/10 bg-black/40 flex items-center justify-center text-white"
           >
@@ -85,13 +100,14 @@ export default function ResourceMatrix({ toggleSidebar }) {
             <input
               type="text"
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(event) => setSearchText(event.target.value)}
               placeholder="Search systems..."
-              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-gray-500"
+              className="w-full bg-transparent outline-none text-sm text-white placeholder:text-gray-500 border-none"
             />
 
             {searchText && (
               <button
+                type="button"
                 onClick={() => setSearchText("")}
                 className="text-gray-500 hover:text-white text-xs"
               >
@@ -103,10 +119,14 @@ export default function ResourceMatrix({ toggleSidebar }) {
 
         <div className="flex items-center justify-between md:justify-end gap-5">
           <Bell size={18} className="text-gray-300" />
+
           <div className="h-8 w-px bg-white/10" />
 
           <div>
-            <p className="text-xs font-bold tracking-widest">Master Admin</p>
+            <p className="text-xs font-bold tracking-widest">
+              Master Admin
+            </p>
+
             <p className="text-[10px] text-indigo-400 uppercase">
               Owner Level
             </p>
@@ -137,7 +157,6 @@ export default function ResourceMatrix({ toggleSidebar }) {
 
             <div className="flex items-center gap-4">
               <h2 className="text-3xl font-black">88%</h2>
-              
             </div>
           </div>
 
@@ -146,6 +165,7 @@ export default function ResourceMatrix({ toggleSidebar }) {
               <p className="text-[10px] text-gray-400 font-bold tracking-[0.25em]">
                 Available Free <br /> Technicians
               </p>
+
               <CircleDot size={13} className="text-emerald-400" />
             </div>
 
@@ -159,6 +179,7 @@ export default function ResourceMatrix({ toggleSidebar }) {
               <p className="text-[10px] text-gray-400 font-bold tracking-[0.25em]">
                 Confirmed Allocations
               </p>
+
               <Gauge size={14} className="text-indigo-300" />
             </div>
 
@@ -178,46 +199,60 @@ export default function ResourceMatrix({ toggleSidebar }) {
             Live breakdown of on-duty personnel availability and active jobs.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {filteredTechnicians.map((tech, index) => (
-              <div
-                key={index}
-                className={`bg-[#1b1b24] border rounded-lg p-5 ${
-                  tech.highlight
-                    ? "border-red-400/30 bg-red-500/5"
-                    : "border-white/10"
-                }`}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-sm font-mono font-bold">
-                    {tech.name}
-                  </h3>
-
-                  <span
-                    className={`text-[10px] px-2 py-1 rounded border ${
-                      tech.status === "FREE"
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                        : "bg-orange-500/10 text-orange-400 border-orange-500/30"
-                    }`}
-                  >
-                    {tech.status}
-                  </span>
-                </div>
-
-                <p className="text-[10px] text-gray-500 uppercase">
-                  Active Vehicle
-                </p>
-
-                <p
-                  className={`mt-2 text-sm font-mono ${
-                    tech.highlight ? "text-red-300" : "text-gray-300"
+          <div
+            ref={technicianScrollRef}
+            onWheel={handleTechnicianWheel}
+            className="flex gap-4 overflow-x-auto pb-4 scroll-smooth overscroll-x-contain cursor-grab active:cursor-grabbing"
+          >
+            {filteredTechnicians.length > 0 ? (
+              filteredTechnicians.map((tech, index) => (
+                <div
+                  key={index}
+                  className={`min-w-[250px] sm:min-w-[270px] lg:min-w-[290px] bg-[#1b1b24] border rounded-lg p-5 shrink-0 transition duration-300 hover:-translate-y-1 ${
+                    tech.highlight
+                      ? "border-red-400/30 bg-red-500/5"
+                      : "border-white/10"
                   }`}
                 >
-                  {tech.vehicle}
-                </p>
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-sm font-mono font-bold">
+                      {tech.name}
+                    </h3>
+
+                    <span
+                      className={`text-[10px] px-2 py-1 rounded border ${
+                        tech.status === "FREE"
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                          : "bg-orange-500/10 text-orange-400 border-orange-500/30"
+                      }`}
+                    >
+                      {tech.status}
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-gray-500 uppercase">
+                    Active Vehicle
+                  </p>
+
+                  <p
+                    className={`mt-2 text-sm font-mono ${
+                      tech.highlight ? "text-red-300" : "text-gray-300"
+                    }`}
+                  >
+                    {tech.vehicle}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="w-full border border-white/10 bg-[#1b1b24] rounded-lg p-8 text-center text-sm text-gray-500">
+                No technicians found.
               </div>
-            ))}
+            )}
           </div>
+
+          <p className="mt-2 text-[10px] text-gray-500">
+            Use the mouse wheel or swipe to view more technician cards.
+          </p>
         </section>
 
         {/* Overrun Table */}
@@ -236,7 +271,9 @@ export default function ResourceMatrix({ toggleSidebar }) {
                 <thead className="bg-white/5 text-gray-400 text-xs">
                   <tr>
                     <th className="px-8 py-5">Vehicle ID</th>
-                    <th className="px-8 py-5">Assigned Technician</th>
+                    <th className="px-8 py-5">
+                      Assigned Technician
+                    </th>
                     <th className="px-8 py-5">Overrun Metric</th>
                     <th className="px-8 py-5">Overrun Reason</th>
                   </tr>
@@ -248,11 +285,20 @@ export default function ResourceMatrix({ toggleSidebar }) {
                       key={index}
                       className="border-t border-white/5 text-sm text-gray-300"
                     >
-                      <td className="px-8 py-5 font-mono">{item.vehicle}</td>
-                      <td className="px-8 py-5">{item.technician}</td>
-                      <td className={`px-8 py-5 font-mono ${item.color}`}>
+                      <td className="px-8 py-5 font-mono">
+                        {item.vehicle}
+                      </td>
+
+                      <td className="px-8 py-5">
+                        {item.technician}
+                      </td>
+
+                      <td
+                        className={`px-8 py-5 font-mono ${item.color}`}
+                      >
                         {item.metric}
                       </td>
+
                       <td className="px-8 py-5 text-gray-400">
                         {item.reason}
                       </td>
@@ -264,7 +310,10 @@ export default function ResourceMatrix({ toggleSidebar }) {
           </div>
         </section>
 
-        <button className="fixed bottom-6 right-6 w-14 h-14 rounded-xl bg-indigo-300 text-black flex items-center justify-center shadow-xl hover:scale-105 transition">
+        <button
+          type="button"
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-xl bg-indigo-300 text-black flex items-center justify-center shadow-xl hover:scale-105 transition"
+        >
           <Plus size={24} />
         </button>
       </main>
