@@ -5,7 +5,7 @@ import {
   Activity,
   FileText,
   ClipboardList,
-  Settings,
+  
 } from "lucide-react";
 
 export default function CustomerSidebar({
@@ -79,16 +79,8 @@ export default function CustomerSidebar({
         </nav>
       </div>
 
-      {/* Footer */}
-      <div className="p-6 border-t border-blue-500/20">
-        <button className="w-full flex items-center gap-4 px-5 py-4 rounded-xl border border-blue-500/40 bg-[#0a0e1a] text-blue-300 hover:bg-blue-500/5 hover:border-blue-500 transition-all duration-300">
-          <Settings className="w-5 h-5 flex-shrink-0" />
-
-          <span className="text-sm font-bold uppercase tracking-wider">
-            System Settings
-          </span>
-        </button>
-      </div>
+      
+      
     </div>
   );
 }

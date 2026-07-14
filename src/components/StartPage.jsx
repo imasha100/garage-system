@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 import {
   ShieldAlert,
-  Building2,
   Wrench,
-  ShieldQuestion,
   Cpu,
   ChevronDown,
   Info,
@@ -555,31 +553,32 @@ export default function StartPage({ onNavigate }) {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4 }}
-            className="grid gap-3 pb-1 sm:grid-cols-3 lg:shrink-0"
+            className="pb-1 lg:shrink-0"
           >
-            {[
-              [Building2, "Garage Owner", "garage-owner-login", "bg-blue-500/10 text-blue-400"],
-              [Wrench, "On-Duty Technician", "technician-login", "bg-emerald-500/10 text-emerald-400"],
-              [ShieldQuestion, "Assistance Officer", "assistance-login", "bg-amber-500/10 text-amber-400"],
-            ].map(([Icon, label, page, accentClasses]) => (
-              <motion.button
-                key={label}
-                whileHover={{ y: -6, scale: 1.015 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onNavigate(page)}
-                className="group flex items-center gap-4 rounded-2xl border border-white/10 bg-slate-950/55 p-3.5 text-left backdrop-blur-xl transition hover:border-teal-400/35 hover:bg-slate-900/75 sm:justify-center sm:text-center"
-              >
-                <div
-                  className={`rounded-xl p-3 transition-transform duration-300 group-hover:rotate-3 group-hover:scale-110 ${accentClasses}`}
-                >
-                  <Icon className="h-6 w-6" />
+            <motion.button
+              type="button"
+              whileHover={{ y: -6, scale: 1.015 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNavigate("staff-login")}
+              className="group mx-auto flex w-full max-w-3xl items-center justify-between gap-5 rounded-2xl border border-white/10 bg-slate-950/60 p-4 text-left backdrop-blur-xl transition hover:border-teal-400/40 hover:bg-slate-900/80 sm:p-5"
+            >
+              <div className="flex items-center gap-4">
+                <div className="rounded-xl bg-teal-400/10 p-3 text-teal-300 transition-transform duration-300 group-hover:rotate-3 group-hover:scale-110">
+                  <ShieldCheck className="h-7 w-7" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Secure login</p>
-                  <p className="font-bold text-white">{label}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                    Secure staff access
+                  </p>
+                  <p className="text-lg font-black text-white sm:text-xl">Staff Login</p>
+                  <p className="mt-1 text-xs text-slate-400 sm:text-sm">
+                    Garage Owner, Technician and Assistance Officer
+                  </p>
                 </div>
-              </motion.button>
-            ))}
+              </div>
+
+              <ArrowUpRight className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-teal-300" />
+            </motion.button>
           </motion.div>
         </div>
       </section>
