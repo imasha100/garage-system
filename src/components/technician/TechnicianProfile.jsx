@@ -11,6 +11,7 @@ import {
 import avatarImage from "../../assets/profile.png";
 
 export default function TechnicianProfile() {
+  const [searchQuery, setSearchQuery] = useState("");
   const [isOnShift, setIsOnShift] = useState(false);
   const [shiftStartTime, setShiftStartTime] = useState(null);
   const [duration, setDuration] = useState("00:00:00");
@@ -94,48 +95,99 @@ export default function TechnicianProfile() {
     setSkills(skills.filter((_, i) => i !== index));
   };
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  const filteredSkills = skills.filter((skill) =>
+    skill.toLowerCase().includes(normalizedSearch)
+  );
+
+  const filteredShiftHistory = shiftHistory.filter((row) =>
+    [row.date, row.dur, row.status]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedSearch)
+  );
+
   const nextStatus = isOnShift ? "OFF" : "ON";
 
   return (
     <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono relative">
-      <div className="bg-[#111827]/90 backdrop-blur-xl border-b border-slate-800 px-6 py-3 flex items-center">
-        <div className="flex items-center gap-3 w-48">
+      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-4 border-b border-slate-800 bg-[#111827]/95 px-6 backdrop-blur-xl">
+        <div className="w-auto shrink-0 md:w-48">
           <h1 className="text-sm font-black tracking-[0.15em] text-white">
             TECHNICIANS
           </h1>
         </div>
 
-        <div className="flex-1 flex justify-center">
-          <div className="relative w-[420px]">
-            <Search className="absolute left-3 top-2 text-slate-600" size={14} />
+        <div className="hidden flex-1 justify-center md:flex">
+          <div className="relative w-full max-w-[525px]">
+            <Search
+              size={16}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
+            />
+
             <input
-              type="text"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search Workshop..."
-              className="w-full bg-[#0a0d14] border border-slate-800 py-1.5 pl-9 pr-4 rounded-md text-xs focus:outline-none focus:border-indigo-500"
+              aria-label="Search profile content"
+              className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-11 pr-4 text-xs text-slate-300 outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-4 w-48 justify-end">
-          <Bell size={16} className="text-slate-400 hover:text-white cursor-pointer" />
-          <HelpCircle size={16} className="text-slate-400 hover:text-white cursor-pointer" />
+        <div className="ml-auto flex shrink-0 items-center gap-4">
+          <button
+            type="button"
+            aria-label="Notifications"
+            className="text-slate-400 transition hover:text-white"
+          >
+            <Bell size={17} />
+          </button>
+
+          <button
+            type="button"
+            aria-label="Help"
+            className="text-slate-400 transition hover:text-white"
+          >
+            <HelpCircle size={17} />
+          </button>
 
           <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
-            <div className="text-right">
-              <p className="text-white text-[10px] font-bold">M. Anderson</p>
-              <p className="text-[9px] text-slate-500 uppercase">
+            <div className="hidden text-right sm:block">
+              <p className="text-[10px] font-bold text-white">M. Anderson</p>
+              <p className="text-[9px] uppercase text-slate-500">
                 Senior Mechanic
               </p>
             </div>
 
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 overflow-hidden">
+            <div className="h-9 w-9 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
               <img
                 src={avatarImage}
-                alt="Profile"
-                className="w-full h-full object-cover"
+                alt="M. Anderson"
+                className="h-full w-full object-cover"
               />
             </div>
           </div>
+        </div>
+      </header>
+
+      <div className="border-b border-slate-800 bg-[#111827] px-4 py-3 md:hidden">
+        <div className="relative">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600"
+          />
+
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search Workshop..."
+            aria-label="Search profile content"
+            className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-10 pr-4 text-xs text-slate-300 outline-none placeholder:text-slate-600 focus:border-indigo-500"
+          />
         </div>
       </div>
 
@@ -252,7 +304,7 @@ export default function TechnicianProfile() {
               Skill Categories
             </h3>
 
-            {skills.map((skill, i) => (
+            {filteredSkills.map((skill, i) => (
               <div
                 key={i}
                 className="bg-[#0a0d14] border border-slate-800 p-3 mb-2 rounded text-[11px] text-slate-300 flex justify-between"
@@ -300,7 +352,7 @@ export default function TechnicianProfile() {
               </thead>
 
               <tbody>
-                {shiftHistory.map((row, i) => (
+                {filteredShiftHistory.map((row, i) => (
                   <tr key={i} className="border-b border-slate-800/50">
                     <td className="py-3">{row.date}</td>
                     <td className="py-3">{row.dur}</td>

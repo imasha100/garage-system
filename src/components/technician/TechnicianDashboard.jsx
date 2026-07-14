@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   Plus,
   Search,
@@ -15,6 +15,8 @@ import {
 import avatarImage from "../../assets/profile.png";
 
 export default function Dashboard() {
+  const [searchQuery, setSearchQuery] = useState("");
+
   const percentage = 66;
   const radius = 65;
   const circumference = 2 * Math.PI * radius;
@@ -63,69 +65,129 @@ export default function Dashboard() {
     {
       no: "09",
       vehicle: "VW Golf GTI",
+      vehicleNumber: "WP-CAS-1234",
       job: "Brake Pad Replacement",
-      priority: "HIGH",
       eta: "25m",
       status: "Queued",
     },
     {
       no: "10",
       vehicle: "Audi RS6",
+      vehicleNumber: "CP-CB-8890",
       job: "Oil System Flush",
-      priority: "MEDIUM",
       eta: "40m",
       status: "Waiting",
     },
     {
       no: "11",
       vehicle: "Ford F-150",
+      vehicleNumber: "WP-KV-1122",
       job: "Suspension Tuning",
-      priority: "LOW",
       eta: "1h",
       status: "Waiting",
     },
   ];
 
+  const filteredQueue = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return queue;
+    }
+
+    return queue.filter((item) =>
+      [
+        item.no,
+        item.vehicle,
+        item.vehicleNumber,
+        item.job,
+        item.eta,
+        item.status,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [searchQuery]);
+
   return (
     <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono overflow-y-auto">
-      <div className="bg-[#111827]/90 backdrop-blur-xl border-b border-slate-800 px-6 md:px-6 py-3 flex items-center gap-4 sticky top-0 z-50">
-        <div className="w-auto md:w-48">
+      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-4 border-b border-slate-800 bg-[#111827]/95 px-6 backdrop-blur-xl">
+        <div className="w-auto shrink-0 md:w-48">
           <h1 className="text-sm font-black tracking-[0.15em] text-white">
             TECHNICIANS
           </h1>
         </div>
 
-        <div className="hidden md:flex flex-1 justify-center">
-          <div className="relative w-[420px]">
-            <Search className="absolute left-3 top-2 text-slate-600" size={14} />
+        <div className="hidden flex-1 justify-center md:flex">
+          <div className="relative w-full max-w-[525px]">
+            <Search
+              size={16}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
+            />
+
             <input
-              type="text"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search Workshop..."
-              className="w-full bg-[#0a0d14] border border-slate-800 py-1.5 pl-9 pr-4 rounded-md text-xs focus:outline-none focus:border-indigo-500"
+              aria-label="Search dashboard queue"
+              className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-11 pr-4 text-xs text-slate-300 outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-4 ml-auto">
-          <Bell size={16} className="text-slate-400 hover:text-white cursor-pointer" />
-          <HelpCircle size={16} className="text-slate-400 hover:text-white cursor-pointer" />
+        <div className="ml-auto flex shrink-0 items-center gap-4">
+          <button
+            type="button"
+            aria-label="Notifications"
+            className="text-slate-400 transition hover:text-white"
+          >
+            <Bell size={17} />
+          </button>
+
+          <button
+            type="button"
+            aria-label="Help"
+            className="text-slate-400 transition hover:text-white"
+          >
+            <HelpCircle size={17} />
+          </button>
 
           <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-white text-[10px] font-bold">M. Anderson</p>
-              <p className="text-[9px] text-slate-500 uppercase">
+            <div className="hidden text-right sm:block">
+              <p className="text-[10px] font-bold text-white">M. Anderson</p>
+              <p className="text-[9px] uppercase text-slate-500">
                 Senior Mechanic
               </p>
             </div>
 
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 overflow-hidden">
+            <div className="h-9 w-9 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
               <img
                 src={avatarImage}
-                alt="Profile"
-                className="w-full h-full object-cover"
+                alt="M. Anderson"
+                className="h-full w-full object-cover"
               />
             </div>
           </div>
+        </div>
+      </header>
+
+      <div className="border-b border-slate-800 bg-[#111827] px-4 py-3 md:hidden">
+        <div className="relative">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600"
+          />
+
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search Workshop..."
+            aria-label="Search dashboard queue"
+            className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-10 pr-4 text-xs text-slate-300 outline-none placeholder:text-slate-600 focus:border-indigo-500"
+          />
         </div>
       </div>
 
@@ -334,16 +396,17 @@ export default function Dashboard() {
               <thead>
                 <tr className="border-b border-slate-800 uppercase text-[10px]">
                   <th className="text-left pb-4">No</th>
+                  <th className="text-left pb-4">Vehicle Number</th>
                   <th className="text-left pb-4">Vehicle</th>
                   <th className="text-left pb-4">Job Type</th>
-                  <th className="text-left pb-4">Priority</th>
                   <th className="text-left pb-4">ETA</th>
                   <th className="text-right pb-4">Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {queue.map((item, i) => (
+                {filteredQueue.length > 0 ? (
+                  filteredQueue.map((item, i) => (
                   <tr
                     key={i}
                     className="border-b border-slate-800/50 last:border-0"
@@ -354,25 +417,17 @@ export default function Dashboard() {
                       </span>
                     </td>
 
+                    <td className="py-4">
+                      <span className="rounded bg-slate-900 px-2 py-1 font-bold tracking-wider text-indigo-300">
+                        {item.vehicleNumber}
+                      </span>
+                    </td>
+
                     <td className="py-4 text-white font-bold">
                       {item.vehicle}
                     </td>
 
                     <td className="py-4">{item.job}</td>
-
-                    <td className="py-4">
-                      <span
-                        className={`px-2 py-1 rounded text-[10px] ${
-                          item.priority === "HIGH"
-                            ? "bg-red-500/10 text-red-400"
-                            : item.priority === "MEDIUM"
-                            ? "bg-amber-500/10 text-amber-400"
-                            : "bg-emerald-500/10 text-emerald-400"
-                        }`}
-                      >
-                        {item.priority}
-                      </span>
-                    </td>
 
                     <td className="py-4">{item.eta}</td>
 
@@ -383,7 +438,17 @@ export default function Dashboard() {
                       />
                     </td>
                   </tr>
-                ))}
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="py-10 text-center text-xs italic text-slate-500"
+                    >
+                      No dashboard records found for "{searchQuery}".
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
