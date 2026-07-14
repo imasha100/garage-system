@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 
 import StartPage from "./components/StartPage";
+import StaffLogin from "./components/StaffLogin";
+
 import CustomerLogin from "./components/customer/CustomerLogin";
 import GarageMap from "./components/customer/GarageMap";
 import NavigationHub from "./components/customer/NavigationHub";
@@ -10,13 +12,10 @@ import TechnicianDashboard from "./components/technician/TechnicianDashboard";
 import TechnicianSidebar from "./components/technician/TechnicianSidebar";
 import TechnicianProfile from "./components/technician/TechnicianProfile";
 import TaskHistory from "./components/technician/TaskHistory";
-import TechLogin from "./components/technician/TechLogin";
 
 import AssistanceDashboard from "./components/assistance/AssistanceDashboard";
-import AssistanceLogin from "./components/assistance/AssistanceLogin";
 
 import GarageOwnerSidebar from "./components/garageOwner/GarageOwnerSidebar";
-import GarageOwnerLogin from "./components/garageOwner/GarageOwnerLogin";
 import LiveDashboard from "./components/garageOwner/LiveDashboard";
 import ResourceMatrix from "./components/garageOwner/ResourceMatrix";
 import PerformanceAudit from "./components/garageOwner/PerformanceAudit";
@@ -65,22 +64,24 @@ function App() {
 
   const TechnicianLayout = ({ children }) => {
     return (
-      <div className="flex w-full h-screen overflow-hidden bg-[#0a0d14]">
-        <div className="w-72 shrink-0 hidden md:block">
+      <div className="flex h-screen w-full overflow-hidden bg-[#0a0d14]">
+        <div className="hidden w-72 shrink-0 md:block">
           <TechnicianSidebar
             activeItem={currentPage}
             onNavigate={handleNavigate}
           />
         </div>
 
-        <main className="flex-1 h-screen overflow-y-auto">{children}</main>
+        <main className="h-screen flex-1 overflow-y-auto">
+          {children}
+        </main>
       </div>
     );
   };
 
   const GarageOwnerLayout = ({ children }) => {
     return (
-      <div className="flex w-full h-screen overflow-hidden bg-[#07080f]">
+      <div className="flex h-screen w-full overflow-hidden bg-[#07080f]">
         <GarageOwnerSidebar
           activeItem={currentPage}
           onNavigate={handleNavigate}
@@ -91,7 +92,7 @@ function App() {
           closeSidebar={closeOwnerSidebar}
         />
 
-        <main className="flex-1 h-screen overflow-y-auto w-full">
+        <main className="h-screen w-full flex-1 overflow-y-auto">
           {children}
         </main>
       </div>
@@ -105,14 +106,8 @@ function App() {
     case "customer-login":
       return <CustomerLogin onNavigate={handleNavigate} />;
 
-    case "garage-owner-login":
-      return <GarageOwnerLogin onNavigate={handleNavigate} />;
-
-    case "technician-login":
-      return <TechLogin onNavigate={handleNavigate} />;
-
-    case "assistance-login":
-      return <AssistanceLogin onNavigate={handleNavigate} />;
+    case "staff-login":
+      return <StaffLogin onNavigate={handleNavigate} />;
 
     case "garage-map":
       return (
