@@ -143,7 +143,7 @@ export default function LiveDashboard({ toggleSidebar }) {
             <Menu size={20} />
           </button>
 
-          <div className="w-full md:w-80 h-10 border border-white/20 rounded-full flex items-center gap-3 px-4 bg-[#0b0b12]">
+          <div className="w-full md:w-80 h-10 border border-white/20 rounded-xl flex items-center gap-3 px-4 bg-[#0b0b12]">
             <Search size={15} className="text-gray-500 shrink-0" />
 
             <input

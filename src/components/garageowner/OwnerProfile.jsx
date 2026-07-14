@@ -1,5 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
+  Search,
   Bell,
   Menu,
   User,
@@ -19,6 +20,8 @@ import {
 
 export default function OwnerProfile({ toggleSidebar }) {
   const fileInputRef = useRef(null);
+
+  const [searchText, setSearchText] = useState("");
   const [editMode, setEditMode] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
 
@@ -33,57 +36,6 @@ export default function OwnerProfile({ toggleSidebar }) {
   });
 
   const [tempProfile, setTempProfile] = useState(profile);
-
-  const handleEdit = () => {
-    setTempProfile(profile);
-    setEditMode(true);
-  };
-
-  const handleSave = () => {
-    setProfile(tempProfile);
-    setEditMode(false);
-  };
-
-  const handleCancel = () => {
-    setTempProfile(profile);
-    setEditMode(false);
-  };
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setProfileImage(URL.createObjectURL(file));
-  };
-
-  const updateField = (name, value) => {
-    setTempProfile((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const renderField = (Icon, label, value, name) => (
-    <div className="bg-[#191923] border border-white/10 rounded-xl p-5">
-      <div className="flex items-center gap-3 mb-3">
-        <Icon size={16} className="text-cyan-400" />
-        <p className="text-[10px] text-gray-500 font-bold tracking-[0.25em] uppercase">
-          {label}
-        </p>
-      </div>
-
-      {editMode ? (
-        <input
-          value={tempProfile[name]}
-          onChange={(e) => updateField(name, e.target.value)}
-          className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-400/40"
-        />
-      ) : (
-        <p className="text-sm md:text-base text-gray-200 font-medium">
-          {value}
-        </p>
-      )}
-    </div>
-  );
 
   const stats = [
     {
@@ -106,59 +58,224 @@ export default function OwnerProfile({ toggleSidebar }) {
     },
   ];
 
+  const informationFields = [
+    {
+      icon: User,
+      label: "Owner Name",
+      value: profile.name,
+      name: "name",
+    },
+    {
+      icon: BriefcaseBusiness,
+      label: "Role",
+      value: profile.role,
+      name: "role",
+    },
+    {
+      icon: Mail,
+      label: "Email Address",
+      value: profile.email,
+      name: "email",
+    },
+    {
+      icon: Phone,
+      label: "Phone Number",
+      value: profile.phone,
+      name: "phone",
+    },
+    {
+      icon: Building2,
+      label: "Garage Name",
+      value: profile.garageName,
+      name: "garageName",
+    },
+    {
+      icon: MapPin,
+      label: "Location",
+      value: profile.location,
+      name: "location",
+    },
+    {
+      icon: CalendarDays,
+      label: "Joined Date",
+      value: profile.joinedDate,
+      name: "joinedDate",
+    },
+  ];
+
+  const filteredStats = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+
+    if (!query) {
+      return stats;
+    }
+
+    return stats.filter((item) =>
+      `${item.label} ${item.value}`.toLowerCase().includes(query)
+    );
+  }, [searchText]);
+
+  const filteredInformationFields = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+
+    if (!query) {
+      return informationFields;
+    }
+
+    return informationFields.filter((field) =>
+      `${field.label} ${field.value}`.toLowerCase().includes(query)
+    );
+  }, [searchText, profile]);
+
+  const handleEdit = () => {
+    setTempProfile(profile);
+    setEditMode(true);
+  };
+
+  const handleSave = () => {
+    setProfile(tempProfile);
+    setEditMode(false);
+  };
+
+  const handleCancel = () => {
+    setTempProfile(profile);
+    setEditMode(false);
+  };
+
+  const handleImageUpload = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setProfileImage(URL.createObjectURL(file));
+  };
+
+  const updateField = (name, value) => {
+    setTempProfile((previousProfile) => ({
+      ...previousProfile,
+      [name]: value,
+    }));
+  };
+
+  const renderField = (Icon, label, value, name) => (
+    <div
+      key={name}
+      className="rounded-xl border border-white/10 bg-[#191923] p-5"
+    >
+      <div className="mb-3 flex items-center gap-3">
+        <Icon size={16} className="text-cyan-400" />
+
+        <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-gray-500">
+          {label}
+        </p>
+      </div>
+
+      {editMode ? (
+        <input
+          type="text"
+          value={tempProfile[name]}
+          onChange={(event) => updateField(name, event.target.value)}
+          className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400/40"
+        />
+      ) : (
+        <p className="text-sm font-medium text-gray-200 md:text-base">
+          {value}
+        </p>
+      )}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-[#0b0b13] text-white font-sans">
-      <div className="min-h-16 border-b border-white/10 bg-[#191922] flex items-center justify-between gap-4 px-4 md:px-8">
-        <button
-          onClick={toggleSidebar}
-          className="md:hidden w-10 h-10 rounded-lg border border-white/10 bg-black/40 flex items-center justify-center text-white"
-        >
-          <Menu size={20} />
-        </button>
+    <div className="min-h-screen bg-[#0b0b13] font-sans text-white">
+      {/* Top Bar */}
+      <header className="flex min-h-16 flex-col gap-4 border-b border-white/10 bg-[#191922] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8 md:py-0">
+        <div className="flex w-full items-center gap-3 md:w-auto">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-white md:hidden"
+          >
+            <Menu size={20} />
+          </button>
 
-        <div className="flex-1" />
+          {/* Search Bar */}
+          <div className="flex h-10 w-full items-center gap-3 rounded-xl border border-white/20 bg-[#0b0b12] px-4 md:w-80">
+            <Search size={15} className="shrink-0 text-gray-500" />
 
-        <div className="flex items-center gap-5">
-          <Bell size={18} className="text-gray-300" />
+            <input
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Search owner profile..."
+              className="w-full border-none bg-transparent text-sm text-white outline-none placeholder:text-gray-500"
+            />
+
+            {searchText && (
+              <button
+                type="button"
+                onClick={() => setSearchText("")}
+                className="text-[10px] font-bold text-gray-500 transition hover:text-white"
+              >
+                CLEAR
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-5 md:justify-end">
+          <button
+            type="button"
+            className="text-gray-300 transition hover:text-white"
+          >
+            <Bell size={18} />
+          </button>
+
           <div className="h-8 w-px bg-white/10" />
 
           <div>
-            <p className="text-xs font-bold tracking-widest">{profile.name}</p>
-            <p className="text-[10px] text-indigo-400 uppercase">
+            <p className="text-xs font-bold tracking-widest">
+              {profile.name}
+            </p>
+
+            <p className="text-[10px] uppercase text-indigo-400">
               Owner Level
             </p>
           </div>
 
-          <div className="w-9 h-9 rounded-xl border border-indigo-400 flex items-center justify-center text-xs overflow-hidden">
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-indigo-400 text-xs">
             {profileImage ? (
               <img
                 src={profileImage}
                 alt="Profile"
-                className="w-full h-full object-cover"
+                className="h-full w-full object-cover"
               />
             ) : (
               "MA"
             )}
           </div>
         </div>
-      </div>
+      </header>
 
       <main className="p-4 md:p-8">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mb-8">
+        <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
-            <h1 className="text-3xl md:text-4xl font-black mb-3">
+            <h1 className="mb-3 text-3xl font-black md:text-4xl">
               GARAGE OWNER PROFILE
             </h1>
-            <p className="text-gray-400 text-sm md:text-base max-w-3xl">
+
+            <p className="max-w-3xl text-sm text-gray-400 md:text-base">
               Manage owner identity, garage information, and access level.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             {!editMode ? (
               <button
+                type="button"
                 onClick={handleEdit}
-                className="flex items-center justify-center gap-2 bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/30 px-5 py-3 rounded-xl text-xs font-bold tracking-widest"
+                className="flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/15 px-5 py-3 text-xs font-bold tracking-widest text-cyan-400 transition hover:bg-cyan-500/25"
               >
                 <Edit3 size={15} />
                 EDIT PROFILE
@@ -166,16 +283,18 @@ export default function OwnerProfile({ toggleSidebar }) {
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={handleSave}
-                  className="flex items-center justify-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 px-5 py-3 rounded-xl text-xs font-bold tracking-widest"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/20 px-5 py-3 text-xs font-bold tracking-widest text-emerald-400 transition hover:bg-emerald-500/30"
                 >
                   <Save size={15} />
                   SAVE
                 </button>
 
                 <button
+                  type="button"
                   onClick={handleCancel}
-                  className="flex items-center justify-center gap-2 bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 px-5 py-3 rounded-xl text-xs font-bold tracking-widest"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/15 px-5 py-3 text-xs font-bold tracking-widest text-red-300 transition hover:bg-red-500/25"
                 >
                   <X size={15} />
                   CANCEL
@@ -185,22 +304,24 @@ export default function OwnerProfile({ toggleSidebar }) {
           </div>
         </div>
 
-        <div className="bg-[#191923] border border-white/10 rounded-2xl p-6 md:p-8 mb-8">
-          <div className="flex flex-col md:flex-row md:items-center gap-6">
-            <div className="relative w-28 h-28 rounded-2xl border border-cyan-400/40 bg-cyan-500/10 flex items-center justify-center overflow-hidden">
+        {/* Main Profile Card */}
+        <div className="mb-8 rounded-2xl border border-white/10 bg-[#191923] p-6 md:p-8">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center">
+            <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-cyan-400/40 bg-cyan-500/10">
               {profileImage ? (
                 <img
                   src={profileImage}
                   alt="Owner"
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                 />
               ) : (
                 <User size={46} className="text-cyan-400" />
               )}
 
               <button
-                onClick={() => fileInputRef.current.click()}
-                className="absolute bottom-2 right-2 w-8 h-8 rounded-lg bg-cyan-500 text-black flex items-center justify-center hover:bg-cyan-400 transition"
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-black transition hover:bg-cyan-400"
               >
                 <Camera size={15} />
               </button>
@@ -215,12 +336,12 @@ export default function OwnerProfile({ toggleSidebar }) {
             </div>
 
             <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-3 mb-3">
-                <h2 className="text-2xl md:text-3xl font-black">
+              <div className="mb-3 flex flex-wrap items-center gap-3">
+                <h2 className="text-2xl font-black md:text-3xl">
                   {profile.name}
                 </h2>
 
-                <span className="flex items-center gap-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-[10px] font-bold">
+                <span className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 text-[10px] font-bold text-emerald-400">
                   <BadgeCheck size={13} />
                   VERIFIED OWNER
                 </span>
@@ -233,54 +354,65 @@ export default function OwnerProfile({ toggleSidebar }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-          {stats.map((item, index) => {
-            const Icon = item.icon;
+        {/* Statistics */}
+        {filteredStats.length > 0 && (
+          <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-3">
+            {filteredStats.map((item, index) => {
+              const Icon = item.icon;
 
-            return (
-              <div
-                key={index}
-                className="bg-[#1c1c25] border border-white/10 rounded-xl p-6"
-              >
-                <div className="flex justify-between mb-6">
-                  <p className="text-[10px] text-gray-500 font-bold tracking-[0.25em] uppercase">
-                    {item.label}
-                  </p>
-                  <Icon size={16} className={item.color} />
+              return (
+                <div
+                  key={index}
+                  className="rounded-xl border border-white/10 bg-[#1c1c25] p-6"
+                >
+                  <div className="mb-6 flex justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-gray-500">
+                      {item.label}
+                    </p>
+
+                    <Icon size={16} className={item.color} />
+                  </div>
+
+                  <h3
+                    className={`font-mono text-3xl font-black ${item.color}`}
+                  >
+                    {item.value}
+                  </h3>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                <h3 className={`text-3xl font-mono font-black ${item.color}`}>
-                  {item.value}
-                </h3>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="bg-[#111118] border border-white/10 rounded-2xl p-5 md:p-6">
-          <h2 className="text-lg font-bold mb-5">
+        {/* Owner Information */}
+        <div className="rounded-2xl border border-white/10 bg-[#111118] p-5 md:p-6">
+          <h2 className="mb-5 text-lg font-bold">
             Owner & Garage Information
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {renderField(User, "Owner Name", profile.name, "name")}
-            {renderField(BriefcaseBusiness, "Role", profile.role, "role")}
-            {renderField(Mail, "Email Address", profile.email, "email")}
-            {renderField(Phone, "Phone Number", profile.phone, "phone")}
-            {renderField(
-              Building2,
-              "Garage Name",
-              profile.garageName,
-              "garageName"
-            )}
-            {renderField(MapPin, "Location", profile.location, "location")}
-            {renderField(
-              CalendarDays,
-              "Joined Date",
-              profile.joinedDate,
-              "joinedDate"
-            )}
-          </div>
+          {filteredInformationFields.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {filteredInformationFields.map((field) =>
+                renderField(
+                  field.icon,
+                  field.label,
+                  field.value,
+                  field.name
+                )
+              )}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-[#191923] p-10 text-center">
+              <Search
+                size={28}
+                className="mx-auto mb-3 text-gray-600"
+              />
+
+              <p className="text-sm text-gray-500">
+                No owner profile information found for "{searchText}".
+              </p>
+            </div>
+          )}
         </div>
       </main>
     </div>
