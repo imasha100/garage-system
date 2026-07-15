@@ -12,10 +12,14 @@ import {
   Eye,
   Plus,
   Trash2,
+  Search,
+  Bell,
+  Menu,
+  User,
 } from "lucide-react";
 import jsPDF from "jspdf";
 
-const CounterReceipt = () => {
+const CounterReceipt = ({ openSidebar }) => {
   const initialTokens = [
     {
       id: "#TK-9958",
@@ -162,7 +166,54 @@ const CounterReceipt = () => {
   };
 
   return (
-    <div className="h-screen bg-[#050608] text-white font-sans p-3 lg:p-6 overflow-y-auto">
+    <div className="h-screen min-h-0 bg-[#050608] text-white font-sans overflow-hidden flex flex-col">
+      {/* HEADER */}
+      <header className="h-16 shrink-0 flex items-center justify-between px-4 md:px-6 bg-black border-b border-blue-900/40">
+        <div className="flex items-center gap-4 flex-1">
+          <button
+            type="button"
+            onClick={openSidebar}
+            className="md:hidden text-slate-300 hover:text-white cursor-pointer"
+            aria-label="Open sidebar"
+          >
+            <Menu size={20} />
+          </button>
+
+          <div className="relative w-full max-w-md">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              size={16}
+            />
+
+            <input
+              type="text"
+              placeholder="Search system..."
+              className="w-full bg-black border border-slate-800 py-2 pl-10 pr-4 rounded-md text-xs text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 md:gap-6 ml-4">
+          <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            ONLINE
+          </span>
+
+          <button
+            type="button"
+            className="text-slate-300 hover:text-white cursor-pointer"
+            aria-label="Notifications"
+          >
+            <Bell size={16} />
+          </button>
+
+          <div className="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center">
+            <User size={14} />
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 min-h-0 p-3 lg:p-6 overflow-y-auto">
       <div className="w-full max-w-2xl mx-auto bg-[#15191f] border border-[#2b313d] lg:border-2 lg:border-blue-500 rounded-xl p-6 lg:p-6 shadow-2xl flex flex-col mb-6">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 lg:mb-5 gap-3 lg:gap-2">
           <div className="flex items-center gap-3 lg:gap-3 min-w-0">
@@ -516,6 +567,7 @@ const CounterReceipt = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
