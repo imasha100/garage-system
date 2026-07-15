@@ -11,10 +11,14 @@ import {
   Clock,
   Car,
   AlertTriangle,
+  Menu,
 } from "lucide-react";
 import avatarImage from "../../assets/profile.png";
 
-export default function Dashboard() {
+export default function Dashboard({
+  toggleSidebar,
+  onNavigate,
+}) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const percentage = 66;
@@ -111,10 +115,20 @@ export default function Dashboard() {
   }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono overflow-y-auto">
-      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-4 border-b border-slate-800 bg-[#111827]/95 px-6 backdrop-blur-xl">
-        <div className="w-auto shrink-0 md:w-48">
-          <h1 className="text-sm font-black tracking-[0.15em] text-white">
+    <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono overflow-x-hidden overflow-y-auto">
+      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-3 sm:gap-4 border-b border-slate-800 bg-[#111827]/95 px-4 sm:px-6 backdrop-blur-xl">
+        <div className="flex w-auto shrink-0 items-center gap-3 md:w-48">
+          {/* Mobile Sidebar Menu Button */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="Open technician sidebar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#0a0d14] text-slate-400 transition hover:border-indigo-500 hover:text-white md:hidden"
+          >
+            <Menu size={20} />
+          </button>
+
+          <h1 className="text-xs sm:text-sm font-black tracking-[0.15em] text-white">
             TECHNICIANS
           </h1>
         </div>
@@ -137,7 +151,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-4">
+        <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
           <button
             type="button"
             aria-label="Notifications"
@@ -154,7 +168,7 @@ export default function Dashboard() {
             <HelpCircle size={17} />
           </button>
 
-          <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
+          <div className="flex items-center gap-3 border-l border-slate-800 pl-3 sm:pl-4">
             <div className="hidden text-right sm:block">
               <p className="text-[10px] font-bold text-white">M. Anderson</p>
               <p className="text-[9px] uppercase text-slate-500">
@@ -162,7 +176,7 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <div className="h-9 w-9 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
+            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
               <img
                 src={avatarImage}
                 alt="M. Anderson"
@@ -197,15 +211,21 @@ export default function Dashboard() {
             <p className="text-indigo-400 text-xs font-bold tracking-[0.25em] uppercase mb-2">
               Technician Workstation
             </p>
+
             <h1 className="text-3xl md:text-4xl font-black text-white">
               Welcome Back, Alex Chen
             </h1>
+
             <p className="text-slate-500 text-sm md:text-base mt-2">
               You have 4 remaining high-priority diagnostics today.
             </p>
           </div>
 
-          <button className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition text-sm uppercase tracking-widest">
+          <button
+            type="button"
+            onClick={() => onNavigate?.("technician-intake")}
+            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition text-sm uppercase tracking-widest"
+          >
             <Plus size={16} />
             Start New Intake
           </button>
@@ -225,6 +245,7 @@ export default function Dashboard() {
                     <p className="text-slate-500 text-[10px] uppercase tracking-widest">
                       {card.label}
                     </p>
+
                     <p className="text-slate-600 text-[10px] mt-1">
                       {card.sub}
                     </p>
@@ -252,6 +273,7 @@ export default function Dashboard() {
                 <h3 className="text-white font-bold text-xl">
                   Daily Workflow Status
                 </h3>
+
                 <p className="text-[11px] text-slate-500 mt-1">
                   Real-time task synchronization
                 </p>
@@ -292,6 +314,7 @@ export default function Dashboard() {
                   <h2 className="text-4xl font-black text-white">
                     {percentage}%
                   </h2>
+
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest">
                     Completed
                   </p>
@@ -303,6 +326,7 @@ export default function Dashboard() {
                   <p className="text-[10px] text-slate-500 uppercase">
                     Pending
                   </p>
+
                   <p className="text-2xl font-black text-white">4</p>
                 </div>
 
@@ -310,6 +334,7 @@ export default function Dashboard() {
                   <p className="text-[10px] text-slate-500 uppercase">
                     Completed
                   </p>
+
                   <p className="text-2xl font-black text-emerald-400">8</p>
                 </div>
 
@@ -317,6 +342,7 @@ export default function Dashboard() {
                   <p className="text-[10px] text-slate-500 uppercase">
                     Avg Time
                   </p>
+
                   <p className="text-2xl font-black text-amber-400">42m</p>
                 </div>
 
@@ -324,6 +350,7 @@ export default function Dashboard() {
                   <p className="text-[10px] text-slate-500 uppercase">
                     Efficiency
                   </p>
+
                   <p className="text-2xl font-black text-purple-400">94%</p>
                 </div>
               </div>
@@ -336,6 +363,7 @@ export default function Dashboard() {
                 <h3 className="text-white font-bold text-xl">
                   Current Active Task
                 </h3>
+
                 <p className="text-[11px] text-slate-500 mt-1">
                   Live vehicle progress
                 </p>
@@ -353,6 +381,7 @@ export default function Dashboard() {
 
               <div>
                 <p className="text-white font-black text-xl">B-7729-TX</p>
+
                 <p className="text-[11px] text-slate-500">
                   Tesla Model 3 - Battery Diagnostic
                 </p>
@@ -362,6 +391,7 @@ export default function Dashboard() {
             <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4 mb-4">
               <div className="flex justify-between text-[11px] mb-2">
                 <span className="text-slate-500">Elapsed Time</span>
+
                 <span className="text-white font-bold">01:14:22</span>
               </div>
 
@@ -380,7 +410,10 @@ export default function Dashboard() {
         <div className="bg-[#10121b] border border-slate-800 p-6 rounded-2xl">
           <div className="flex justify-between items-center mb-5">
             <div>
-              <h3 className="text-white font-bold text-xl">Today’s Queue</h3>
+              <h3 className="text-white font-bold text-xl">
+                Today’s Queue
+              </h3>
+
               <p className="text-[11px] text-slate-500">
                 Upcoming assigned vehicles
               </p>
@@ -407,37 +440,37 @@ export default function Dashboard() {
               <tbody>
                 {filteredQueue.length > 0 ? (
                   filteredQueue.map((item, i) => (
-                  <tr
-                    key={i}
-                    className="border-b border-slate-800/50 last:border-0"
-                  >
-                    <td className="py-4">
-                      <span className="bg-slate-900 px-2 py-1 rounded">
-                        {item.no}
-                      </span>
-                    </td>
+                    <tr
+                      key={i}
+                      className="border-b border-slate-800/50 last:border-0"
+                    >
+                      <td className="py-4">
+                        <span className="bg-slate-900 px-2 py-1 rounded">
+                          {item.no}
+                        </span>
+                      </td>
 
-                    <td className="py-4">
-                      <span className="rounded bg-slate-900 px-2 py-1 font-bold tracking-wider text-indigo-300">
-                        {item.vehicleNumber}
-                      </span>
-                    </td>
+                      <td className="py-4">
+                        <span className="rounded bg-slate-900 px-2 py-1 font-bold tracking-wider text-indigo-300">
+                          {item.vehicleNumber}
+                        </span>
+                      </td>
 
-                    <td className="py-4 text-white font-bold">
-                      {item.vehicle}
-                    </td>
+                      <td className="py-4 text-white font-bold">
+                        {item.vehicle}
+                      </td>
 
-                    <td className="py-4">{item.job}</td>
+                      <td className="py-4">{item.job}</td>
 
-                    <td className="py-4">{item.eta}</td>
+                      <td className="py-4">{item.eta}</td>
 
-                    <td className="py-4 text-right">
-                      <ChevronRight
-                        size={16}
-                        className="inline text-slate-600 hover:text-white cursor-pointer"
-                      />
-                    </td>
-                  </tr>
+                      <td className="py-4 text-right">
+                        <ChevronRight
+                          size={16}
+                          className="inline text-slate-600 hover:text-white cursor-pointer"
+                        />
+                      </td>
+                    </tr>
                   ))
                 ) : (
                   <tr>

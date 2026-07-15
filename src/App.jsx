@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 
 import StartPage from "./components/StartPage";
@@ -32,16 +33,26 @@ function App() {
   const [currentPage, setCurrentPage] = useState("start");
   const [selectedGarage, setSelectedGarage] = useState(null);
   const [resourceRequests, setResourceRequests] = useState([]);
+
+  // Technician mobile sidebar state
+  const [technicianSidebarOpen, setTechnicianSidebarOpen] =
+    useState(false);
+
+  // Garage owner mobile sidebar state
   const [ownerSidebarOpen, setOwnerSidebarOpen] = useState(false);
 
   const handleNavigate = (page) => {
-    if (page === "logout") {
+    // Logout handling
+    if (page === "logout" || page === "start") {
       localStorage.clear();
       sessionStorage.clear();
 
       setSelectedGarage(null);
       setResourceRequests([]);
+
+      setTechnicianSidebarOpen(false);
       setOwnerSidebarOpen(false);
+
       setCurrentPage("start");
 
       return;
@@ -49,11 +60,28 @@ function App() {
 
     setCurrentPage(page);
 
+    // Mobile screen එකේ navigation එකක් click කළාම
+    // sidebars close කරනවා
     if (window.innerWidth < 768) {
+      setTechnicianSidebarOpen(false);
       setOwnerSidebarOpen(false);
     }
   };
 
+  // Technician sidebar functions
+  const openTechnicianSidebar = () => {
+    setTechnicianSidebarOpen(true);
+  };
+
+  const closeTechnicianSidebar = () => {
+    setTechnicianSidebarOpen(false);
+  };
+
+  const toggleTechnicianSidebar = () => {
+    setTechnicianSidebarOpen((previousState) => !previousState);
+  };
+
+  // Garage owner sidebar functions
   const openOwnerSidebar = () => {
     setOwnerSidebarOpen(true);
   };
@@ -62,17 +90,21 @@ function App() {
     setOwnerSidebarOpen(false);
   };
 
+  const toggleOwnerSidebar = () => {
+    setOwnerSidebarOpen((previousState) => !previousState);
+  };
+
   const TechnicianLayout = ({ children }) => {
     return (
       <div className="flex h-screen w-full overflow-hidden bg-[#0a0d14]">
-        <div className="hidden w-72 shrink-0 md:block">
-          <TechnicianSidebar
-            activeItem={currentPage}
-            onNavigate={handleNavigate}
-          />
-        </div>
+        <TechnicianSidebar
+          activeItem={currentPage}
+          onNavigate={handleNavigate}
+          isOpen={technicianSidebarOpen}
+          onClose={closeTechnicianSidebar}
+        />
 
-        <main className="h-screen flex-1 overflow-y-auto">
+        <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           {children}
         </main>
       </div>
@@ -86,13 +118,11 @@ function App() {
           activeItem={currentPage}
           onNavigate={handleNavigate}
           isOpen={ownerSidebarOpen}
-          toggleSidebar={() =>
-            setOwnerSidebarOpen((previousState) => !previousState)
-          }
+          toggleSidebar={toggleOwnerSidebar}
           closeSidebar={closeOwnerSidebar}
         />
 
-        <main className="h-screen w-full flex-1 overflow-y-auto">
+        <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           {children}
         </main>
       </div>
@@ -130,28 +160,40 @@ function App() {
     case "technician-dashboard":
       return (
         <TechnicianLayout>
-          <TechnicianDashboard onNavigate={handleNavigate} />
+          <TechnicianDashboard
+            onNavigate={handleNavigate}
+            toggleSidebar={toggleTechnicianSidebar}
+          />
         </TechnicianLayout>
       );
 
     case "technician-intake":
       return (
         <TechnicianLayout>
-          <VehicleIntake onNavigate={handleNavigate} />
+          <VehicleIntake
+            onNavigate={handleNavigate}
+            toggleSidebar={openTechnicianSidebar}
+          />
         </TechnicianLayout>
       );
 
     case "technician-profile":
       return (
         <TechnicianLayout>
-          <TechnicianProfile onNavigate={handleNavigate} />
+          <TechnicianProfile
+            onNavigate={handleNavigate}
+            toggleSidebar={openTechnicianSidebar}
+          />
         </TechnicianLayout>
       );
 
     case "task-logs":
       return (
         <TechnicianLayout>
-          <TaskHistory onNavigate={handleNavigate} />
+          <TaskHistory
+            onNavigate={handleNavigate}
+            toggleSidebar={openTechnicianSidebar}
+          />
         </TechnicianLayout>
       );
 
@@ -166,35 +208,50 @@ function App() {
     case "Live Dashboard":
       return (
         <GarageOwnerLayout>
-          <LiveDashboard toggleSidebar={openOwnerSidebar} />
+          <LiveDashboard
+            toggleSidebar={openOwnerSidebar}
+            onNavigate={handleNavigate}
+          />
         </GarageOwnerLayout>
       );
 
     case "Resource Matrix":
       return (
         <GarageOwnerLayout>
-          <ResourceMatrix toggleSidebar={openOwnerSidebar} />
+          <ResourceMatrix
+            toggleSidebar={openOwnerSidebar}
+            onNavigate={handleNavigate}
+          />
         </GarageOwnerLayout>
       );
 
     case "Performance Audit":
       return (
         <GarageOwnerLayout>
-          <PerformanceAudit toggleSidebar={openOwnerSidebar} />
+          <PerformanceAudit
+            toggleSidebar={openOwnerSidebar}
+            onNavigate={handleNavigate}
+          />
         </GarageOwnerLayout>
       );
 
     case "Service Quality":
       return (
         <GarageOwnerLayout>
-          <ServiceQuality toggleSidebar={openOwnerSidebar} />
+          <ServiceQuality
+            toggleSidebar={openOwnerSidebar}
+            onNavigate={handleNavigate}
+          />
         </GarageOwnerLayout>
       );
 
     case "Profit Loss":
       return (
         <GarageOwnerLayout>
-          <ProfitLoss toggleSidebar={openOwnerSidebar} />
+          <ProfitLoss
+            toggleSidebar={openOwnerSidebar}
+            onNavigate={handleNavigate}
+          />
         </GarageOwnerLayout>
       );
 
@@ -264,3 +321,4 @@ function App() {
 }
 
 export default App;
+

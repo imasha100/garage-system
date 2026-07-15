@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Search,
@@ -7,10 +8,11 @@ import {
   X,
   Power,
   PowerOff,
+  Menu,
 } from "lucide-react";
 import avatarImage from "../../assets/profile.png";
 
-export default function TechnicianProfile() {
+export default function TechnicianProfile({ toggleSidebar }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isOnShift, setIsOnShift] = useState(false);
   const [shiftStartTime, setShiftStartTime] = useState(null);
@@ -112,8 +114,17 @@ export default function TechnicianProfile() {
 
   return (
     <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono relative">
-      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-4 border-b border-slate-800 bg-[#111827]/95 px-6 backdrop-blur-xl">
-        <div className="w-auto shrink-0 md:w-48">
+      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-4 border-b border-slate-800 bg-[#111827]/95 px-4 sm:px-6 backdrop-blur-xl">
+        <div className="flex w-auto shrink-0 items-center gap-3 md:w-48">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="Open technician sidebar"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#0a0d14] text-slate-400 transition hover:border-indigo-500 hover:text-white md:hidden"
+          >
+            <Menu size={20} />
+          </button>
+
           <h1 className="text-sm font-black tracking-[0.15em] text-white">
             TECHNICIANS
           </h1>
@@ -440,3 +451,4 @@ export default function TechnicianProfile() {
     </div>
   );
 }
+
