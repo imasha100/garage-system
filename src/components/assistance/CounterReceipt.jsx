@@ -16,6 +16,7 @@ import {
   Bell,
   Menu,
   User,
+  AlertTriangle,
 } from "lucide-react";
 import jsPDF from "jspdf";
 
@@ -78,6 +79,7 @@ const CounterReceipt = ({ openSidebar }) => {
   const [showAddItem, setShowAddItem] = useState(false);
   const [itemName, setItemName] = useState("");
   const [itemPrice, setItemPrice] = useState("");
+  const [deleteItemIndex, setDeleteItemIndex] = useState(null);
 
   const updateSelectedToken = (updatedToken) => {
     setSelectedToken(updatedToken);
@@ -109,8 +111,20 @@ const CounterReceipt = ({ openSidebar }) => {
     setShowAddItem(false);
   };
 
-  const handleRemoveBillItem = (index) => {
-    const updatedItems = selectedToken.items.filter((_, i) => i !== index);
+  const requestRemoveBillItem = (index) => {
+    setDeleteItemIndex(index);
+  };
+
+  const cancelRemoveBillItem = () => {
+    setDeleteItemIndex(null);
+  };
+
+  const confirmRemoveBillItem = () => {
+    if (deleteItemIndex === null) return;
+
+    const updatedItems = selectedToken.items.filter(
+      (_, index) => index !== deleteItemIndex
+    );
     const newTotal = updatedItems.reduce((sum, item) => sum + item.price, 0);
 
     const updatedToken = {
@@ -120,6 +134,7 @@ const CounterReceipt = ({ openSidebar }) => {
     };
 
     updateSelectedToken(updatedToken);
+    setDeleteItemIndex(null);
   };
 
   const handleMethodSelect = (method) => {
@@ -168,8 +183,8 @@ const CounterReceipt = ({ openSidebar }) => {
   return (
     <div className="h-screen min-h-0 bg-[#050608] text-white font-sans overflow-hidden flex flex-col">
       {/* HEADER */}
-      <header className="h-16 shrink-0 flex items-center justify-between px-4 md:px-6 bg-black border-b border-blue-900/40">
-        <div className="flex items-center gap-4 flex-1">
+      <header className="h-14 sm:h-16 shrink-0 flex items-center justify-between px-3 sm:px-4 md:px-6 bg-black border-b border-blue-900/40">
+        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
           <button
             type="button"
             onClick={openSidebar}
@@ -188,12 +203,12 @@ const CounterReceipt = ({ openSidebar }) => {
             <input
               type="text"
               placeholder="Search system..."
-              className="w-full bg-black border border-slate-800 py-2 pl-10 pr-4 rounded-md text-xs text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-black border border-slate-800 py-2 pl-9 pr-3 rounded-md text-[11px] sm:text-xs text-white focus:outline-none focus:border-blue-500"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-6 ml-4">
+        <div className="flex items-center gap-3 md:gap-6 ml-2 sm:ml-4 shrink-0">
           <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
             <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
             ONLINE
@@ -213,40 +228,40 @@ const CounterReceipt = ({ openSidebar }) => {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 p-3 lg:p-6 overflow-y-auto">
-      <div className="w-full max-w-2xl mx-auto bg-[#15191f] border border-[#2b313d] lg:border-2 lg:border-blue-500 rounded-xl p-6 lg:p-6 shadow-2xl flex flex-col mb-6">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 lg:mb-5 gap-3 lg:gap-2">
+      <div className="flex-1 min-h-0 p-2.5 sm:p-4 lg:p-6 overflow-y-auto">
+      <div className="w-full max-w-2xl mx-auto bg-[#15191f] border border-[#2b313d] lg:border-2 lg:border-blue-500 rounded-2xl lg:rounded-xl p-4 sm:p-5 lg:p-6 shadow-2xl flex flex-col mb-4 lg:mb-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-5 lg:mb-5 gap-3 lg:gap-2">
           <div className="flex items-center gap-3 lg:gap-3 min-w-0">
-            <div className="bg-[#1a1f26] p-4 lg:p-2 rounded-lg shrink-0">
-              <Receipt className="text-[#52f0ac]" size={40} />
+            <div className="bg-[#1a1f26] p-2.5 lg:p-2 rounded-xl lg:rounded-lg shrink-0">
+              <Receipt className="text-[#52f0ac] w-7 h-7 lg:w-10 lg:h-10" size={40} />
             </div>
 
-            <h1 className="text-3xl lg:text-2xl font-bold tracking-tight">
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold tracking-tight leading-tight">
               COUNTER RECEIPT VALIDATION
             </h1>
           </div>
 
           <button
             onClick={() => setShowHistory(true)}
-            className="flex items-center justify-center gap-2 lg:gap-2 text-base lg:text-xs text-[#52f0ac] border border-[#52f0ac] px-5 lg:px-3 py-3 lg:py-1 rounded hover:bg-[#52f0ac]/10 shrink-0 whitespace-nowrap"
+            className="flex items-center justify-center gap-2 text-[11px] lg:text-xs text-[#52f0ac] border border-[#52f0ac] px-3 lg:px-3 py-2 lg:py-1 rounded-lg lg:rounded hover:bg-[#52f0ac]/10 shrink-0 whitespace-nowrap"
           >
-            <History size={22} /> VIEW HISTORY
+            <History size={16} className="lg:w-[22px] lg:h-[22px]" /> VIEW HISTORY
           </button>
         </div>
 
-        <div className="mb-8 lg:mb-5 relative">
-          <label className="text-lg lg:text-xs text-[#6e7681] uppercase font-bold mb-3 lg:mb-2 block">
+        <div className="mb-5 lg:mb-5 relative">
+          <label className="text-[10px] lg:text-xs text-[#6e7681] uppercase font-bold mb-2 block tracking-wider">
             Select Token
           </label>
 
           <div
             onClick={() => setShowDropdown(!showDropdown)}
-            className="w-full bg-[#0b0e14] border border-[#2b313d] rounded-lg p-6 lg:p-3 flex justify-between items-center cursor-pointer hover:border-[#52f0ac] transition-all gap-2"
+            className="w-full bg-[#0b0e14] border border-[#2b313d] rounded-xl lg:rounded-lg p-3 lg:p-3 flex justify-between items-center cursor-pointer hover:border-[#52f0ac] transition-all gap-2"
           >
-            <span className="text-[#52f0ac] font-mono text-xl lg:text-base truncate">
+            <span className="text-[#52f0ac] font-mono text-sm sm:text-base lg:text-base truncate">
               {selectedToken.id} ({selectedToken.name})
             </span>
-            <ChevronDown size={30} className="text-[#6e7681] shrink-0" />
+            <ChevronDown size={20} className="text-[#6e7681] shrink-0 lg:w-[30px] lg:h-[30px]" />
           </div>
 
           {showDropdown && (
@@ -258,7 +273,7 @@ const CounterReceipt = ({ openSidebar }) => {
                     setSelectedToken(token);
                     setShowDropdown(false);
                   }}
-                  className="p-5 lg:p-4 hover:bg-[#2b313d] cursor-pointer border-b border-[#0b0e14] text-xl lg:text-base"
+                  className="p-3.5 lg:p-4 hover:bg-[#2b313d] cursor-pointer border-b border-[#0b0e14] text-sm lg:text-base"
                 >
                   {token.id} - {token.name}
                 </div>
@@ -267,39 +282,39 @@ const CounterReceipt = ({ openSidebar }) => {
           )}
         </div>
 
-        <div className="mb-8 lg:mb-5">
-          <div className="flex items-center justify-between mb-4 lg:mb-3">
-            <h3 className="text-lg lg:text-xs text-[#6e7681] uppercase font-bold flex items-center gap-2">
-              <List size={24} /> Receipt Breakdown
+        <div className="mb-5 lg:mb-5">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="text-[10px] lg:text-xs text-[#6e7681] uppercase font-bold flex items-center gap-2 tracking-wider">
+              <List size={16} className="lg:w-6 lg:h-6" /> Receipt Breakdown
             </h3>
 
             <button
               onClick={() => setShowAddItem(true)}
-              className="flex items-center gap-2 bg-[#52f0ac] text-black px-3 py-2 rounded text-xs font-bold hover:bg-[#3edc98]"
+              className="flex items-center justify-center gap-1.5 bg-[#52f0ac] text-black px-2.5 sm:px-3 py-2 rounded-lg lg:rounded text-[10px] lg:text-xs font-bold hover:bg-[#3edc98] shrink-0"
             >
               <Plus size={16} />
               ADD BILL ITEM
             </button>
           </div>
 
-          <div className="bg-[#0b0e14] rounded-lg p-6 md:p-5 border border-[#2b313d] h-[180px] overflow-y-scroll pr-2">
+          <div className="bg-[#0b0e14] rounded-xl lg:rounded-lg p-3 sm:p-4 lg:p-5 border border-[#2b313d] max-h-[220px] lg:h-[180px] overflow-y-auto">
             {selectedToken.items.length === 0 ? (
               <p className="text-center text-[#6e7681]">No bill items added.</p>
             ) : (
               selectedToken.items.map((item, idx) => (
                 <div
                   key={idx}
-                  className="flex justify-between items-center py-4 lg:py-2 text-xl lg:text-base border-b border-[#1a1f26] last:border-0 gap-3"
+                  className="flex justify-between items-center py-3 lg:py-2 text-sm lg:text-base border-b border-[#1a1f26] last:border-0 gap-3"
                 >
                   <span className="truncate">{item.name}</span>
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="font-mono font-bold">
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                    <span className="font-mono font-bold text-xs sm:text-sm lg:text-base">
                       LKR {item.price.toFixed(2)}
                     </span>
 
                     <button
-                      onClick={() => handleRemoveBillItem(idx)}
+                      onClick={() => requestRemoveBillItem(idx)}
                       className="text-red-400 hover:text-red-300"
                     >
                       <Trash2 size={18} />
@@ -311,42 +326,99 @@ const CounterReceipt = ({ openSidebar }) => {
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center py-7 lg:py-3 border-y border-[#1a1f26] mb-8 lg:mb-5 gap-2 lg:gap-3">
-          <span className="text-xl lg:text-lg font-bold text-[#52f0ac]">
+        <div className="flex flex-row justify-between items-end sm:items-center py-4 lg:py-3 border-y border-[#1a1f26] mb-5 gap-3">
+          <span className="text-xs sm:text-sm lg:text-lg font-bold text-[#52f0ac] tracking-wider">
             NET_DUE_TOTAL
           </span>
 
-          <span className="font-mono text-4xl lg:text-2xl font-bold text-[#52f0ac]">
+          <span className="font-mono text-xl sm:text-2xl lg:text-2xl font-bold text-[#52f0ac] text-right">
             LKR {selectedToken.amount.toFixed(2)}
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-5 lg:gap-4">
+        <div className="grid grid-cols-2 gap-3 lg:gap-4">
           <div
             onClick={() => handleMethodSelect("Cash")}
-            className="border border-[#b0c8e9] rounded-lg p-8 lg:p-4 flex flex-col items-center justify-center gap-4 lg:gap-2 cursor-pointer hover:border-[#5223c9] transition-all"
+            className="border border-[#b0c8e9] rounded-xl lg:rounded-lg p-4 lg:p-4 min-h-[105px] lg:min-h-0 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#5223c9] transition-all active:scale-[0.98]"
           >
-            <Wallet size={52} className="lg:w-8 lg:h-8" />
-            <span className="text-lg lg:text-xs uppercase font-bold">
+            <Wallet size={28} className="lg:w-8 lg:h-8" />
+            <span className="text-xs lg:text-xs uppercase font-bold">
               Cash
             </span>
           </div>
 
           <div
             onClick={() => handleMethodSelect("POS")}
-            className="border border-[#b0c8e9] rounded-lg p-8 lg:p-4 flex flex-col items-center justify-center gap-4 lg:gap-2 cursor-pointer hover:border-[#5223c9] transition-all"
+            className="border border-[#b0c8e9] rounded-xl lg:rounded-lg p-4 lg:p-4 min-h-[105px] lg:min-h-0 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#5223c9] transition-all active:scale-[0.98]"
           >
-            <CreditCard size={52} className="lg:w-8 lg:h-8" />
-            <span className="text-lg lg:text-xs uppercase font-bold text-center">
+            <CreditCard size={28} className="lg:w-8 lg:h-8" />
+            <span className="text-xs lg:text-xs uppercase font-bold text-center">
               POS Terminal
             </span>
           </div>
         </div>
       </div>
 
+      {deleteItemIndex !== null && selectedToken.items[deleteItemIndex] && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/85 p-0 sm:p-4"
+          onClick={cancelRemoveBillItem}
+        >
+          <div
+            className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-red-500/40 bg-[#15191f] p-5 sm:p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+              <AlertTriangle size={25} />
+            </div>
+
+            <h2 className="text-center text-base sm:text-lg font-bold text-white">
+              Delete bill item?
+            </h2>
+
+            <p className="mt-2 text-center text-xs sm:text-sm leading-5 text-[#8b949e]">
+              Are you sure you want to remove
+              <span className="font-semibold text-white">
+                {` ${selectedToken.items[deleteItemIndex].name} `}
+              </span>
+              from this bill?
+            </p>
+
+            <div className="mt-4 rounded-xl border border-[#2b313d] bg-[#0b0e14] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="truncate text-sm text-white">
+                  {selectedToken.items[deleteItemIndex].name}
+                </span>
+                <span className="shrink-0 font-mono text-sm font-bold text-[#52f0ac]">
+                  LKR {selectedToken.items[deleteItemIndex].price.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={cancelRemoveBillItem}
+                className="rounded-xl border border-[#2b313d] bg-[#20252d] py-3 text-xs font-bold text-white transition hover:bg-[#2b313d]"
+              >
+                CANCEL
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmRemoveBillItem}
+                className="rounded-xl bg-red-500 py-3 text-xs font-bold text-white transition hover:bg-red-400"
+              >
+                DELETE ITEM
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAddItem && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#15191f] p-6 md:p-8 rounded-xl border border-[#52f0ac] max-w-sm w-full shadow-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-[#15191f] p-5 sm:p-6 md:p-8 rounded-t-2xl sm:rounded-xl border border-[#52f0ac] max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between mb-6">
               <h2 className="text-lg font-bold uppercase">Add Bill Item</h2>
               <X
@@ -384,8 +456,8 @@ const CounterReceipt = ({ openSidebar }) => {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#15191f] p-6 md:p-8 rounded-xl border border-[#2b313d] max-w-sm w-full shadow-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-[#15191f] p-5 sm:p-6 md:p-8 rounded-t-2xl sm:rounded-xl border border-[#2b313d] max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between mb-6">
               <h2 className="text-lg font-bold uppercase">
                 {paymentMethod} Details
@@ -458,8 +530,8 @@ const CounterReceipt = ({ openSidebar }) => {
       )}
 
       {showHistory && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#15191f] p-6 md:p-8 rounded-xl border border-[#2b313d] max-w-lg w-full max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-[#15191f] p-5 sm:p-6 md:p-8 rounded-t-2xl sm:rounded-xl border border-[#2b313d] max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between mb-6">
               <h2 className="text-lg font-bold">
                 History: {selectedToken.id}
@@ -519,8 +591,8 @@ const CounterReceipt = ({ openSidebar }) => {
       )}
 
       {viewReceipt && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white text-black p-6 md:p-8 rounded-xl max-w-sm w-full max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/90 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60]">
+          <div className="bg-white text-black p-5 sm:p-6 md:p-8 rounded-t-2xl sm:rounded-xl max-w-sm w-full max-h-[90vh] overflow-y-auto">
             <h2 className="font-bold mb-4 text-center">OFFICIAL RECEIPT</h2>
 
             <div className="text-sm py-4 border-y border-gray-300 mb-4">
@@ -553,8 +625,8 @@ const CounterReceipt = ({ openSidebar }) => {
       )}
 
       {showSuccess && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[70]">
-          <div className="bg-[#15191f] p-6 md:p-8 rounded-xl text-center border border-[#52f0ac] shadow-2xl max-w-sm w-full">
+        <div className="fixed inset-0 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4 z-[70]">
+          <div className="bg-[#15191f] p-5 sm:p-6 md:p-8 rounded-t-2xl sm:rounded-xl text-center border border-[#52f0ac] shadow-2xl max-w-sm w-full">
             <CheckCircle className="mx-auto text-[#52f0ac] mb-4" size={50} />
             <h2 className="text-xl font-bold mb-2">Payment Successful!</h2>
 
