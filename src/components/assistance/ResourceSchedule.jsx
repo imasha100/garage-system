@@ -6,6 +6,9 @@ import {
   X,
   Clock,
   Navigation,
+  Search,
+  Bell,
+  Menu,
 } from "lucide-react";
 
 import {
@@ -30,7 +33,7 @@ L.Icon.Default.mergeOptions({
     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-const ResourceSchedule = () => {
+const ResourceSchedule = ({ openSidebar }) => {
   const [currentCapacity, setCurrentCapacity] = useState(7);
   const maxCapacity = 10;
 
@@ -49,6 +52,7 @@ const ResourceSchedule = () => {
   const [acceptedRequests, setAcceptedRequests] = useState([]);
   const [rejectedRequests, setRejectedRequests] = useState([]);
   const [selectedVehicles, setSelectedVehicles] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
 
   const getRequests = () => {
     return JSON.parse(sessionStorage.getItem("resourceRequests")) || [];
@@ -261,6 +265,22 @@ const ResourceSchedule = () => {
     });
   };
 
+  const filteredEmergencyRequests = emergencyRequests.filter((req) => {
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) return true;
+
+    return (
+      String(req.id || "").toLowerCase().includes(query) ||
+      String(req.name || "").toLowerCase().includes(query) ||
+      String(req.contact || "").toLowerCase().includes(query) ||
+      String(req.vNo || "").toLowerCase().includes(query) ||
+      String(req.vehicle || "").toLowerCase().includes(query) ||
+      String(req.loc || "").toLowerCase().includes(query) ||
+      String(req.garageName || "").toLowerCase().includes(query)
+    );
+  });
+
   const RequestMap = ({ request, height = "h-64" }) => {
     const customerLocation = [
       request?.lat || 6.9108,
@@ -314,7 +334,56 @@ const ResourceSchedule = () => {
   };
 
   return (
-    <div className="w-full h-full bg-[#0b0e14] text-[#a0a8b7] p-4 md:p-8 font-sans overflow-y-auto relative">
+    <div className="w-full h-full min-h-0 bg-[#0b0e14] text-[#a0a8b7] font-sans overflow-hidden flex flex-col">
+      {/* HEADER */}
+      <header className="h-16 shrink-0 flex items-center justify-between px-4 md:px-6 bg-black border-b border-blue-900/40">
+        <div className="flex items-center gap-4 flex-1">
+          <button
+            type="button"
+            onClick={openSidebar}
+            className="md:hidden text-slate-300 hover:text-white cursor-pointer"
+            aria-label="Open sidebar"
+          >
+            <Menu size={20} />
+          </button>
+
+          <div className="relative w-full max-w-md">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              size={16}
+            />
+
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search request..."
+              className="w-full bg-black border border-slate-800 py-2 pl-10 pr-4 rounded-md text-xs text-white focus:outline-none focus:border-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 md:gap-6 ml-4">
+          <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            ONLINE
+          </span>
+
+          <button
+            type="button"
+            className="text-slate-300 hover:text-white cursor-pointer"
+            aria-label="Notifications"
+          >
+            <Bell size={16} />
+          </button>
+
+          <div className="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center">
+            <User size={14} />
+          </div>
+        </div>
+      </header>
+
+      <div className="flex-1 min-h-0 w-full bg-[#0b0e14] text-[#a0a8b7] p-4 md:p-8 font-sans overflow-y-auto relative">
       {showDetailsModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-[#15191f] border border-[#2b313d] rounded-xl p-5 md:p-8 w-full max-w-lg relative max-h-[90vh] overflow-y-auto">
@@ -428,8 +497,8 @@ const ResourceSchedule = () => {
           <div className="space-y-4">
             <h2 className="text-white font-bold mb-2">PENDING REQUESTS</h2>
 
-            {emergencyRequests.length > 0 ? (
-              emergencyRequests.map((req) => (
+            {filteredEmergencyRequests.length > 0 ? (
+              filteredEmergencyRequests.map((req) => (
                 <div
                   key={req.id}
                   onClick={() => setSelectedReq({ ...req, status: "pending" })}
@@ -690,6 +759,7 @@ const ResourceSchedule = () => {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

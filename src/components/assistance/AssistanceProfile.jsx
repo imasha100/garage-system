@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Upload,
@@ -9,10 +8,13 @@ import {
   X,
   Mail,
   Phone,
+  Search,
+  Bell,
+  Menu,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-const AssistanceProfile = () => {
+const AssistanceProfile = ({ openSidebar }) => {
   const [profile, setProfile] = useState({
     name: "Assistance Officer",
     email: "assistance@gmail.com",
@@ -64,155 +66,206 @@ const AssistanceProfile = () => {
   const nextStatus = profile.shiftOn ? "OFF" : "ON";
 
   return (
-    <div className="min-h-screen bg-[#050608] text-white flex items-center justify-center p-4 md:p-6 relative">
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-[#0b0e14] border border-[#1f2a36] rounded-2xl p-6 shadow-2xl"
-      >
-        {/* PROFILE IMAGE */}
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-cyan-400 bg-[#111] flex items-center justify-center shadow-lg">
-            {preview ? (
-              <img
-                src={preview}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <User size={40} className="text-gray-500" />
-            )}
-          </div>
+    <div className="h-full min-h-screen bg-[#050608] text-white flex flex-col relative overflow-hidden">
+      {/* HEADER */}
+      <header className="h-16 shrink-0 flex items-center justify-between px-4 md:px-6 bg-black border-b border-blue-900/40">
+        <div className="flex items-center gap-4 flex-1">
+          <button
+            type="button"
+            onClick={openSidebar}
+            className="md:hidden text-slate-300 hover:text-white cursor-pointer"
+            aria-label="Open sidebar"
+          >
+            <Menu size={20} />
+          </button>
 
-          <label className="mt-3 cursor-pointer flex items-center gap-2 text-3xl md:text-sm text-cyan-400 hover:text-cyan-300">
-            <Upload size={16} />
-            Upload Photo
-
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={handleImageUpload}
-            />
-          </label>
-        </div>
-
-        {/* INPUTS */}
-        <div className="space-y-3 mb-6">
-          <input
-            type="text"
-            value={profile.name}
-            onChange={(e) => {
-              setProfile({
-                ...profile,
-                name: e.target.value,
-              });
-
-              setSaved(false);
-            }}
-            className="w-full p-3 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
-            placeholder="Name"
-          />
-
-          <div className="relative">
-            <Mail
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+          <div className="relative w-full max-w-md">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              size={16}
             />
 
             <input
-              type="email"
-              value={profile.email}
-              onChange={(e) => {
-                setProfile({
-                  ...profile,
-                  email: e.target.value,
-                });
-
-                setSaved(false);
-              }}
-              className="w-full p-3 pl-10 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
-              placeholder="Email"
-            />
-          </div>
-
-          <div className="relative">
-            <Phone
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
-            />
-
-            <input
-              type="tel"
-              value={profile.contactNumber}
-              onChange={(e) => {
-                setProfile({
-                  ...profile,
-                  contactNumber: e.target.value,
-                });
-
-                setSaved(false);
-              }}
-              className="w-full p-3 pl-10 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
-              placeholder="Contact Number"
+              type="text"
+              placeholder="Search system..."
+              className="w-full bg-black border border-slate-800 py-2 pl-10 pr-4 rounded-md text-xs text-white focus:outline-none focus:border-blue-500"
             />
           </div>
         </div>
 
-        {/* SHIFT STATUS */}
-        <div className="flex items-center justify-between bg-[#050608] p-4 rounded-lg border border-[#1f2a36] mb-7">
-          <p className="font-semibold text-2xl md:text-base">
-            Shift Status:{" "}
-            <span
-              className={
-                profile.shiftOn ? "text-green-400" : "text-red-400"
-              }
-            >
-              {profile.shiftOn ? "ON" : "OFF"}
-            </span>
-          </p>
+        <div className="flex items-center gap-4 md:gap-6 ml-4">
+          <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            ONLINE
+          </span>
 
           <button
-            onClick={openShiftConfirm}
-            className={`flex items-center gap-2 px-4 py-2 cursor-pointer rounded font-bold transition text-xl md:text-base ${
-              profile.shiftOn
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-red-600 hover:bg-red-700"
-            }`}
+            type="button"
+            className="text-slate-300 hover:text-white cursor-pointer"
+            aria-label="Notifications"
           >
-            {profile.shiftOn ? (
-              <>
-                <Power size={16} />
-                ON
-              </>
-            ) : (
-              <>
-                <PowerOff size={16} />
-                OFF
-              </>
-            )}
+            <Bell size={16} />
           </button>
+
+          <div className="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center">
+            <User size={14} />
+          </div>
         </div>
+      </header>
 
-        {/* SAVE BUTTON */}
-        <button
-          onClick={handleSave}
-          className="w-full flex items-center justify-center gap-2 py-3 cursor-pointer bg-cyan-500 hover:bg-cyan-600 text-black font-bold rounded-lg transition text-3xl md:text-base"
+      {/* PROFILE CONTENT */}
+      <div className="flex-1 overflow-y-auto flex items-center justify-center p-4 md:p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md bg-[#0b0e14] border border-[#1f2a36] rounded-2xl p-6 shadow-2xl"
         >
-          <Save size={20} />
-          Save Profile
-        </button>
+          {/* PROFILE IMAGE */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-28 h-28 rounded-full overflow-hidden border-2 border-cyan-400 bg-[#111] flex items-center justify-center shadow-lg">
+              {preview ? (
+                <img
+                  src={preview}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User size={40} className="text-gray-500" />
+              )}
+            </div>
 
-        {saved && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-green-400 text-center mt-3 text-2xl md:text-base"
+            <label className="mt-3 cursor-pointer flex items-center gap-2 text-3xl md:text-sm text-cyan-400 hover:text-cyan-300">
+              <Upload size={16} />
+              Upload Photo
+
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleImageUpload}
+              />
+            </label>
+          </div>
+
+          {/* INPUTS */}
+          <div className="space-y-3 mb-6">
+            <input
+              type="text"
+              value={profile.name}
+              onChange={(e) => {
+                setProfile({
+                  ...profile,
+                  name: e.target.value,
+                });
+
+                setSaved(false);
+              }}
+              className="w-full p-3 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
+              placeholder="Name"
+            />
+
+            <div className="relative">
+              <Mail
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+              />
+
+              <input
+                type="email"
+                value={profile.email}
+                onChange={(e) => {
+                  setProfile({
+                    ...profile,
+                    email: e.target.value,
+                  });
+
+                  setSaved(false);
+                }}
+                className="w-full p-3 pl-10 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
+                placeholder="Email"
+              />
+            </div>
+
+            <div className="relative">
+              <Phone
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+              />
+
+              <input
+                type="tel"
+                value={profile.contactNumber}
+                onChange={(e) => {
+                  setProfile({
+                    ...profile,
+                    contactNumber: e.target.value,
+                  });
+
+                  setSaved(false);
+                }}
+                className="w-full p-3 pl-10 rounded bg-[#050608] border border-[#1f2a36] outline-none focus:border-cyan-400 text-2xl md:text-base"
+                placeholder="Contact Number"
+              />
+            </div>
+          </div>
+
+          {/* SHIFT STATUS */}
+          <div className="flex items-center justify-between bg-[#050608] p-4 rounded-lg border border-[#1f2a36] mb-7">
+            <p className="font-semibold text-2xl md:text-base">
+              Shift Status:{" "}
+              <span
+                className={
+                  profile.shiftOn ? "text-green-400" : "text-red-400"
+                }
+              >
+                {profile.shiftOn ? "ON" : "OFF"}
+              </span>
+            </p>
+
+            <button
+              type="button"
+              onClick={openShiftConfirm}
+              className={`flex items-center gap-2 px-4 py-2 cursor-pointer rounded font-bold transition text-xl md:text-base ${
+                profile.shiftOn
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              {profile.shiftOn ? (
+                <>
+                  <Power size={16} />
+                  ON
+                </>
+              ) : (
+                <>
+                  <PowerOff size={16} />
+                  OFF
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* SAVE BUTTON */}
+          <button
+            type="button"
+            onClick={handleSave}
+            className="w-full flex items-center justify-center gap-2 py-3 cursor-pointer bg-cyan-500 hover:bg-cyan-600 text-black font-bold rounded-lg transition text-3xl md:text-base"
           >
-            Profile updated successfully ✔
-          </motion.p>
-        )}
-      </motion.div>
+            <Save size={20} />
+            Save Profile
+          </button>
+
+          {saved && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-green-400 text-center mt-3 text-2xl md:text-base"
+            >
+              Profile updated successfully ✔
+            </motion.p>
+          )}
+        </motion.div>
+      </div>
 
       {/* CUSTOM CONFIRM POPUP */}
       {showConfirm && (
@@ -223,6 +276,7 @@ const AssistanceProfile = () => {
             className="relative w-full max-w-sm bg-[#0b0e14] border border-cyan-500/40 rounded-2xl p-6 shadow-2xl text-center"
           >
             <button
+              type="button"
               onClick={() => setShowConfirm(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-white cursor-pointer"
             >
@@ -231,9 +285,7 @@ const AssistanceProfile = () => {
 
             <div
               className={`mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center ${
-                profile.shiftOn
-                  ? "bg-red-500/20"
-                  : "bg-green-500/20"
+                profile.shiftOn ? "bg-red-500/20" : "bg-green-500/20"
               }`}
             >
               {profile.shiftOn ? (
@@ -263,6 +315,7 @@ const AssistanceProfile = () => {
 
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowConfirm(false)}
                 className="w-1/2 py-3 rounded-lg bg-gray-700 hover:bg-gray-600 font-bold cursor-pointer"
               >
@@ -270,6 +323,7 @@ const AssistanceProfile = () => {
               </button>
 
               <button
+                type="button"
                 onClick={confirmShiftChange}
                 className={`w-1/2 py-3 rounded-lg font-bold text-white cursor-pointer ${
                   nextStatus === "ON"
@@ -288,4 +342,3 @@ const AssistanceProfile = () => {
 };
 
 export default AssistanceProfile;
-
