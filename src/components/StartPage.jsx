@@ -23,6 +23,7 @@ import {
   CarFront,
   Gauge,
   UserRound,
+  Building2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import heroImage from "../assets/hero.jpg";
@@ -358,14 +359,25 @@ export default function StartPage({ onNavigate }) {
               ))}
             </nav>
 
-            <button
-              type="button"
-              onClick={openTruckRequest}
-              className="hidden items-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-4 py-2.5 text-sm font-black text-slate-950 shadow-[0_10px_30px_rgba(45,212,191,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(45,212,191,0.3)] xl:flex"
-            >
-              <Truck className="h-4 w-4" />
-              Register Tow Truck
-            </button>
+            <div className="hidden items-center gap-2 xl:flex">
+              <button
+                type="button"
+                onClick={() => onNavigate("garage-registration")}
+                className="flex items-center gap-2 rounded-xl border border-teal-400/30 bg-teal-400/10 px-4 py-2.5 text-sm font-black text-teal-200 transition hover:-translate-y-0.5 hover:bg-teal-400/15"
+              >
+                <Building2 className="h-4 w-4" />
+                Register Garage
+              </button>
+
+              <button
+                type="button"
+                onClick={openTruckRequest}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-4 py-2.5 text-sm font-black text-slate-950 shadow-[0_10px_30px_rgba(45,212,191,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(45,212,191,0.3)]"
+              >
+                <Truck className="h-4 w-4" />
+                Register Tow Truck
+              </button>
+            </div>
 
             <button
               type="button"
@@ -399,6 +411,18 @@ export default function StartPage({ onNavigate }) {
                       {label}
                     </a>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onNavigate("garage-registration");
+                    }}
+                    className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-teal-400/30 bg-teal-400/10 px-4 py-3 text-sm font-black text-teal-200"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Register Garage
+                  </button>
+
                   <button
                     type="button"
                     onClick={openTruckRequest}
@@ -501,6 +525,15 @@ export default function StartPage({ onNavigate }) {
                 >
                   Explore Platform
                   <ChevronDown className="h-5 w-5 transition-transform group-hover:translate-y-1" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate("garage-registration")}
+                  className="group flex w-full items-center justify-center gap-3 rounded-2xl border border-blue-400/30 bg-blue-400/10 px-6 py-4 font-bold text-blue-200 backdrop-blur-md transition hover:border-blue-300/60 hover:bg-blue-400/15 sm:w-auto"
+                >
+                  <Building2 className="h-5 w-5" />
+                  Register Your Garage
                 </button>
 
                 <button

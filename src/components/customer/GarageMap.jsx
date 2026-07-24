@@ -7,6 +7,7 @@ import {
   Marker,
   Popup,
   CircleMarker,
+  useMap,
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
@@ -23,6 +24,18 @@ L.Icon.Default.mergeOptions({
     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
+function RecenterMap({ center }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (Array.isArray(center) && center.length === 2) {
+      map.setView(center, 14, { animate: true });
+    }
+  }, [center, map]);
+
+  return null;
+}
+
 export default function GarageMap({
   onNavigate,
   setSelectedGarage,
@@ -33,8 +46,17 @@ export default function GarageMap({
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  // Fixed current location: Saegis Campus, Nugegoda
-  const [userLocation, setUserLocation] = useState([6.8728, 79.8887]);
+  // Sri Lanka center is shown only while the browser detects the real location.
+  // It is not used as the customer's location.
+  const INITIAL_MAP_CENTER = [7.8731, 80.7718];
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [locationError, setLocationError] = useState("");
+
+  // Garages are loaded from MySQL through the backend API.
+  const [garageList, setGarageList] = useState([]);
+  const [garagesLoading, setGaragesLoading] = useState(true);
+  const [garagesError, setGaragesError] = useState("");
 
   const [requestData, setRequestData] = useState({
     customerName: "",
@@ -60,6 +82,15 @@ export default function GarageMap({
   };
 
   const getGarageWithLiveDistance = (garage) => {
+    if (!userLocation) {
+      return {
+        ...garage,
+        distanceValue: Number.POSITIVE_INFINITY,
+        distance: "Waiting for location",
+        time: "N/A",
+      };
+    }
+
     const distanceKm = calculateDistance(
       userLocation[0],
       userLocation[1],
@@ -75,97 +106,139 @@ export default function GarageMap({
 
     return {
       ...garage,
+      distanceValue: distanceKm,
       distance: `${distanceKm.toFixed(1)} KM`,
       time: `${timeMins} MINS`,
     };
   };
 
+  const requestCurrentLocation = () => {
+    setLocationLoading(true);
+    setLocationError("");
+
+    if (!navigator.geolocation) {
+      setUserLocation(null);
+      setLocationError(
+        "This browser does not support live location. Please use a browser with location access."
+      );
+      setLocationLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation([
+          position.coords.latitude,
+          position.coords.longitude,
+        ]);
+        setLocationError("");
+        setLocationLoading(false);
+      },
+      (error) => {
+        console.error("Unable to get current location:", error);
+        setUserLocation(null);
+
+        let message =
+          "Unable to detect your current location. Please allow location access and try again.";
+
+        if (error.code === error.PERMISSION_DENIED) {
+          message =
+            "Location permission was denied. Allow location access in the browser and click Use My Location.";
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          message =
+            "Your current location is unavailable. Check Windows Location Services and try again.";
+        } else if (error.code === error.TIMEOUT) {
+          message =
+            "Location detection timed out. Please click Use My Location and try again.";
+        }
+
+        setLocationError(message);
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  };
+
   useEffect(() => {
-    setUserLocation([6.8728, 79.8887]);
+    requestCurrentLocation();
   }, []);
 
-  const garagesData = {
-    kohuwala: {
-      id: "KOHUWALA",
-      name: "KOHUWALA AUTO CARE",
-      workload: "30%",
-      status: "NEAREST & RECOMMENDED",
-      specialization: "General Vehicle Repair",
-      specDesc: "Quick repair support near Saegis Campus / Kohuwala area.",
-      lat: 6.8721,
-      lng: 79.8852,
-      freeTechs: [
-        { name: "Kamal Silva", expert: "Engine Diagnosis" },
-        { name: "Nuwan Perera", expert: "Auto Electrical" },
-      ],
-    },
+  useEffect(() => {
+    let isMounted = true;
 
-    nugegoda: {
-      id: "NUGEGODA",
-      name: "NUGEGODA SERVICE HUB",
-      workload: "55%",
-      status: "MODERATE AVAILABLE",
-      specialization: "Mechanical & Scanning",
-      specDesc: "Multi-brand scanner and general mechanical support.",
-      lat: 6.8729,
-      lng: 79.8996,
-      freeTechs: [{ name: "Roshan Alwis", expert: "Engine Scanning" }],
-    },
+    const loadGarages = async () => {
+      try {
+        setGaragesLoading(true);
+        setGaragesError("");
 
-    kirulapone: {
-      id: "KIRULAPONE",
-      name: "KIRULAPONE GARAGE POINT",
-      workload: "42%",
-      status: "AVAILABLE",
-      specialization: "Brake, Suspension & Tune-up",
-      specDesc: "Fast service for brake, suspension and routine maintenance.",
-      lat: 6.8797,
-      lng: 79.8746,
-      freeTechs: [
-        { name: "Sahan Fernando", expert: "Brake Systems" },
-        { name: "Isuru Madushan", expert: "Suspension Repair" },
-      ],
-    },
+        const response = await fetch("http://localhost:5000/api/garages");
+        const result = await response.json();
 
-    maharagama: {
-      id: "MAHARAGAMA",
-      name: "MAHARAGAMA AUTO TECH",
-      workload: "68%",
-      status: "BUSY",
-      specialization: "Hybrid & EV Support",
-      specDesc: "Hybrid vehicle diagnosis and battery inspection support.",
-      lat: 6.848,
-      lng: 79.9265,
-      freeTechs: [{ name: "Dilan Perera", expert: "Hybrid Diagnosis" }],
-    },
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Unable to load registered garages.");
+        }
 
-    piliyandala: {
-      id: "PILIYANDALA",
-      name: "PILIYANDALA RECOVERY HUB",
-      workload: "75%",
-      status: "HIGH WORKLOAD",
-      specialization: "Recovery & Mechanical Repair",
-      specDesc: "Tow recovery and heavy mechanical repair support.",
-      lat: 6.8018,
-      lng: 79.9227,
-      freeTechs: [],
-    },
+        const normalizedGarages = (Array.isArray(result.data) ? result.data : [])
+          .map((garage) => {
+            const latitude = Number(garage.latitude);
+            const longitude = Number(garage.longitude);
 
-    dehiwala: {
-      id: "DEHIWALA",
-      name: "DEHIWALA MOTOR WORKS",
-      workload: "38%",
-      status: "AVAILABLE",
-      specialization: "Electrical & AC Repair",
-      specDesc: "Vehicle electrical, AC repair and quick diagnostic support.",
-      lat: 6.8519,
-      lng: 79.8655,
-      freeTechs: [
-        { name: "Lahiru Fernando", expert: "Vehicle AC Repair" },
-        { name: "Milan Jayasinghe", expert: "Auto Electrical Systems" },
-      ],
-    },
-  };
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+              return null;
+            }
+
+            return {
+              id: garage.garage_id,
+              name: garage.garage_name || "Registered Garage",
+              address: garage.address || "Address not available",
+              contact: garage.contact_number || "Contact not available",
+              district: garage.district || "District not available",
+              capacity: Number(garage.capacity) || 0,
+              openingTime: garage.opening_time || "N/A",
+              closingTime: garage.closing_time || "N/A",
+              workingDays: garage.working_days || "N/A",
+              shiftType: garage.shift_type || "N/A",
+              workload: "AVAILABLE",
+              status: "REGISTERED GARAGE",
+              specialization: "General Vehicle Service",
+              specDesc: `${garage.garage_name || "This garage"} is registered in the SwiftGarage system.`,
+              lat: latitude,
+              lng: longitude,
+              freeTechs: [],
+            };
+          })
+          .filter(Boolean);
+
+        if (isMounted) {
+          setGarageList(normalizedGarages);
+        }
+      } catch (error) {
+        console.error("Failed to load garages:", error);
+
+        if (isMounted) {
+          setGaragesError(
+            error.message || "Unable to load registered garages from the server."
+          );
+          setGarageList([]);
+        }
+      } finally {
+        if (isMounted) {
+          setGaragesLoading(false);
+        }
+      }
+    };
+
+    loadGarages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const resetForm = () => {
     setRequestData({
@@ -213,6 +286,7 @@ export default function GarageMap({
       eta: selectedGarage?.time || "N/A",
       dist: selectedGarage?.distance || "N/A",
       loc: selectedGarage?.name || "Selected Garage",
+      garageId: selectedGarage?.id || null,
       garageName: selectedGarage?.name || "Selected Garage",
       status: "pending",
       createdAt: new Date().toISOString(),
@@ -241,7 +315,23 @@ export default function GarageMap({
     resetForm();
   };
 
-  const liveGarages = Object.values(garagesData).map(getGarageWithLiveDistance);
+  const allGaragesWithDistance = userLocation
+    ? garageList
+        .map(getGarageWithLiveDistance)
+        .sort(
+          (firstGarage, secondGarage) =>
+            firstGarage.distanceValue - secondGarage.distanceValue
+        )
+    : [];
+
+  // Show the nearest registered garages only after the live location is detected.
+  const liveGarages = allGaragesWithDistance
+    .filter((garage) => garage.distanceValue <= 25)
+    .slice(0, 6)
+    .map((garage, index) => ({
+      ...garage,
+      status: index === 0 ? "NEAREST & RECOMMENDED" : garage.status,
+    }));
 
   return (
     <div className="w-screen h-screen max-h-screen overflow-hidden bg-[#02050b] text-[#cbd5e1] font-mono flex flex-col">
@@ -274,31 +364,37 @@ export default function GarageMap({
 
       <div className="flex-1 w-full relative overflow-hidden">
         <MapContainer
-          center={userLocation}
-          zoom={14}
+          center={userLocation || INITIAL_MAP_CENTER}
+          zoom={userLocation ? 14 : 8}
           scrollWheelZoom={true}
           className="w-full h-full z-0"
         >
+          {userLocation && <RecenterMap center={userLocation} />}
+
           <TileLayer
             attribution='&copy; OpenStreetMap contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <CircleMarker
-            center={userLocation}
-            radius={11}
-            pathOptions={{
-              color: "#b49eff",
-              fillColor: "#b49eff",
-              fillOpacity: 0.9,
-            }}
-          >
-            <Popup>
-              <strong>Saegis Campus</strong>
-              <br />
-              Current Location
-            </Popup>
-          </CircleMarker>
+          {userLocation && (
+            <CircleMarker
+              center={userLocation}
+              radius={11}
+              pathOptions={{
+                color: "#b49eff",
+                fillColor: "#b49eff",
+                fillOpacity: 0.9,
+              }}
+            >
+              <Popup>
+                <strong>Your Current Location</strong>
+                <br />
+                Latitude: {userLocation[0].toFixed(5)}
+                <br />
+                Longitude: {userLocation[1].toFixed(5)}
+              </Popup>
+            </CircleMarker>
+          )}
 
           {liveGarages.map((garage) => (
             <Marker
@@ -316,9 +412,11 @@ export default function GarageMap({
                   <br />
                   Time: {garage.time}
                   <br />
-                  Workload: {garage.workload}
+                  Address: {garage.address}
                   <br />
-                  Free Technicians: {garage.freeTechs.length}
+                  Contact: {garage.contact}
+                  <br />
+                  Capacity: {garage.capacity} vehicles
                   <br />
                   <button
                     onClick={() => handleSelectGarage(garage)}
@@ -339,6 +437,62 @@ export default function GarageMap({
             </Marker>
           ))}
         </MapContainer>
+
+        <div className="absolute top-3 left-3 z-[25] max-w-[calc(100%-1.5rem)] rounded-lg border border-slate-700/70 bg-[#060b16]/95 p-3 shadow-xl backdrop-blur-md">
+          <div className="flex items-start gap-3">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-widest text-white">
+                {locationLoading
+                  ? "Detecting your location..."
+                  : userLocation
+                  ? "Live location active"
+                  : "Location access required"}
+              </p>
+
+              <p className="mt-1 text-[10px] leading-4 text-slate-400">
+                {garagesError ||
+                  locationError ||
+                  (garagesLoading
+                    ? "Loading registered garages from the database..."
+                    : userLocation
+                    ? `${liveGarages.length} nearby garage${
+                        liveGarages.length === 1 ? "" : "s"
+                      } found within 25 KM from ${garageList.length} registered garage${
+                        garageList.length === 1 ? "" : "s"
+                      }.`
+                    : "Allow location access to show your current position and nearby registered garages.")}
+              </p>
+
+              <button
+                type="button"
+                onClick={requestCurrentLocation}
+                disabled={locationLoading}
+                className="mt-2 rounded border border-cyan-500/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-300 hover:bg-cyan-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {locationLoading ? "Locating..." : "Use My Location"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {!locationLoading &&
+          !garagesLoading &&
+          !garagesError &&
+          userLocation &&
+          liveGarages.length === 0 && (
+          <div className="absolute left-1/2 top-1/2 z-[24] w-[90%] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-amber-500/30 bg-[#0b1120]/95 p-6 text-center shadow-2xl backdrop-blur-md">
+            <MapPin className="mx-auto h-8 w-8 text-amber-400" />
+            <h2 className="mt-3 text-lg font-black uppercase tracking-widest text-white">
+              No Nearby Garages
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              No registered garage was found within 25 KM of your current
+              location. More garages will appear here after they are added to
+              the database.
+            </p>
+          </div>
+        )}
 
         <div
           className={`fixed bottom-0 left-0 w-full h-[78vh] md:h-full md:absolute md:top-0 md:right-0 md:left-auto md:w-[400px] bg-[#040713] border-t md:border-t-0 md:border-l border-slate-900/90 backdrop-blur-md transition-all duration-300 ease-in-out flex flex-col justify-between overflow-y-auto z-30 shadow-2xl ${
@@ -373,21 +527,27 @@ export default function GarageMap({
                   <span className="block text-slate-400 font-sans mt-1">
                     {selectedGarage.specDesc}
                   </span>
+                  <span className="mt-3 block text-slate-300 font-sans">
+                    {selectedGarage.address}
+                  </span>
+                  <span className="mt-1 block text-slate-500 font-sans">
+                    {selectedGarage.contact} · {selectedGarage.district}
+                  </span>
                 </div>
 
                 <div className="bg-[#091124]/40 border border-slate-900 p-4 md:p-3 rounded-sm text-base md:text-xs mb-4">
                   <span className="font-bold text-slate-400 tracking-wider text-sm md:text-[9px] uppercase mb-2.5 flex items-center gap-1.5">
                     <Users className="w-4 h-4 md:w-3 md:h-3 text-slate-500 shrink-0" />
-                    Available Specialists ({selectedGarage.freeTechs.length})
+                    Available Specialists ({selectedGarage.freeTechs?.length || 0})
                   </span>
 
-                  {selectedGarage.freeTechs.length === 0 ? (
+                  {(selectedGarage.freeTechs?.length || 0) === 0 ? (
                     <div className="text-slate-500 italic text-sm md:text-[11px] py-1">
                       No technicians free right now. Queueing active.
                     </div>
                   ) : (
                     <div className="flex flex-col gap-3 md:gap-2 max-h-40 md:max-h-32 overflow-y-auto pr-1">
-                      {selectedGarage.freeTechs.map((tech, idx) => (
+                      {(selectedGarage.freeTechs || []).map((tech, idx) => (
                         <div
                           key={idx}
                           className="border-b border-slate-900 pb-2 md:pb-1.5 last:border-0 last:pb-0"
