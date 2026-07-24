@@ -14,30 +14,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-const STAFF_ACCOUNTS = [
-  {
-    username: "owner01",
-    password: "1234",
-    role: "garage-owner",
-    displayRole: "Garage Owner",
-    redirectPage: "Live Dashboard",
-  },
-  {
-    username: "tech01",
-    password: "1234",
-    role: "technician",
-    displayRole: "Technician",
-    redirectPage: "technician-dashboard",
-  },
-  {
-    username: "assist01",
-    password: "1234",
-    role: "assistance",
-    displayRole: "Assistance Officer",
-    redirectPage: "assistance-dashboard",
-  },
-];
-
 const ROLE_CARDS = [
   {
     icon: Building2,
@@ -52,7 +28,8 @@ const ROLE_CARDS = [
   {
     icon: Headphones,
     title: "Assistance Officer",
-    description: "Coordinate service requests, dispatches and customer support.",
+    description:
+      "Coordinate service requests, dispatches and customer support.",
   },
 ];
 
@@ -80,11 +57,16 @@ export default function StaffLogin({ onNavigate }) {
       [name]: value,
     }));
 
-    if (errorMessage) setErrorMessage("");
-    if (successMessage) setSuccessMessage("");
+    if (errorMessage) {
+      setErrorMessage("");
+    }
+
+    if (successMessage) {
+      setSuccessMessage("");
+    }
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     const username = form.username.trim();
@@ -99,27 +81,90 @@ export default function StaffLogin({ onNavigate }) {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const matchedAccount = STAFF_ACCOUNTS.find(
-      (account) =>
-        account.username.toLowerCase() === username.toLowerCase() &&
-        account.password === password
-    );
+    try {
+      const response = await fetch("http://localhost:5000/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          password,
+        }),
+      });
 
-    window.setTimeout(() => {
-      if (!matchedAccount) {
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setErrorMessage(data.message || "Invalid username or password.");
         setIsSubmitting(false);
-        setErrorMessage("Invalid username or password.");
         return;
       }
 
+      const userRole = String(data.user?.role || "")
+        .trim()
+        .toLowerCase();
+
+      let redirectPage = "";
+      let displayRole = "";
+
+      if (
+        userRole === "garage-owner" ||
+        userRole === "garage_owner" ||
+        userRole === "owner"
+      ) {
+        redirectPage = "Live Dashboard";
+        displayRole = "Garage Owner";
+      } else if (
+        userRole === "technician" ||
+        userRole === "tech"
+      ) {
+        redirectPage = "technician-dashboard";
+        displayRole = "Technician";
+      } else if (
+        userRole === "assistance" ||
+        userRole === "assistance-officer" ||
+        userRole === "assistance_officer"
+      ) {
+        redirectPage = "assistance-dashboard";
+        displayRole = "Assistance Officer";
+      } else {
+        setErrorMessage(
+          "Your account role is not recognized. Please contact the administrator."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      sessionStorage.setItem(
+        "staffUser",
+        JSON.stringify({
+          loginId: data.user.loginId,
+          username: data.user.username,
+          role: data.user.role,
+          staffId: data.user.staffId,
+          garageId: data.user.garageId,
+        })
+      );
+
+      sessionStorage.setItem("isStaffLoggedIn", "true");
+
       setSuccessMessage(
-        `Login successful. Opening the ${matchedAccount.displayRole} dashboard...`
+        `Login successful. Opening the ${displayRole} dashboard...`
       );
 
       window.setTimeout(() => {
-        onNavigate(matchedAccount.redirectPage);
+        onNavigate(redirectPage);
       }, 700);
-    }, 500);
+    } catch (error) {
+      console.error("Login request failed:", error);
+
+      setErrorMessage(
+        "Unable to connect to the server. Please make sure the backend is running."
+      );
+
+      setIsSubmitting(false);
+    }
   };
 
   const handleBack = () => {
@@ -130,7 +175,9 @@ export default function StaffLogin({ onNavigate }) {
     <div className="relative min-h-screen overflow-hidden bg-[#05080d] px-4 py-8 text-white sm:px-6 lg:px-10">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-24 top-20 h-96 w-96 rounded-full bg-teal-500/10 blur-[130px]" />
+
         <div className="absolute -right-24 bottom-10 h-[420px] w-[420px] rounded-full bg-blue-500/10 blur-[150px]" />
+
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(45,212,191,0.08),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.08),transparent_32%)]" />
       </div>
 
@@ -139,7 +186,10 @@ export default function StaffLogin({ onNavigate }) {
           <motion.section
             initial={{ opacity: 0, x: -45 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+            transition={{
+              duration: 0.75,
+              ease: [0.22, 1, 0.36, 1],
+            }}
             className="relative overflow-hidden border-b border-white/10 p-6 sm:p-10 lg:border-b-0 lg:border-r lg:p-12"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-teal-400/[0.08] via-transparent to-blue-500/[0.08]" />
@@ -151,23 +201,26 @@ export default function StaffLogin({ onNavigate }) {
                 className="mb-10 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-teal-400/30 hover:bg-teal-400/10 hover:text-teal-300"
               >
                 <ArrowLeft className="h-4 w-4" />
-               
+                Back
               </button>
 
               <div className="mx-auto flex w-fit items-center gap-3 rounded-2xl border border-teal-400/20 bg-teal-400/10 px-4 py-3">
                 <div className="rounded-xl bg-teal-400/15 p-2.5 text-teal-300">
                   <ShieldCheck className="h-6 w-6" />
                 </div>
+
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-300">
                     Secure Staff Access
                   </p>
+
                   <p className="font-black">SwiftGarage AI</p>
                 </div>
               </div>
 
               <h1 className="mt-8 max-w-xl text-4xl font-black leading-tight sm:text-5xl">
                 One secure login for every
+
                 <span className="block bg-gradient-to-r from-teal-300 via-cyan-300 to-blue-400 bg-clip-text text-transparent">
                   staff role.
                 </span>
@@ -188,14 +241,19 @@ export default function StaffLogin({ onNavigate }) {
                       key={role.title}
                       initial={{ opacity: 0, y: 24 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: 0.16 + index * 0.1 }}
+                      transition={{
+                        duration: 0.5,
+                        delay: 0.16 + index * 0.1,
+                      }}
                       whileHover={{ y: -5 }}
                       className="rounded-2xl border border-white/10 bg-white/[0.035] p-5 transition hover:border-teal-400/25 hover:bg-teal-400/[0.05]"
                     >
                       <div className="w-fit rounded-xl bg-teal-400/10 p-3 text-teal-300">
                         <Icon className="h-6 w-6" />
                       </div>
+
                       <h2 className="mt-4 font-black">{role.title}</h2>
+
                       <p className="mt-2 text-sm leading-6 text-slate-500">
                         {role.description}
                       </p>
@@ -256,7 +314,8 @@ export default function StaffLogin({ onNavigate }) {
                     placeholder="Enter your username"
                     autoComplete="username"
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.045] py-3.5 pl-12 pr-4 text-white outline-none transition placeholder:text-slate-600 focus:border-teal-400/60 focus:ring-4 focus:ring-teal-400/10"
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.045] py-3.5 pl-12 pr-4 text-white outline-none transition placeholder:text-slate-600 focus:border-teal-400/60 focus:ring-4 focus:ring-teal-400/10 disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -281,14 +340,20 @@ export default function StaffLogin({ onNavigate }) {
                     placeholder="Enter your password"
                     autoComplete="current-password"
                     required
-                    className="w-full rounded-xl border border-white/10 bg-white/[0.045] py-3.5 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-600 focus:border-teal-400/60 focus:ring-4 focus:ring-teal-400/10"
+                    disabled={isSubmitting}
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.045] py-3.5 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-600 focus:border-teal-400/60 focus:ring-4 focus:ring-teal-400/10 disabled:cursor-not-allowed disabled:opacity-60"
                   />
 
                   <button
                     type="button"
-                    onClick={() => setShowPassword((previous) => !previous)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 transition hover:bg-white/5 hover:text-teal-300"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    onClick={() =>
+                      setShowPassword((previousState) => !previousState)
+                    }
+                    disabled={isSubmitting}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-500 transition hover:bg-white/5 hover:text-teal-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -323,6 +388,7 @@ export default function StaffLogin({ onNavigate }) {
                     className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300"
                   >
                     <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+
                     <span>{successMessage}</span>
                   </motion.div>
                 )}
@@ -330,11 +396,24 @@ export default function StaffLogin({ onNavigate }) {
 
               <motion.button
                 type="submit"
-                disabled={!canSubmit || isSubmitting || Boolean(successMessage)}
-                whileHover={
-                  canSubmit && !isSubmitting ? { y: -2, scale: 1.01 } : {}
+                disabled={
+                  !canSubmit || isSubmitting || Boolean(successMessage)
                 }
-                whileTap={canSubmit && !isSubmitting ? { scale: 0.98 } : {}}
+                whileHover={
+                  canSubmit && !isSubmitting
+                    ? {
+                        y: -2,
+                        scale: 1.01,
+                      }
+                    : {}
+                }
+                whileTap={
+                  canSubmit && !isSubmitting
+                    ? {
+                        scale: 0.98,
+                      }
+                    : {}
+                }
                 className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-4 font-black tracking-wide text-slate-950 shadow-[0_15px_45px_rgba(45,212,191,0.2)] transition disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSubmitting ? (
@@ -361,24 +440,6 @@ export default function StaffLogin({ onNavigate }) {
               >
                 Forgot Password?
               </button>
-
-              <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                  Demo Credentials
-                </p>
-
-                <div className="mt-3 space-y-2 text-xs text-slate-400">
-                  <p>
-                    Garage Owner: <span className="font-semibold text-slate-200">owner01 / 1234</span>
-                  </p>
-                  <p>
-                    Technician: <span className="font-semibold text-slate-200">tech01 / 1234</span>
-                  </p>
-                  <p>
-                    Assistance: <span className="font-semibold text-slate-200">assist01 / 1234</span>
-                  </p>
-                </div>
-              </div>
             </form>
           </motion.section>
         </div>

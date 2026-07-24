@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Car,
@@ -22,16 +21,92 @@ import garageImg from "../../assets/GarageCapacityimg.jpg";
 import carQueueImg from "../../assets/PendingVehicles.png";
 import techImg from "../../assets/Tech.jpg";
 
-export default function AssistanceDashboard({ resourceRequests = [] }) {
+export default function AssistanceDashboard({
+  onNavigate,
+  resourceRequests = [],
+}) {
   const [view, setView] = useState("Dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [officerName, setOfficerName] = useState("Assistance Officer");
+  const [isLoadingOfficer, setIsLoadingOfficer] = useState(true);
 
   const [request1, setRequest1] = useState("PENDING");
   const [request2, setRequest2] = useState("PENDING");
   const [request3, setRequest3] = useState("PENDING");
   const [request4, setRequest4] = useState("PENDING");
   const [request5, setRequest5] = useState("PENDING");
+
+  // ======================================================
+  // LOAD LOGGED-IN ASSISTANCE OFFICER
+  // ======================================================
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadLoggedInOfficer = async () => {
+      try {
+        const storedStaffUser = sessionStorage.getItem("staffUser");
+
+        if (!storedStaffUser) {
+          throw new Error(
+            "Logged-in assistance officer details were not found."
+          );
+        }
+
+        const staffUser = JSON.parse(storedStaffUser);
+        const assistanceId = Number(staffUser?.staffId);
+
+        if (
+          String(staffUser?.role || "").toLowerCase() !== "assistance" ||
+          !Number.isInteger(assistanceId) ||
+          assistanceId <= 0
+        ) {
+          throw new Error(
+            "A valid assistance officer account could not be identified."
+          );
+        }
+
+        const response = await fetch(
+          `http://localhost:5000/api/assistances/${assistanceId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || data.success === false || !data.assistance) {
+          throw new Error(
+            data.message || "Unable to load assistance officer details."
+          );
+        }
+
+        if (isMounted) {
+          setOfficerName(
+            data.assistance.fullName || "Assistance Officer"
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Load logged-in assistance officer error:",
+          error
+        );
+
+        if (isMounted) {
+          setOfficerName("Assistance Officer");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingOfficer(false);
+        }
+      }
+    };
+
+    loadLoggedInOfficer();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const stats = [
     {
@@ -102,6 +177,17 @@ export default function AssistanceDashboard({ resourceRequests = [] }) {
   });
 
   const handleNavigate = (page) => {
+    // Logout and start-page navigation must be handled by App.jsx.
+    if (page === "logout" || page === "start") {
+      setIsSidebarOpen(false);
+
+      if (typeof onNavigate === "function") {
+        onNavigate(page);
+      }
+
+      return;
+    }
+
     setView(page);
     setIsSidebarOpen(false);
   };
@@ -346,10 +432,21 @@ export default function AssistanceDashboard({ resourceRequests = [] }) {
                 onClick={() =>
                   handleNavigate("Assistance Profile")
                 }
-                className="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:border-blue-500 transition"
+                className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition hover:border-blue-900/50 hover:bg-blue-950/20"
                 aria-label="Open assistance profile"
               >
-                <User size={14} />
+                <div className="hidden max-w-[180px] text-right sm:block">
+                  <p className="truncate text-xs font-bold text-white">
+                    {isLoadingOfficer ? "Loading..." : officerName}
+                  </p>
+                  <p className="mt-0.5 text-[9px] uppercase tracking-widest text-slate-500">
+                    Assistance Officer
+                  </p>
+                </div>
+
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-700 text-slate-400 transition group-hover:border-blue-500 group-hover:text-white">
+                  <User size={15} />
+                </div>
               </button>
             </div>
           </header>
@@ -376,4 +473,3 @@ export default function AssistanceDashboard({ resourceRequests = [] }) {
     </div>
   );
 }
-

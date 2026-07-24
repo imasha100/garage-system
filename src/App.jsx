@@ -1,8 +1,8 @@
-
 import React, { useState } from "react";
 
 import StartPage from "./components/StartPage";
 import StaffLogin from "./components/StaffLogin";
+import GarageRegistration from "./components/GarageRegistration";
 
 import CustomerLogin from "./components/customer/CustomerLogin";
 import GarageMap from "./components/customer/GarageMap";
@@ -34,100 +34,70 @@ function App() {
   const [selectedGarage, setSelectedGarage] = useState(null);
   const [resourceRequests, setResourceRequests] = useState([]);
 
-  // Technician mobile sidebar state
-  const [technicianSidebarOpen, setTechnicianSidebarOpen] =
-    useState(false);
-
-  // Garage owner mobile sidebar state
+  const [technicianSidebarOpen, setTechnicianSidebarOpen] = useState(false);
   const [ownerSidebarOpen, setOwnerSidebarOpen] = useState(false);
 
   const handleNavigate = (page) => {
-    // Logout handling
     if (page === "logout" || page === "start") {
       localStorage.clear();
       sessionStorage.clear();
 
       setSelectedGarage(null);
       setResourceRequests([]);
-
       setTechnicianSidebarOpen(false);
       setOwnerSidebarOpen(false);
-
       setCurrentPage("start");
-
       return;
     }
 
     setCurrentPage(page);
 
-    // Mobile screen එකේ navigation එකක් click කළාම
-    // sidebars close කරනවා
     if (window.innerWidth < 768) {
       setTechnicianSidebarOpen(false);
       setOwnerSidebarOpen(false);
     }
   };
 
-  // Technician sidebar functions
-  const openTechnicianSidebar = () => {
-    setTechnicianSidebarOpen(true);
-  };
-
-  const closeTechnicianSidebar = () => {
-    setTechnicianSidebarOpen(false);
-  };
-
-  const toggleTechnicianSidebar = () => {
+  const openTechnicianSidebar = () => setTechnicianSidebarOpen(true);
+  const closeTechnicianSidebar = () => setTechnicianSidebarOpen(false);
+  const toggleTechnicianSidebar = () =>
     setTechnicianSidebarOpen((previousState) => !previousState);
-  };
 
-  // Garage owner sidebar functions
-  const openOwnerSidebar = () => {
-    setOwnerSidebarOpen(true);
-  };
-
-  const closeOwnerSidebar = () => {
-    setOwnerSidebarOpen(false);
-  };
-
-  const toggleOwnerSidebar = () => {
+  const openOwnerSidebar = () => setOwnerSidebarOpen(true);
+  const closeOwnerSidebar = () => setOwnerSidebarOpen(false);
+  const toggleOwnerSidebar = () =>
     setOwnerSidebarOpen((previousState) => !previousState);
-  };
 
-  const TechnicianLayout = ({ children }) => {
-    return (
-      <div className="flex h-screen w-full overflow-hidden bg-[#0a0d14]">
-        <TechnicianSidebar
-          activeItem={currentPage}
-          onNavigate={handleNavigate}
-          isOpen={technicianSidebarOpen}
-          onClose={closeTechnicianSidebar}
-        />
+  const TechnicianLayout = ({ children }) => (
+    <div className="flex h-screen w-full overflow-hidden bg-[#0a0d14]">
+      <TechnicianSidebar
+        activeItem={currentPage}
+        onNavigate={handleNavigate}
+        isOpen={technicianSidebarOpen}
+        onClose={closeTechnicianSidebar}
+      />
 
-        <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          {children}
-        </main>
-      </div>
-    );
-  };
+      <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        {children}
+      </main>
+    </div>
+  );
 
-  const GarageOwnerLayout = ({ children }) => {
-    return (
-      <div className="flex h-screen w-full overflow-hidden bg-[#07080f]">
-        <GarageOwnerSidebar
-          activeItem={currentPage}
-          onNavigate={handleNavigate}
-          isOpen={ownerSidebarOpen}
-          toggleSidebar={toggleOwnerSidebar}
-          closeSidebar={closeOwnerSidebar}
-        />
+  const GarageOwnerLayout = ({ children }) => (
+    <div className="flex h-screen w-full overflow-hidden bg-[#07080f]">
+      <GarageOwnerSidebar
+        activeItem={currentPage}
+        onNavigate={handleNavigate}
+        isOpen={ownerSidebarOpen}
+        toggleSidebar={toggleOwnerSidebar}
+        closeSidebar={closeOwnerSidebar}
+      />
 
-        <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          {children}
-        </main>
-      </div>
-    );
-  };
+      <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        {children}
+      </main>
+    </div>
+  );
 
   switch (currentPage) {
     case "start":
@@ -138,6 +108,9 @@ function App() {
 
     case "staff-login":
       return <StaffLogin onNavigate={handleNavigate} />;
+
+    case "garage-registration":
+      return <GarageRegistration onNavigate={handleNavigate} />;
 
     case "garage-map":
       return (
@@ -321,4 +294,3 @@ function App() {
 }
 
 export default App;
-

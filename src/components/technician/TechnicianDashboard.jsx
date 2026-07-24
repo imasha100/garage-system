@@ -1,4 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import {
   Plus,
   Search,
@@ -12,19 +17,164 @@ import {
   Car,
   AlertTriangle,
   Menu,
+  RefreshCw,
 } from "lucide-react";
+
 import avatarImage from "../../assets/profile.png";
 
-export default function Dashboard({
+export default function TechnicianDashboard({
   toggleSidebar,
   onNavigate,
 }) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] =
+    useState("");
+
+  const [technician, setTechnician] =
+    useState(null);
+
+  const [isLoadingTechnician, setIsLoadingTechnician] =
+    useState(true);
+
+  const [technicianError, setTechnicianError] =
+    useState("");
 
   const percentage = 66;
   const radius = 65;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percentage / 100) * circumference;
+
+  const offset =
+    circumference -
+    (percentage / 100) * circumference;
+
+  // ==========================================
+  // Get logged-in staff details
+  // ==========================================
+
+  const getLoggedInStaffUser = () => {
+    try {
+      const storedStaffUser =
+        sessionStorage.getItem("staffUser");
+
+      if (!storedStaffUser) {
+        return null;
+      }
+
+      return JSON.parse(storedStaffUser);
+    } catch (error) {
+      console.error(
+        "Unable to read logged-in staff user:",
+        error
+      );
+
+      return null;
+    }
+  };
+
+  // ==========================================
+  // Load logged-in technician details
+  // ==========================================
+
+  const loadTechnicianDetails = async () => {
+    setIsLoadingTechnician(true);
+    setTechnicianError("");
+
+    try {
+      const staffUser =
+        getLoggedInStaffUser();
+
+      if (!staffUser) {
+        throw new Error(
+          "Logged-in technician details were not found. Please sign in again."
+        );
+      }
+
+      if (staffUser.role !== "technician") {
+        throw new Error(
+          "This dashboard is only available for technician accounts."
+        );
+      }
+
+      const technicianId = Number(
+        staffUser.staffId
+      );
+
+      if (
+        !Number.isInteger(technicianId) ||
+        technicianId <= 0
+      ) {
+        throw new Error(
+          "A valid technician ID could not be found. Please sign in again."
+        );
+      }
+
+      const response = await fetch(
+        `http://localhost:5000/api/technicians/${technicianId}`
+      );
+
+      const data = await response.json();
+
+      if (
+        !response.ok ||
+        data.success === false ||
+        !data.technician
+      ) {
+        throw new Error(
+          data.message ||
+            "Unable to load technician details."
+        );
+      }
+
+      setTechnician(data.technician);
+    } catch (error) {
+      console.error(
+        "Load technician dashboard details error:",
+        error
+      );
+
+      setTechnician(null);
+
+      setTechnicianError(
+        error.message ||
+          "Unable to load technician details."
+      );
+    } finally {
+      setIsLoadingTechnician(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTechnicianDetails();
+  }, []);
+
+  // ==========================================
+  // Display values
+  // ==========================================
+
+  const technicianName =
+    technician?.fullName ||
+    "Technician";
+
+  const technicianRole =
+    technician?.specialization?.length > 0
+      ? technician.specialization[0]
+      : "Workshop Technician";
+
+  const technicianEmail =
+    technician?.email || "";
+
+  const technicianInitials =
+    technicianName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((namePart) =>
+        namePart.charAt(0).toUpperCase()
+      )
+      .join("") || "T";
+
+  // ==========================================
+  // Dashboard statistics
+  // ==========================================
 
   const stats = [
     {
@@ -65,6 +215,10 @@ export default function Dashboard({
     },
   ];
 
+  // ==========================================
+  // Dashboard queue
+  // ==========================================
+
   const queue = [
     {
       no: "09",
@@ -92,8 +246,13 @@ export default function Dashboard({
     },
   ];
 
+  // ==========================================
+  // Queue search
+  // ==========================================
+
   const filteredQueue = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const query =
+      searchQuery.trim().toLowerCase();
 
     if (!query) {
       return queue;
@@ -115,10 +274,15 @@ export default function Dashboard({
   }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-slate-300 font-mono overflow-x-hidden overflow-y-auto">
-      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-3 sm:gap-4 border-b border-slate-800 bg-[#111827]/95 px-4 sm:px-6 backdrop-blur-xl">
+    <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-[#0a0d14] font-mono text-slate-300">
+      {/* ======================================
+          Header
+      ======================================= */}
+
+      <header className="sticky top-0 z-50 flex h-[70px] items-center gap-3 border-b border-slate-800 bg-[#111827]/95 px-4 backdrop-blur-xl sm:gap-4 sm:px-6">
         <div className="flex w-auto shrink-0 items-center gap-3 md:w-48">
           {/* Mobile Sidebar Menu Button */}
+
           <button
             type="button"
             onClick={toggleSidebar}
@@ -128,10 +292,12 @@ export default function Dashboard({
             <Menu size={20} />
           </button>
 
-          <h1 className="text-xs sm:text-sm font-black tracking-[0.15em] text-white">
+          <h1 className="text-xs font-black tracking-[0.15em] text-white sm:text-sm">
             TECHNICIANS
           </h1>
         </div>
+
+        {/* Desktop Search */}
 
         <div className="hidden flex-1 justify-center md:flex">
           <div className="relative w-full max-w-[525px]">
@@ -143,13 +309,17 @@ export default function Dashboard({
             <input
               type="search"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) =>
+                setSearchQuery(event.target.value)
+              }
               placeholder="Search Workshop..."
               aria-label="Search dashboard queue"
               className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-11 pr-4 text-xs text-slate-300 outline-none transition placeholder:text-slate-600 focus:border-indigo-500"
             />
           </div>
         </div>
+
+        {/* Header Actions */}
 
         <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
           <button
@@ -168,24 +338,55 @@ export default function Dashboard({
             <HelpCircle size={17} />
           </button>
 
+          {/* Logged-in Technician Header Profile */}
+
           <div className="flex items-center gap-3 border-l border-slate-800 pl-3 sm:pl-4">
             <div className="hidden text-right sm:block">
-              <p className="text-[10px] font-bold text-white">M. Anderson</p>
-              <p className="text-[9px] uppercase text-slate-500">
-                Senior Mechanic
-              </p>
+              {isLoadingTechnician ? (
+                <>
+                  <p className="text-[10px] font-bold text-slate-400">
+                    Loading...
+                  </p>
+
+                  <p className="text-[9px] uppercase text-slate-600">
+                    Technician
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="max-w-[150px] truncate text-[10px] font-bold text-white">
+                    {technicianName}
+                  </p>
+
+                  <p className="max-w-[150px] truncate text-[9px] uppercase text-slate-500">
+                    {technicianRole}
+                  </p>
+                </>
+              )}
             </div>
 
-            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
               <img
                 src={avatarImage}
-                alt="M. Anderson"
+                alt={`${technicianName} profile`}
                 className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.style.display =
+                    "none";
+                }}
               />
+
+              <div className="absolute inset-0 -z-10 flex items-center justify-center text-xs font-black text-indigo-300">
+                {technicianInitials}
+              </div>
             </div>
           </div>
         </div>
       </header>
+
+      {/* ======================================
+          Mobile Search
+      ======================================= */}
 
       <div className="border-b border-slate-800 bg-[#111827] px-4 py-3 md:hidden">
         <div className="relative">
@@ -197,7 +398,9 @@ export default function Dashboard({
           <input
             type="search"
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) =>
+              setSearchQuery(event.target.value)
+            }
             placeholder="Search Workshop..."
             aria-label="Search dashboard queue"
             className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-10 pr-4 text-xs text-slate-300 outline-none placeholder:text-slate-600 focus:border-indigo-500"
@@ -205,56 +408,115 @@ export default function Dashboard({
         </div>
       </div>
 
-      <div className="px-4 md:px-6 max-w-7xl mx-auto py-6 md:py-8 pb-20">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mb-8">
+      {/* ======================================
+          Dashboard Content
+      ======================================= */}
+
+      <div className="mx-auto max-w-7xl px-4 py-6 pb-20 md:px-6 md:py-8">
+        {/* Technician Loading Error */}
+
+        {technicianError && (
+          <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-bold text-red-300">
+                Unable to load technician details
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-red-300/70">
+                {technicianError}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={loadTechnicianDetails}
+              disabled={isLoadingTechnician}
+              className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw
+                size={16}
+                className={
+                  isLoadingTechnician
+                    ? "animate-spin"
+                    : ""
+                }
+              />
+
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Welcome Section */}
+
+        <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
-            <p className="text-indigo-400 text-xs font-bold tracking-[0.25em] uppercase mb-2">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-indigo-400">
               Technician Workstation
             </p>
 
-            <h1 className="text-3xl md:text-4xl font-black text-white">
-              Welcome Back, Alex Chen
+            <h1 className="text-3xl font-black text-white md:text-4xl">
+              {isLoadingTechnician
+                ? "Loading Technician..."
+                : `Welcome Back, ${technicianName}`}
             </h1>
 
-            <p className="text-slate-500 text-sm md:text-base mt-2">
-              You have 4 remaining high-priority diagnostics today.
+            <p className="mt-2 text-sm text-slate-500 md:text-base">
+              You have 4 remaining high-priority
+              diagnostics today.
             </p>
+
+            {technicianEmail && (
+              <p className="mt-2 text-xs text-slate-600">
+                Signed in as {technicianEmail}
+              </p>
+            )}
           </div>
 
           <button
             type="button"
-            onClick={() => onNavigate?.("technician-intake")}
-            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition text-sm uppercase tracking-widest"
+            onClick={() =>
+              onNavigate?.("technician-intake")
+            }
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-indigo-700 sm:w-auto"
           >
             <Plus size={16} />
+
             Start New Intake
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-6">
-          {stats.map((card, i) => {
+        {/* ======================================
+            Statistics
+        ======================================= */}
+
+        <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map((card, index) => {
             const Icon = card.icon;
 
             return (
               <div
-                key={i}
-                className={`bg-[#10121b] border ${card.border} p-5 rounded-2xl relative overflow-hidden`}
+                key={index}
+                className={`relative overflow-hidden rounded-2xl border bg-[#10121b] p-5 ${card.border}`}
               >
-                <div className="flex justify-between items-start mb-5">
+                <div className="mb-5 flex items-start justify-between">
                   <div>
-                    <p className="text-slate-500 text-[10px] uppercase tracking-widest">
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500">
                       {card.label}
                     </p>
 
-                    <p className="text-slate-600 text-[10px] mt-1">
+                    <p className="mt-1 text-[10px] text-slate-600">
                       {card.sub}
                     </p>
                   </div>
 
                   <div
-                    className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center`}
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.bg}`}
                   >
-                    <Icon size={18} className={card.color} />
+                    <Icon
+                      size={18}
+                      className={card.color}
+                    />
                   </div>
                 </div>
 
@@ -266,27 +528,37 @@ export default function Dashboard({
           })}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2 bg-[#10121b] border border-slate-800 p-6 rounded-2xl">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        {/* ======================================
+            Workflow and Current Task
+        ======================================= */}
+
+        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Daily Workflow */}
+
+          <div className="rounded-2xl border border-slate-800 bg-[#10121b] p-6 lg:col-span-2">
+            <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <h3 className="text-white font-bold text-xl">
+                <h3 className="text-xl font-bold text-white">
                   Daily Workflow Status
                 </h3>
 
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="mt-1 text-[11px] text-slate-500">
                   Real-time task synchronization
                 </p>
               </div>
 
-              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] text-emerald-400">
                 LIVE TRACKING
               </span>
             </div>
 
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="relative w-40 h-40 flex items-center justify-center">
-                <svg width="160" height="160" className="-rotate-90 absolute">
+            <div className="flex flex-col items-center gap-8 md:flex-row">
+              <div className="relative flex h-40 w-40 items-center justify-center">
+                <svg
+                  width="160"
+                  height="160"
+                  className="absolute -rotate-90"
+                >
                   <circle
                     cx="80"
                     cy="80"
@@ -310,77 +582,92 @@ export default function Dashboard({
                   />
                 </svg>
 
-                <div className="text-center z-10">
+                <div className="z-10 text-center">
                   <h2 className="text-4xl font-black text-white">
                     {percentage}%
                   </h2>
 
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] uppercase tracking-widest text-slate-500">
                     Completed
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 w-full">
-                <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4">
-                  <p className="text-[10px] text-slate-500 uppercase">
+              <div className="grid w-full grid-cols-2 gap-4">
+                <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-4">
+                  <p className="text-[10px] uppercase text-slate-500">
                     Pending
                   </p>
 
-                  <p className="text-2xl font-black text-white">4</p>
+                  <p className="text-2xl font-black text-white">
+                    4
+                  </p>
                 </div>
 
-                <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4">
-                  <p className="text-[10px] text-slate-500 uppercase">
+                <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-4">
+                  <p className="text-[10px] uppercase text-slate-500">
                     Completed
                   </p>
 
-                  <p className="text-2xl font-black text-emerald-400">8</p>
+                  <p className="text-2xl font-black text-emerald-400">
+                    8
+                  </p>
                 </div>
 
-                <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4">
-                  <p className="text-[10px] text-slate-500 uppercase">
+                <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-4">
+                  <p className="text-[10px] uppercase text-slate-500">
                     Avg Time
                   </p>
 
-                  <p className="text-2xl font-black text-amber-400">42m</p>
+                  <p className="text-2xl font-black text-amber-400">
+                    42m
+                  </p>
                 </div>
 
-                <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4">
-                  <p className="text-[10px] text-slate-500 uppercase">
+                <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-4">
+                  <p className="text-[10px] uppercase text-slate-500">
                     Efficiency
                   </p>
 
-                  <p className="text-2xl font-black text-purple-400">94%</p>
+                  <p className="text-2xl font-black text-purple-400">
+                    94%
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-[#10121b] border border-indigo-500/20 p-6 rounded-2xl">
-            <div className="flex justify-between items-start mb-5">
+          {/* Current Active Task */}
+
+          <div className="rounded-2xl border border-indigo-500/20 bg-[#10121b] p-6">
+            <div className="mb-5 flex items-start justify-between">
               <div>
-                <h3 className="text-white font-bold text-xl">
+                <h3 className="text-xl font-bold text-white">
                   Current Active Task
                 </h3>
 
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="mt-1 text-[11px] text-slate-500">
                   Live vehicle progress
                 </p>
               </div>
 
-              <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-1 rounded text-[9px]">
+              <span className="rounded border border-indigo-500/20 bg-indigo-500/10 px-2 py-1 text-[9px] text-indigo-400">
                 IN_PROGRESS
               </span>
             </div>
 
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                <Car size={24} className="text-indigo-400" />
+            <div className="mb-5 flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10">
+                <Car
+                  size={24}
+                  className="text-indigo-400"
+                />
               </div>
 
               <div>
-                <p className="text-white font-black text-xl">B-7729-TX</p>
+                <p className="text-xl font-black text-white">
+                  B-7729-TX
+                </p>
 
                 <p className="text-[11px] text-slate-500">
                   Tesla Model 3 - Battery Diagnostic
@@ -388,29 +675,38 @@ export default function Dashboard({
               </div>
             </div>
 
-            <div className="bg-[#0a0d14] border border-slate-800 rounded-xl p-4 mb-4">
-              <div className="flex justify-between text-[11px] mb-2">
-                <span className="text-slate-500">Elapsed Time</span>
+            <div className="mb-4 rounded-xl border border-slate-800 bg-[#0a0d14] p-4">
+              <div className="mb-2 flex justify-between text-[11px]">
+                <span className="text-slate-500">
+                  Elapsed Time
+                </span>
 
-                <span className="text-white font-bold">01:14:22</span>
+                <span className="font-bold text-white">
+                  01:14:22
+                </span>
               </div>
 
-              <div className="w-full bg-slate-800 h-2 rounded-full">
-                <div className="bg-indigo-400 w-2/3 h-full rounded-full" />
+              <div className="h-2 w-full rounded-full bg-slate-800">
+                <div className="h-full w-2/3 rounded-full bg-indigo-400" />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-amber-400 text-xs">
+            <div className="flex items-center gap-2 text-xs text-amber-400">
               <AlertTriangle size={14} />
+
               High voltage safety check required
             </div>
           </div>
         </div>
 
-        <div className="bg-[#10121b] border border-slate-800 p-6 rounded-2xl">
-          <div className="flex justify-between items-center mb-5">
+        {/* ======================================
+            Today's Queue
+        ======================================= */}
+
+        <div className="rounded-2xl border border-slate-800 bg-[#10121b] p-6">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <h3 className="text-white font-bold text-xl">
+              <h3 className="text-xl font-bold text-white">
                 Today’s Queue
               </h3>
 
@@ -419,7 +715,7 @@ export default function Dashboard({
               </p>
             </div>
 
-            <span className="text-[10px] text-indigo-400 cursor-pointer">
+            <span className="cursor-pointer text-[10px] text-indigo-400">
               View All
             </span>
           </div>
@@ -427,58 +723,82 @@ export default function Dashboard({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-xs text-slate-400">
               <thead>
-                <tr className="border-b border-slate-800 uppercase text-[10px]">
-                  <th className="text-left pb-4">No</th>
-                  <th className="text-left pb-4">Vehicle Number</th>
-                  <th className="text-left pb-4">Vehicle</th>
-                  <th className="text-left pb-4">Job Type</th>
-                  <th className="text-left pb-4">ETA</th>
-                  <th className="text-right pb-4">Action</th>
+                <tr className="border-b border-slate-800 text-[10px] uppercase">
+                  <th className="pb-4 text-left">
+                    No
+                  </th>
+
+                  <th className="pb-4 text-left">
+                    Vehicle Number
+                  </th>
+
+                  <th className="pb-4 text-left">
+                    Vehicle
+                  </th>
+
+                  <th className="pb-4 text-left">
+                    Job Type
+                  </th>
+
+                  <th className="pb-4 text-left">
+                    ETA
+                  </th>
+
+                  <th className="pb-4 text-right">
+                    Action
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
                 {filteredQueue.length > 0 ? (
-                  filteredQueue.map((item, i) => (
-                    <tr
-                      key={i}
-                      className="border-b border-slate-800/50 last:border-0"
-                    >
-                      <td className="py-4">
-                        <span className="bg-slate-900 px-2 py-1 rounded">
-                          {item.no}
-                        </span>
-                      </td>
+                  filteredQueue.map(
+                    (item, index) => (
+                      <tr
+                        key={index}
+                        className="border-b border-slate-800/50 last:border-0"
+                      >
+                        <td className="py-4">
+                          <span className="rounded bg-slate-900 px-2 py-1">
+                            {item.no}
+                          </span>
+                        </td>
 
-                      <td className="py-4">
-                        <span className="rounded bg-slate-900 px-2 py-1 font-bold tracking-wider text-indigo-300">
-                          {item.vehicleNumber}
-                        </span>
-                      </td>
+                        <td className="py-4">
+                          <span className="rounded bg-slate-900 px-2 py-1 font-bold tracking-wider text-indigo-300">
+                            {item.vehicleNumber}
+                          </span>
+                        </td>
 
-                      <td className="py-4 text-white font-bold">
-                        {item.vehicle}
-                      </td>
+                        <td className="py-4 font-bold text-white">
+                          {item.vehicle}
+                        </td>
 
-                      <td className="py-4">{item.job}</td>
+                        <td className="py-4">
+                          {item.job}
+                        </td>
 
-                      <td className="py-4">{item.eta}</td>
+                        <td className="py-4">
+                          {item.eta}
+                        </td>
 
-                      <td className="py-4 text-right">
-                        <ChevronRight
-                          size={16}
-                          className="inline text-slate-600 hover:text-white cursor-pointer"
-                        />
-                      </td>
-                    </tr>
-                  ))
+                        <td className="py-4 text-right">
+                          <ChevronRight
+                            size={16}
+                            className="inline cursor-pointer text-slate-600 hover:text-white"
+                          />
+                        </td>
+                      </tr>
+                    )
+                  )
                 ) : (
                   <tr>
                     <td
                       colSpan="6"
                       className="py-10 text-center text-xs italic text-slate-500"
                     >
-                      No dashboard records found for "{searchQuery}".
+                      No dashboard records found for "
+                      {searchQuery}".
                     </td>
                   </tr>
                 )}

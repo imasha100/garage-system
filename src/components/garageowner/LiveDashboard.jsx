@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Search,
   Bell,
@@ -22,6 +22,84 @@ export default function LiveDashboard({ toggleSidebar }) {
   const [searchText, setSearchText] = useState("");
   const [openActionMenu, setOpenActionMenu] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+
+  const [ownerData, setOwnerData] = useState(null);
+  const [ownerLoading, setOwnerLoading] = useState(true);
+  const [ownerError, setOwnerError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOwnerProfile = async () => {
+      try {
+        setOwnerLoading(true);
+        setOwnerError("");
+
+        const storedStaffUser = sessionStorage.getItem("staffUser");
+
+        if (!storedStaffUser) {
+          throw new Error("Logged-in garage owner details were not found.");
+        }
+
+        const staffUser = JSON.parse(storedStaffUser);
+        const loginId = Number(staffUser?.loginId);
+
+        if (!Number.isInteger(loginId) || loginId <= 0) {
+          throw new Error("A valid garage owner login ID was not found.");
+        }
+
+        const response = await fetch(
+          `http://localhost:5000/api/owners/profile/${loginId}`
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.message || "Unable to load the garage owner profile."
+          );
+        }
+
+        if (isMounted) {
+          setOwnerData(result.data);
+        }
+      } catch (error) {
+        console.error("Owner profile loading error:", error);
+
+        if (isMounted) {
+          setOwnerData(null);
+          setOwnerError(
+            error.message || "Unable to load the garage owner profile."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setOwnerLoading(false);
+        }
+      }
+    };
+
+    loadOwnerProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const ownerName =
+    ownerData?.owner?.fullName ||
+    (ownerLoading ? "Loading Owner..." : "Garage Owner");
+
+  const garageName =
+    ownerData?.garage?.garageName ||
+    (ownerLoading ? "Loading Garage..." : "Garage Not Available");
+
+  const ownerInitials = ownerName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((namePart) => namePart.charAt(0).toUpperCase())
+    .join("");
 
   const vehicles = [
     {
@@ -173,15 +251,15 @@ export default function LiveDashboard({ toggleSidebar }) {
           <div className="h-8 w-px bg-white/10" />
 
           <div>
-            <p className="text-xs font-bold tracking-widest">Master Admin</p>
+            <p className="text-xs font-bold tracking-widest">{ownerName}</p>
 
             <p className="text-[10px] text-gray-500 uppercase">
-              Owner Level
+              {garageName}
             </p>
           </div>
 
           <div className="w-9 h-9 rounded-full border border-indigo-400 flex items-center justify-center text-xs">
-            MA
+            {ownerInitials || "GO"}
           </div>
         </div>
       </div>
@@ -198,6 +276,12 @@ export default function LiveDashboard({ toggleSidebar }) {
         <p className="text-gray-400 mb-8 text-sm md:text-base">
           Real-time macro workload control room and workshop queue tracking.
         </p>
+
+        {ownerError && (
+          <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {ownerError}
+          </div>
+        )}
 
         {/* Centered Cards */}
         <div className="flex flex-col md:flex-row justify-center items-stretch gap-4 md:gap-8 mb-8">

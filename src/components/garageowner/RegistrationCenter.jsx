@@ -34,14 +34,6 @@ export default function RegistrationCenter({
       color: "blue",
       page: "assistance-registration",
     },
-    {
-      title: "External Tow Truck Registration",
-      subtitle:
-        "Register third-party tow trucks operating around the garage area",
-      icon: Truck,
-      color: "purple",
-      page: "external-truck-registration",
-    },
   ];
 
   const colorClasses = {
@@ -51,19 +43,17 @@ export default function RegistrationCenter({
       "border-amber-500/40 text-amber-400 bg-amber-500/10",
     blue:
       "border-blue-500/40 text-blue-400 bg-blue-500/10",
-    purple:
-      "border-purple-500/40 text-purple-400 bg-purple-500/10",
   };
 
   const cardHoverClasses = {
     emerald: "hover:border-emerald-500/50",
     amber: "hover:border-amber-500/50",
     blue: "hover:border-blue-500/50",
-    purple: "hover:border-purple-500/50",
   };
 
   return (
     <div className="min-h-screen bg-[#07080f] text-white font-sans">
+      {/* Header */}
       <header className="min-h-16 border-b border-white/10 bg-[#15151f] flex items-center justify-between px-4 md:px-8">
         <div className="flex items-center gap-3">
           <button
@@ -86,10 +76,14 @@ export default function RegistrationCenter({
         </div>
 
         <div className="w-10 h-10 rounded-xl border border-blue-500/30 bg-blue-500/10 flex items-center justify-center">
-          <ShieldCheck className="text-blue-400" size={22} />
+          <ShieldCheck
+            className="text-blue-400"
+            size={22}
+          />
         </div>
       </header>
 
+      {/* Main */}
       <main className="p-4 md:p-8">
         <p className="text-gray-600 font-bold tracking-widest text-xs md:text-sm mb-4">
           SELECT REGISTRATION MODULE
@@ -132,9 +126,12 @@ export default function RegistrationCenter({
                   {card.subtitle}
                 </p>
 
-                <div className="flex items-center justify-between text-xs font-bold tracking-widest text-gray-500 group-hover:text-white">
+                <div className="flex items-center justify-between text-xs font-bold tracking-widest text-gray-500 group-hover:text-white transition-colors">
                   <span>CONTINUE</span>
-                  <ArrowRight size={18} />
+                  <ArrowRight
+                    size={18}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
                 </div>
               </button>
             );
