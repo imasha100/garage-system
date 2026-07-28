@@ -28,14 +28,18 @@ import TechRegistration from "./components/garageOwner/TechRegistration";
 import TruckRegistration from "./components/garageOwner/TruckRegistration";
 import AssistRegistration from "./components/garageOwner/AssistRegistration";
 import ExternalTruckRegistration from "./components/garageOwner/ExternalTruckRegistration";
+import ExternalTruckRequests from "./components/garageOwner/ExternalTruckRequests";
 
 function App() {
   const [currentPage, setCurrentPage] = useState("start");
   const [selectedGarage, setSelectedGarage] = useState(null);
   const [resourceRequests, setResourceRequests] = useState([]);
 
-  const [technicianSidebarOpen, setTechnicianSidebarOpen] = useState(false);
-  const [ownerSidebarOpen, setOwnerSidebarOpen] = useState(false);
+  const [technicianSidebarOpen, setTechnicianSidebarOpen] =
+    useState(false);
+
+  const [ownerSidebarOpen, setOwnerSidebarOpen] =
+    useState(false);
 
   const handleNavigate = (page) => {
     if (page === "logout" || page === "start") {
@@ -47,6 +51,7 @@ function App() {
       setTechnicianSidebarOpen(false);
       setOwnerSidebarOpen(false);
       setCurrentPage("start");
+
       return;
     }
 
@@ -58,15 +63,27 @@ function App() {
     }
   };
 
-  const openTechnicianSidebar = () => setTechnicianSidebarOpen(true);
-  const closeTechnicianSidebar = () => setTechnicianSidebarOpen(false);
-  const toggleTechnicianSidebar = () =>
-    setTechnicianSidebarOpen((previousState) => !previousState);
+  const openTechnicianSidebar = () =>
+    setTechnicianSidebarOpen(true);
 
-  const openOwnerSidebar = () => setOwnerSidebarOpen(true);
-  const closeOwnerSidebar = () => setOwnerSidebarOpen(false);
+  const closeTechnicianSidebar = () =>
+    setTechnicianSidebarOpen(false);
+
+  const toggleTechnicianSidebar = () =>
+    setTechnicianSidebarOpen(
+      (previousState) => !previousState
+    );
+
+  const openOwnerSidebar = () =>
+    setOwnerSidebarOpen(true);
+
+  const closeOwnerSidebar = () =>
+    setOwnerSidebarOpen(false);
+
   const toggleOwnerSidebar = () =>
-    setOwnerSidebarOpen((previousState) => !previousState);
+    setOwnerSidebarOpen(
+      (previousState) => !previousState
+    );
 
   const TechnicianLayout = ({ children }) => (
     <div className="flex h-screen w-full overflow-hidden bg-[#0a0d14]">
@@ -101,16 +118,32 @@ function App() {
 
   switch (currentPage) {
     case "start":
-      return <StartPage onNavigate={handleNavigate} />;
+      return (
+        <StartPage
+          onNavigate={handleNavigate}
+        />
+      );
 
     case "customer-login":
-      return <CustomerLogin onNavigate={handleNavigate} />;
+      return (
+        <CustomerLogin
+          onNavigate={handleNavigate}
+        />
+      );
 
     case "staff-login":
-      return <StaffLogin onNavigate={handleNavigate} />;
+      return (
+        <StaffLogin
+          onNavigate={handleNavigate}
+        />
+      );
 
     case "garage-registration":
-      return <GarageRegistration onNavigate={handleNavigate} />;
+      return (
+        <GarageRegistration
+          onNavigate={handleNavigate}
+        />
+      );
 
     case "garage-map":
       return (
@@ -278,6 +311,16 @@ function App() {
         </GarageOwnerLayout>
       );
 
+    case "external-truck-requests":
+      return (
+        <GarageOwnerLayout>
+          <ExternalTruckRequests
+            toggleSidebar={openOwnerSidebar}
+            onNavigate={handleNavigate}
+          />
+        </GarageOwnerLayout>
+      );
+
     case "Owner Profile":
       return (
         <GarageOwnerLayout>
@@ -289,7 +332,11 @@ function App() {
       );
 
     default:
-      return <StartPage onNavigate={handleNavigate} />;
+      return (
+        <StartPage
+          onNavigate={handleNavigate}
+        />
+      );
   }
 }
 

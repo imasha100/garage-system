@@ -6,6 +6,7 @@ import {
   Truck,
   ArrowRight,
   ShieldCheck,
+  ClipboardCheck,
 } from "lucide-react";
 
 export default function RegistrationCenter({
@@ -15,24 +16,35 @@ export default function RegistrationCenter({
   const cards = [
     {
       title: "Technician Registration",
-      subtitle: "Add workshop technicians and service team members",
+      subtitle:
+        "Add workshop technicians and service team members",
       icon: Wrench,
       color: "emerald",
       page: "technician-registration",
     },
     {
       title: "Garage Tow Truck Registration",
-      subtitle: "Register garage-owned tow trucks and driver information",
+      subtitle:
+        "Register garage-owned tow trucks and driver information",
       icon: Truck,
       color: "amber",
       page: "truck-registration",
     },
     {
       title: "Assistance Registration",
-      subtitle: "Register assistance officers and dispatch operators",
+      subtitle:
+        "Register assistance officers and dispatch operators",
       icon: User,
       color: "blue",
       page: "assistance-registration",
+    },
+    {
+      title: "External Tow Truck Requests",
+      subtitle:
+        "Review, approve or reject external tow truck registration requests",
+      icon: ClipboardCheck,
+      color: "purple",
+      page: "external-truck-requests",
     },
   ];
 
@@ -43,12 +55,19 @@ export default function RegistrationCenter({
       "border-amber-500/40 text-amber-400 bg-amber-500/10",
     blue:
       "border-blue-500/40 text-blue-400 bg-blue-500/10",
+    purple:
+      "border-purple-500/40 text-purple-400 bg-purple-500/10",
   };
 
   const cardHoverClasses = {
-    emerald: "hover:border-emerald-500/50",
-    amber: "hover:border-amber-500/50",
-    blue: "hover:border-blue-500/50",
+    emerald:
+      "hover:border-emerald-500/50 hover:shadow-emerald-500/10",
+    amber:
+      "hover:border-amber-500/50 hover:shadow-amber-500/10",
+    blue:
+      "hover:border-blue-500/50 hover:shadow-blue-500/10",
+    purple:
+      "hover:border-purple-500/50 hover:shadow-purple-500/10",
   };
 
   return (
@@ -60,6 +79,7 @@ export default function RegistrationCenter({
             type="button"
             onClick={toggleSidebar}
             className="md:hidden w-10 h-10 rounded-lg border border-white/10 bg-black/40 flex items-center justify-center text-white"
+            aria-label="Open sidebar"
           >
             <Menu size={20} />
           </button>
@@ -128,6 +148,7 @@ export default function RegistrationCenter({
 
                 <div className="flex items-center justify-between text-xs font-bold tracking-widest text-gray-500 group-hover:text-white transition-colors">
                   <span>CONTINUE</span>
+
                   <ArrowRight
                     size={18}
                     className="group-hover:translate-x-1 transition-transform"

@@ -46,6 +46,9 @@ export default function GarageMap({
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestError, setRequestError] = useState("");
+
   // Sri Lanka center is shown only while the browser detects the real location.
   // It is not used as the customer's location.
   const INITIAL_MAP_CENTER = [7.8731, 80.7718];
@@ -58,7 +61,19 @@ export default function GarageMap({
   const [garagesLoading, setGaragesLoading] = useState(true);
   const [garagesError, setGaragesError] = useState("");
 
+  // Vehicle types are loaded from MySQL through the backend API.
+  const [vehicleTypes, setVehicleTypes] = useState([]);
+  const [vehicleTypesLoading, setVehicleTypesLoading] = useState(true);
+  const [vehicleTypesError, setVehicleTypesError] = useState("");
+
   const [requestData, setRequestData] = useState({
+    customerName: "",
+    contact: "",
+    vehicleNumber: "",
+    vehicleType: "",
+  });
+
+  const [requestErrors, setRequestErrors] = useState({
     customerName: "",
     contact: "",
     vehicleNumber: "",
@@ -239,6 +254,61 @@ export default function GarageMap({
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadVehicleTypes = async () => {
+      try {
+        setVehicleTypesLoading(true);
+        setVehicleTypesError("");
+
+        const response = await fetch(
+          "http://localhost:5000/api/vehicle-types"
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(
+            result.message ||
+              "Unable to load vehicle types."
+          );
+        }
+
+        if (isMounted) {
+          setVehicleTypes(
+            Array.isArray(result.data)
+              ? result.data
+              : []
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Failed to load vehicle types:",
+          error
+        );
+
+        if (isMounted) {
+          setVehicleTypes([]);
+          setVehicleTypesError(
+            error.message ||
+              "Unable to load vehicle types."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setVehicleTypesLoading(false);
+        }
+      }
+    };
+
+    loadVehicleTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const resetForm = () => {
     setRequestData({
@@ -247,6 +317,86 @@ export default function GarageMap({
       vehicleNumber: "",
       vehicleType: "",
     });
+
+    setRequestErrors({
+      customerName: "",
+      contact: "",
+      vehicleNumber: "",
+      vehicleType: "",
+    });
+  };
+
+  const updateRequestField = (field, value) => {
+    setRequestData((previousData) => ({
+      ...previousData,
+      [field]: value,
+    }));
+
+    setRequestErrors((previousErrors) => ({
+      ...previousErrors,
+      [field]: "",
+    }));
+  };
+
+  const validateRequestForm = () => {
+    const errors = {};
+
+    const customerName = requestData.customerName.trim();
+    const contact = requestData.contact.trim();
+    const vehicleNumber = requestData.vehicleNumber
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, " ");
+    const vehicleType = requestData.vehicleType.trim();
+
+    const customerNameRegex =
+      /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
+    const contactRegex = /^0\d{9}$/;
+    const vehicleNumberRegex =
+      /^(?:[A-Z]{2,3}[-\s]?\d{4}|[A-Z]{2}\s[A-Z]{1,3}[-\s]?\d{4})$/;
+
+    if (!customerName) {
+      errors.customerName = "Customer name is required.";
+    } else if (!customerNameRegex.test(customerName)) {
+      errors.customerName =
+        "Enter a valid customer name using letters only.";
+    }
+
+    if (!contact) {
+      errors.contact = "Contact number is required.";
+    } else if (!contactRegex.test(contact)) {
+      errors.contact =
+        "Enter a valid 10-digit contact number starting with 0.";
+    }
+
+    if (!vehicleNumber) {
+      errors.vehicleNumber = "Vehicle number is required.";
+    } else if (!vehicleNumberRegex.test(vehicleNumber)) {
+      errors.vehicleNumber =
+        "Enter a valid vehicle number. Example: WP CAS 1234 or CAB-1234.";
+    }
+
+    if (!vehicleType) {
+      errors.vehicleType = "Please select a vehicle type.";
+    }
+
+    setRequestErrors({
+      customerName: errors.customerName || "",
+      contact: errors.contact || "",
+      vehicleNumber: errors.vehicleNumber || "",
+      vehicleType: errors.vehicleType || "",
+    });
+
+    if (Object.keys(errors).length > 0) {
+      return null;
+    }
+
+    return {
+      customerName,
+      contact,
+      vehicleNumber,
+      vehicleType,
+    };
   };
 
   const handleSelectGarage = (garage) => {
@@ -266,53 +416,138 @@ export default function GarageMap({
     setSelectedGarage(null);
   };
 
-  const handleSubmitRequest = () => {
-    if (
-      !requestData.customerName ||
-      !requestData.contact ||
-      !requestData.vehicleNumber ||
-      !requestData.vehicleType
-    ) {
-      alert("Please fill all fields");
+  const handleSubmitRequest = async () => {
+    setRequestError("");
+
+    const validatedData = validateRequestForm();
+
+    if (!validatedData) {
       return;
     }
 
-    const newRequest = {
-      id: `TK-${Date.now().toString().slice(-4)}`,
-      name: requestData.customerName,
-      contact: requestData.contact,
-      vehicle: requestData.vehicleType,
-      vNo: requestData.vehicleNumber,
-      eta: selectedGarage?.time || "N/A",
-      dist: selectedGarage?.distance || "N/A",
-      loc: selectedGarage?.name || "Selected Garage",
-      garageId: selectedGarage?.id || null,
-      garageName: selectedGarage?.name || "Selected Garage",
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-
-    const oldRequests =
-      JSON.parse(sessionStorage.getItem("resourceRequests")) || [];
-
-    const updatedRequests = [newRequest, ...oldRequests];
-
-    sessionStorage.setItem("resourceRequests", JSON.stringify(updatedRequests));
-    window.dispatchEvent(new Event("resourceRequestsUpdated"));
-
-    if (setResourceRequests) {
-      setResourceRequests(updatedRequests);
+    if (!selectedGarage?.id) {
+      setRequestError(
+        "Please close the form and select a valid garage again."
+      );
+      return;
     }
 
-    setSelectedGarage({
-      ...selectedGarage,
-      customerRequest: newRequest,
-    });
+    if (
+      !Array.isArray(userLocation) ||
+      userLocation.length !== 2
+    ) {
+      setRequestError(
+        "Your GPS location is unavailable. Please allow location access and try again."
+      );
+      return;
+    }
 
-    setIsRequested(true);
-    setShowRequestForm(false);
-    setShowSuccessMessage(true);
-    resetForm();
+    try {
+      setRequestSubmitting(true);
+
+      const payload = {
+        customerName: validatedData.customerName,
+        contact: validatedData.contact,
+        vehicleNumber: validatedData.vehicleNumber,
+        vehicleType: validatedData.vehicleType,
+        vehicleModel: validatedData.vehicleType,
+        garageId: selectedGarage.id,
+        location: "Customer Live GPS Location",
+        customerLatitude: userLocation[0],
+        customerLongitude: userLocation[1],
+        requestType: "Garage Service",
+      };
+
+      const response = await fetch(
+        "http://localhost:5000/api/service-requests",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+            "Unable to submit the service request."
+        );
+      }
+
+      const savedRequest = {
+        id: result.request.requestId,
+        requestId: result.request.requestId,
+        name: validatedData.customerName,
+        contact: validatedData.contact,
+        vehicle: validatedData.vehicleType,
+        vNo: validatedData.vehicleNumber,
+        eta: selectedGarage?.time || "N/A",
+        dist: selectedGarage?.distance || "N/A",
+        loc: selectedGarage?.name || "Selected Garage",
+        garageId: selectedGarage.id,
+        garageName:
+          selectedGarage?.name || "Selected Garage",
+        customerLatitude: userLocation[0],
+        customerLongitude: userLocation[1],
+        status: "pending",
+        requestStatus: "Pending",
+        createdAt: new Date().toISOString(),
+      };
+
+      const oldRequests =
+        JSON.parse(
+          sessionStorage.getItem("resourceRequests")
+        ) || [];
+
+      const updatedRequests = [
+        savedRequest,
+        ...oldRequests,
+      ];
+
+      sessionStorage.setItem(
+        "resourceRequests",
+        JSON.stringify(updatedRequests)
+      );
+
+      sessionStorage.setItem(
+        "latestServiceRequest",
+        JSON.stringify(savedRequest)
+      );
+
+      window.dispatchEvent(
+        new Event("resourceRequestsUpdated")
+      );
+
+      if (setResourceRequests) {
+        setResourceRequests(updatedRequests);
+      }
+
+      setSelectedGarage({
+        ...selectedGarage,
+        customerRequest: savedRequest,
+      });
+
+      setIsRequested(true);
+      setShowRequestForm(false);
+      setShowSuccessMessage(true);
+      resetForm();
+    } catch (error) {
+      console.error(
+        "Submit service request error:",
+        error
+      );
+
+      setRequestError(
+        error.message ||
+          "Unable to submit the service request."
+      );
+    } finally {
+      setRequestSubmitting(false);
+    }
   };
 
   const allGaragesWithDistance = userLocation
@@ -334,7 +569,28 @@ export default function GarageMap({
     }));
 
   return (
-    <div className="w-screen h-screen max-h-screen overflow-hidden bg-[#02050b] text-[#cbd5e1] font-mono flex flex-col">
+    <>
+      <style>{`
+        .garage-map-popup .leaflet-popup-content-wrapper {
+          padding: 0;
+          overflow: hidden;
+          border: 1px solid rgba(99, 102, 241, 0.28);
+          border-radius: 14px;
+          background: #07101f;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+        }
+
+        .garage-map-popup .leaflet-popup-content {
+          width: auto !important;
+          margin: 0;
+        }
+
+        .garage-map-popup .leaflet-popup-tip {
+          background: #07101f;
+        }
+      `}</style>
+
+      <div className="w-screen h-screen max-h-screen overflow-hidden bg-[#02050b] text-[#cbd5e1] font-mono flex flex-col">
       <div className="w-full h-14 border-b border-slate-900 bg-[#02050b]/90 backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-20 text-xs shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="flex h-2 w-2 relative shrink-0">
@@ -401,37 +657,83 @@ export default function GarageMap({
               key={garage.id}
               position={[garage.lat, garage.lng]}
               eventHandlers={{
+                mouseover: (event) => {
+                  event.target.openPopup();
+                },
+                mouseout: (event) => {
+                  event.target.closePopup();
+                },
                 click: () => handleSelectGarage(garage),
               }}
             >
-              <Popup>
-                <div>
-                  <strong>{garage.name}</strong>
-                  <br />
-                  Distance: {garage.distance}
-                  <br />
-                  Time: {garage.time}
-                  <br />
-                  Address: {garage.address}
-                  <br />
-                  Contact: {garage.contact}
-                  <br />
-                  Capacity: {garage.capacity} vehicles
-                  <br />
-                  <button
-                    onClick={() => handleSelectGarage(garage)}
-                    style={{
-                      marginTop: "8px",
-                      padding: "6px 10px",
-                      background: "#4f46e5",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    View Details
-                  </button>
+              <Popup
+                closeButton={false}
+                offset={[0, -8]}
+                className="garage-map-popup"
+              >
+                <div className="min-w-[250px] overflow-hidden rounded-xl bg-[#07101f] text-slate-200 shadow-2xl">
+                  <div className="border-b border-white/10 bg-gradient-to-r from-indigo-600/30 to-cyan-500/10 px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black uppercase tracking-wider text-white">
+                          {garage.name}
+                        </p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-cyan-400">
+                          {garage.status}
+                        </p>
+                      </div>
+
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-400/30 bg-indigo-500/10 text-indigo-300">
+                        <MapPin size={17} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 px-4 py-3 text-xs">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-slate-500">Distance</span>
+                      <span className="font-bold text-white">
+                        {garage.distance}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-slate-500">Estimated Time</span>
+                      <span className="font-bold text-emerald-400">
+                        {garage.time}
+                      </span>
+                    </div>
+
+                    <div className="border-t border-white/10 pt-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Address
+                      </p>
+                      <p className="mt-1 leading-5 text-slate-300">
+                        {garage.address}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          Contact
+                        </p>
+                        <p className="mt-1 truncate font-semibold text-slate-200">
+                          {garage.contact}
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          Capacity
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-200">
+                          {garage.capacity} vehicles
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
                 </div>
               </Popup>
             </Marker>
@@ -594,7 +896,10 @@ export default function GarageMap({
                   </div>
                 ) : (
                   <button
-                    onClick={() => setShowRequestForm(true)}
+                    onClick={() => {
+                      setRequestError("");
+                      setShowRequestForm(true);
+                    }}
                     className="w-full py-3.5 md:py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold tracking-widest text-sm md:text-xs uppercase rounded-sm cursor-pointer transition-all"
                   >
                     Request
@@ -626,87 +931,186 @@ export default function GarageMap({
                 </div>
 
                 <button
-                  onClick={() => setShowRequestForm(false)}
+                  type="button"
+                  onClick={() => {
+                    setShowRequestForm(false);
+                    setRequestError("");
+                    resetForm();
+                  }}
                   className="text-slate-400 hover:text-white border border-slate-700 rounded p-1"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Enter customer name"
-                  value={requestData.customerName}
-                  onChange={(e) =>
-                    setRequestData({
-                      ...requestData,
-                      customerName: e.target.value,
-                    })
-                  }
-                  className="w-full bg-[#111827] border border-slate-700 focus:border-indigo-500 rounded-lg px-4 py-3 text-white outline-none placeholder:text-slate-600"
-                />
+              <form
+                className="space-y-4"
+                noValidate
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleSubmitRequest();
+                }}
+              >
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Enter customer name"
+                    value={requestData.customerName}
+                    onChange={(e) =>
+                      updateRequestField(
+                        "customerName",
+                        e.target.value
+                      )
+                    }
+                    maxLength={100}
+                    autoComplete="name"
+                    className={`w-full bg-[#111827] border rounded-lg px-4 py-3 text-white outline-none placeholder:text-slate-600 ${
+                      requestErrors.customerName
+                        ? "border-red-500 focus:border-red-400"
+                        : "border-slate-700 focus:border-indigo-500"
+                    }`}
+                  />
 
-                <input
-                  type="text"
-                  placeholder="Enter contact number"
-                  value={requestData.contact}
-                  onChange={(e) =>
-                    setRequestData({
-                      ...requestData,
-                      contact: e.target.value,
-                    })
-                  }
-                  className="w-full bg-[#111827] border border-slate-700 focus:border-indigo-500 rounded-lg px-4 py-3 text-white outline-none placeholder:text-slate-600"
-                />
+                  {requestErrors.customerName && (
+                    <p className="mt-1.5 text-xs font-semibold text-red-400">
+                      {requestErrors.customerName}
+                    </p>
+                  )}
+                </div>
 
-                <input
-                  type="text"
-                  placeholder="Example: WP CAS 1234"
-                  value={requestData.vehicleNumber}
-                  onChange={(e) =>
-                    setRequestData({
-                      ...requestData,
-                      vehicleNumber: e.target.value.toUpperCase(),
-                    })
-                  }
-                  className="w-full bg-[#111827] border border-slate-700 focus:border-indigo-500 rounded-lg px-4 py-3 text-white outline-none placeholder:text-slate-600"
-                />
+                <div>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="Enter contact number"
+                    value={requestData.contact}
+                    onChange={(e) =>
+                      updateRequestField(
+                        "contact",
+                        e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10)
+                      )
+                    }
+                    maxLength={10}
+                    autoComplete="tel"
+                    className={`w-full bg-[#111827] border rounded-lg px-4 py-3 text-white outline-none placeholder:text-slate-600 ${
+                      requestErrors.contact
+                        ? "border-red-500 focus:border-red-400"
+                        : "border-slate-700 focus:border-indigo-500"
+                    }`}
+                  />
 
-                <select
-                  value={requestData.vehicleType}
-                  onChange={(e) =>
-                    setRequestData({
-                      ...requestData,
-                      vehicleType: e.target.value,
-                    })
-                  }
-                  className="w-full bg-[#111827] border border-slate-700 focus:border-indigo-500 rounded-lg px-4 py-3 text-white outline-none"
-                >
-                  <option value="">Select Vehicle Type</option>
-                  <option value="Car">Car</option>
-                  <option value="SUV">SUV</option>
-                  <option value="Van">Van</option>
-                  <option value="Motor Bike">Motor Bike</option>
-                  <option value="Truck">Truck</option>
-                  <option value="Bus">Bus</option>
-                  <option value="Other">Other</option>
-                </select>
+                  {requestErrors.contact && (
+                    <p className="mt-1.5 text-xs font-semibold text-red-400">
+                      {requestErrors.contact}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Example: WP CAS 1234"
+                    value={requestData.vehicleNumber}
+                    onChange={(e) =>
+                      updateRequestField(
+                        "vehicleNumber",
+                        e.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9\s-]/g, "")
+                      )
+                    }
+                    maxLength={15}
+                    autoComplete="off"
+                    className={`w-full bg-[#111827] border rounded-lg px-4 py-3 text-white outline-none placeholder:text-slate-600 ${
+                      requestErrors.vehicleNumber
+                        ? "border-red-500 focus:border-red-400"
+                        : "border-slate-700 focus:border-indigo-500"
+                    }`}
+                  />
+
+                  {requestErrors.vehicleNumber && (
+                    <p className="mt-1.5 text-xs font-semibold text-red-400">
+                      {requestErrors.vehicleNumber}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <select
+                    value={requestData.vehicleType}
+                    disabled={vehicleTypesLoading}
+                    onChange={(e) =>
+                      updateRequestField(
+                        "vehicleType",
+                        e.target.value
+                      )
+                    }
+                    className={`w-full bg-[#111827] border rounded-lg px-4 py-3 text-white outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                      requestErrors.vehicleType
+                        ? "border-red-500 focus:border-red-400"
+                        : "border-slate-700 focus:border-indigo-500"
+                    }`}
+                  >
+                    <option value="">
+                      {vehicleTypesLoading
+                        ? "Loading Vehicle Types..."
+                        : "Select Vehicle Type"}
+                    </option>
+
+                    {vehicleTypes.map((type) => (
+                      <option
+                        key={type.vehicle_type_id}
+                        value={type.vehicle_type_name}
+                      >
+                        {type.vehicle_type_name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {requestErrors.vehicleType && (
+                    <p className="mt-1.5 text-xs font-semibold text-red-400">
+                      {requestErrors.vehicleType}
+                    </p>
+                  )}
+
+                  {vehicleTypesError && (
+                    <p className="mt-1.5 text-xs font-semibold text-red-400">
+                      {vehicleTypesError}
+                    </p>
+                  )}
+                </div>
+
+                {requestError && (
+                  <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm leading-5 text-red-300">
+                    {requestError}
+                  </div>
+                )}
 
                 <button
-                  onClick={handleSubmitRequest}
-                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold uppercase tracking-widest text-sm transition-all"
+                  type="submit"
+                  disabled={requestSubmitting}
+                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 text-white rounded-lg font-bold uppercase tracking-widest text-sm transition-all"
                 >
-                  Send Request
+                  {requestSubmitting
+                    ? "Sending Request..."
+                    : "Send Request"}
                 </button>
 
                 <button
-                  onClick={() => setShowRequestForm(false)}
-                  className="w-full py-3 bg-transparent border border-slate-700 text-slate-400 hover:text-red-400 rounded-lg font-bold uppercase tracking-widest text-sm"
+                  type="button"
+                  disabled={requestSubmitting}
+                  onClick={() => {
+                    setShowRequestForm(false);
+                    setRequestError("");
+                    resetForm();
+                  }}
+                  className="w-full py-3 bg-transparent border border-slate-700 text-slate-400 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60 rounded-lg font-bold uppercase tracking-widest text-sm"
                 >
                   Cancel
                 </button>
-              </div>
+              </form>
             </div>
           </div>
         )}
@@ -719,23 +1123,22 @@ export default function GarageMap({
               </h2>
 
               <p className="text-slate-300 text-sm mb-6">
-                Your request has been submitted successfully. Go to Navigation
-                Hub to view the route.
+                Your request was submitted successfully and is waiting for
+                assistance approval.
               </p>
 
               <button
-                onClick={() => {
-                  setShowSuccessMessage(false);
-                  onNavigate("navigation-hub");
-                }}
+                type="button"
+                onClick={() => setShowSuccessMessage(false)}
                 className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold uppercase tracking-widest text-sm"
               >
-                Go to Navigation Hub
+                Close
               </button>
             </div>
           </div>
         )}
       </div>
     </div>
+    </>
   );
 }
