@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ShieldAlert,
   Wrench,
@@ -24,8 +24,21 @@ import {
   Gauge,
   UserRound,
   Building2,
+  Search,
+  LocateFixed,
+  LoaderCircle,
+  AlertCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  MapContainer,
+  Marker,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 import heroImage from "../assets/hero.jpg";
 import aboutImage from "../assets/about.jpg";
 import processImage from "../assets/process.jpg";
@@ -38,6 +51,58 @@ import trackingServiceImage from "../assets/service-tracking1.jpg";
 import aiServiceImage from "../assets/service-ai.jpg";
 import recoveryServiceImage from "../assets/service-recovery.jpg";
 import managementServiceImage from "../assets/service-management.jpg";
+
+
+// Fix Leaflet marker icons in Vite/React.
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+const DEFAULT_TRUCK_LOCATION = {
+  latitude: 7.8731,
+  longitude: 80.7718,
+};
+
+const getTodayDate = () => {
+  const today = new Date();
+  const timezoneOffset = today.getTimezoneOffset() * 60 * 1000;
+
+  return new Date(today.getTime() - timezoneOffset)
+    .toISOString()
+    .slice(0, 10);
+};
+
+function TruckLocationClickHandler({ onLocationSelect }) {
+  useMapEvents({
+    click(event) {
+      onLocationSelect(event.latlng.lat, event.latlng.lng);
+    },
+  });
+
+  return null;
+}
+
+function RecenterTruckMap({ latitude, longitude, zoom = 15 }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      map.setView([lat, lng], zoom);
+    }
+  }, [latitude, longitude, zoom, map]);
+
+  return null;
+}
 
 const fadeUp = {
   hidden: { opacity: 0, y: 45 },
@@ -144,12 +209,23 @@ export default function StartPage({ onNavigate }) {
   const [messageSent, setMessageSent] = useState(false);
   const [truckRequestOpen, setTruckRequestOpen] = useState(false);
   const [truckRequestSent, setTruckRequestSent] = useState(false);
+  const [truckRequestError, setTruckRequestError] = useState("");
+  const [truckRequestErrorTitle, setTruckRequestErrorTitle] = useState("");
+  const [isSubmittingTruckRequest, setIsSubmittingTruckRequest] = useState(false);
+  const [garages, setGarages] = useState([]);
+  const [isLoadingGarages, setIsLoadingGarages] = useState(false);
+  const [garageLoadError, setGarageLoadError] = useState("");
+  const [locationSearch, setLocationSearch] = useState("");
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [isFindingCurrentLocation, setIsFindingCurrentLocation] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  const [locationMessage, setLocationMessage] = useState("");
   const [truckRequestForm, setTruckRequestForm] = useState({
     truckNumber: "",
     truckType: "",
     capacity: "",
     truckModel: "",
-    registrationDate: "",
+    registrationDate: getTodayDate(),
     latitude: "",
     longitude: "",
     driverFullName: "",
@@ -159,6 +235,7 @@ export default function StartPage({ onNavigate }) {
     licenceNumber: "",
     licenceExpiryDate: "",
     experienceYears: "",
+    garageId: "",
   });
 
   const handleContactChange = (event) => {
@@ -190,6 +267,8 @@ export default function StartPage({ onNavigate }) {
   const openTruckRequest = () => {
     setMobileMenuOpen(false);
     setTruckRequestSent(false);
+    setTruckRequestError("");
+    setTruckRequestErrorTitle("");
     setTruckRequestOpen(true);
   };
 
@@ -206,12 +285,289 @@ export default function StartPage({ onNavigate }) {
     }));
 
     if (truckRequestSent) setTruckRequestSent(false);
+
+    if (truckRequestError) {
+      setTruckRequestError("");
+      setTruckRequestErrorTitle("");
+    }
   };
 
-  const handleTruckRequestSubmit = (event) => {
-    event.preventDefault();
-    setTruckRequestSent(true);
+
+  const setTruckLocation = (latitude, longitude, message = "Location selected successfully.") => {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setLocationError("Invalid location coordinates.");
+      return;
+    }
+
+    setTruckRequestForm((previousForm) => ({
+      ...previousForm,
+      latitude: lat.toFixed(8),
+      longitude: lng.toFixed(8),
+    }));
+
+    setLocationError("");
+    setLocationMessage(message);
   };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Location access is not supported by this browser.");
+      return;
+    }
+
+    setIsFindingCurrentLocation(true);
+    setLocationError("");
+    setLocationMessage("");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setTruckLocation(
+          position.coords.latitude,
+          position.coords.longitude,
+          "Your current GPS location was selected."
+        );
+        setIsFindingCurrentLocation(false);
+      },
+      (error) => {
+        let message = "Unable to get your current location.";
+
+        if (error.code === error.PERMISSION_DENIED) {
+          message =
+            "Location permission was denied. Allow location access or search/select the location on the map.";
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          message = "Your current location is unavailable.";
+        } else if (error.code === error.TIMEOUT) {
+          message = "Location request timed out. Please try again.";
+        }
+
+        setLocationError(message);
+        setIsFindingCurrentLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  };
+
+  const handleLocationSearch = async () => {
+    const query = locationSearch.trim();
+
+    if (!query) {
+      setLocationError("Enter a city, town or area to search.");
+      return;
+    }
+
+    setIsSearchingLocation(true);
+    setLocationError("");
+    setLocationMessage("");
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=lk&q=${encodeURIComponent(
+          query
+        )}`,
+        {
+          headers: {
+            "Accept-Language": "en",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to search for that location.");
+      }
+
+      const results = await response.json();
+
+      if (!Array.isArray(results) || results.length === 0) {
+        throw new Error("No matching location was found in Sri Lanka.");
+      }
+
+      const result = results[0];
+      setTruckLocation(
+        result.lat,
+        result.lon,
+        `Location found: ${result.display_name}`
+      );
+    } catch (error) {
+      console.error("Truck location search error:", error);
+      setLocationError(error.message || "Unable to search for that location.");
+    } finally {
+      setIsSearchingLocation(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!truckRequestOpen) return;
+
+    let isMounted = true;
+
+    const loadGarages = async () => {
+      setIsLoadingGarages(true);
+      setGarageLoadError("");
+
+      try {
+        const response = await fetch("http://localhost:5000/api/garages");
+        const data = await response.json();
+
+        if (!response.ok || data.success === false) {
+          throw new Error(data.message || "Unable to load registered garages.");
+        }
+
+        const receivedGarages = Array.isArray(data)
+          ? data
+          : data.data || data.garages || [];
+
+        if (isMounted) {
+          setGarages(receivedGarages);
+        }
+      } catch (error) {
+        console.error("Load garages error:", error);
+
+        if (isMounted) {
+          setGarageLoadError(
+            error.message || "Unable to load registered garages."
+          );
+          setGarages([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingGarages(false);
+        }
+      }
+    };
+
+    loadGarages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [truckRequestOpen]);
+
+  const handleTruckRequestSubmit = async (event) => {
+    event.preventDefault();
+    setTruckRequestSent(false);
+    setTruckRequestError("");
+    setTruckRequestErrorTitle("");
+
+    if (!truckRequestForm.garageId) {
+      setTruckRequestErrorTitle("Garage Required");
+      setTruckRequestError("Please select the garage that should review this request.");
+      return;
+    }
+
+    if (!truckRequestForm.latitude || !truckRequestForm.longitude) {
+      setTruckRequestErrorTitle("Truck Location Required");
+      setTruckRequestError(
+        "Please use GPS, search for an area, or select the truck location on the map."
+      );
+      return;
+    }
+
+    setIsSubmittingTruckRequest(true);
+
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/external-truck-requests",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            truckNumber: truckRequestForm.truckNumber.trim().toUpperCase(),
+            truckType: truckRequestForm.truckType,
+            capacity: truckRequestForm.capacity,
+            truckModel: truckRequestForm.truckModel.trim(),
+            registrationDate: truckRequestForm.registrationDate,
+            latitude: truckRequestForm.latitude,
+            longitude: truckRequestForm.longitude,
+            driverFullName: truckRequestForm.driverFullName.trim(),
+            driverNic: truckRequestForm.driverNic.trim().toUpperCase(),
+            driverEmail: truckRequestForm.driverEmail.trim().toLowerCase(),
+            driverContactNumber: truckRequestForm.driverContactNumber.trim(),
+            licenceNumber: truckRequestForm.licenceNumber.trim().toUpperCase(),
+            licenceExpiryDate: truckRequestForm.licenceExpiryDate,
+            experienceYears: truckRequestForm.experienceYears,
+            garageId: Number(truckRequestForm.garageId),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(
+          data.message || "Unable to submit the tow truck registration request."
+        );
+      }
+
+      setTruckRequestSent(true);
+      setLocationSearch("");
+      setLocationError("");
+      setLocationMessage("");
+      setTruckRequestForm({
+        truckNumber: "",
+        truckType: "",
+        capacity: "",
+        truckModel: "",
+        registrationDate: getTodayDate(),
+        latitude: "",
+        longitude: "",
+        driverFullName: "",
+        driverNic: "",
+        driverEmail: "",
+        driverContactNumber: "",
+        licenceNumber: "",
+        licenceExpiryDate: "",
+        experienceYears: "",
+        garageId: "",
+      });
+    } catch (error) {
+      console.error("External truck request error:", error);
+
+      const backendMessage =
+        error.message ||
+        "Unable to submit the tow truck registration request.";
+
+      const normalizedMessage = backendMessage.toLowerCase();
+
+      const isDuplicateTruck =
+        normalizedMessage.includes("tow truck with this number is already registered") ||
+        normalizedMessage.includes("truck number is already registered") ||
+        normalizedMessage.includes("truck already registered");
+
+      const isDuplicateRequest =
+        normalizedMessage.includes("pending or approved request already exists") ||
+        normalizedMessage.includes("request already exists");
+
+      if (isDuplicateTruck) {
+        setTruckRequestErrorTitle("Truck Already Registered");
+        setTruckRequestError(
+          "This truck has already been registered in the system."
+        );
+      } else if (isDuplicateRequest) {
+        setTruckRequestErrorTitle("Registration Request Already Exists");
+        setTruckRequestError(
+          "A pending or approved registration request already exists for this truck or driver."
+        );
+      } else {
+        setTruckRequestErrorTitle("Registration Request Failed");
+        setTruckRequestError(backendMessage);
+      }
+    } finally {
+      setIsSubmittingTruckRequest(false);
+    }
+  };
+
+  const selectedGarage = garages.find(
+    (garage) =>
+      Number(garage.garage_id ?? garage.garageId) ===
+      Number(truckRequestForm.garageId)
+  );
 
   const services = [
     {
@@ -1008,12 +1364,91 @@ export default function StartPage({ onNavigate }) {
                   </p>
                 </div>
 
+                <FormSection icon={Building2} title="Select Garage">
+                  <div className="sm:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-slate-300">
+                      Preferred Garage
+                    </label>
+
+                    <select
+                      name="garageId"
+                      value={truckRequestForm.garageId}
+                      onChange={handleTruckRequestChange}
+                      required
+                      disabled={isLoadingGarages || isSubmittingTruckRequest}
+                      className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-4 py-3.5 text-white outline-none transition focus:border-teal-400/60 focus:ring-4 focus:ring-teal-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <option value="">
+                        {isLoadingGarages
+                          ? "Loading registered garages..."
+                          : "Select a garage"}
+                      </option>
+
+                      {garages.map((garage) => {
+                        const garageId = garage.garage_id ?? garage.garageId;
+                        const garageName = garage.garage_name ?? garage.garageName;
+                        const garageLocation =
+                          garage.district || garage.address || "Location unavailable";
+
+                        return (
+                          <option key={garageId} value={garageId}>
+                            {garageName} — {garageLocation}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    {garageLoadError && (
+                      <p className="mt-2 text-sm text-red-300">
+                        {garageLoadError}
+                      </p>
+                    )}
+                  </div>
+
+                  {selectedGarage && (
+                    <div className="sm:col-span-2 rounded-2xl border border-teal-400/20 bg-teal-400/[0.06] p-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-teal-300">
+                            Selected Garage
+                          </p>
+                          <p className="mt-2 font-black text-white">
+                            {selectedGarage.garage_name ?? selectedGarage.garageName}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-400">
+                            {selectedGarage.address || "Address unavailable"}
+                            {selectedGarage.district
+                              ? `, ${selectedGarage.district}`
+                              : ""}
+                          </p>
+                        </div>
+
+                        {selectedGarage.latitude && selectedGarage.longitude && (
+                          <a
+                            href={`https://www.google.com/maps?q=${selectedGarage.latitude},${selectedGarage.longitude}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-teal-400/30 bg-teal-400/10 px-4 py-3 text-sm font-bold text-teal-200 transition hover:bg-teal-400/15"
+                          >
+                            <MapPin className="h-4 w-4" />
+                            View Garage Location
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </FormSection>
+
                 <FormSection icon={Truck} title="Tow Truck Details">
                   <FormInput
                     label="Truck Number"
                     name="truckNumber"
                     value={truckRequestForm.truckNumber}
                     onChange={handleTruckRequestChange}
+                    placeholder="CAB-1234 or WP CAA-1234"
+                    pattern="(?:[A-Za-z]{2,3}-[0-9]{4}|[A-Za-z]{2} [A-Za-z]{1,3}-[0-9]{4})"
+                    title="Examples: CAB-1234, AB-1234 or WP CAA-1234"
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormSelect
@@ -1021,20 +1456,25 @@ export default function StartPage({ onNavigate }) {
                     name="truckType"
                     value={truckRequestForm.truckType}
                     onChange={handleTruckRequestChange}
+                    disabled={isSubmittingTruckRequest}
                     required
                     options={[
                       "Flatbed Tow Truck",
-                      "Wheel-Lift Tow Truck",
+                      "Wheel Lift Tow Truck",
                       "Integrated Tow Truck",
-                      "Heavy-Duty Tow Truck",
+                      "Heavy Duty Tow Truck",
                     ]}
                   />
                   <FormInput
-                    label="Capacity"
+                    label="Capacity (Tons)"
                     name="capacity"
                     value={truckRequestForm.capacity}
                     onChange={handleTruckRequestChange}
                     placeholder="Example: 5 tons"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormInput
@@ -1042,6 +1482,7 @@ export default function StartPage({ onNavigate }) {
                     name="truckModel"
                     value={truckRequestForm.truckModel}
                     onChange={handleTruckRequestChange}
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormInput
@@ -1050,26 +1491,195 @@ export default function StartPage({ onNavigate }) {
                     type="date"
                     value={truckRequestForm.registrationDate}
                     onChange={handleTruckRequestChange}
+                    disabled
                     required
                   />
-                  <FormInput
-                    label="Latitude"
-                    name="latitude"
-                    type="number"
-                    step="any"
-                    value={truckRequestForm.latitude}
-                    onChange={handleTruckRequestChange}
-                    required
-                  />
-                  <FormInput
-                    label="Longitude"
-                    name="longitude"
-                    type="number"
-                    step="any"
-                    value={truckRequestForm.longitude}
-                    onChange={handleTruckRequestChange}
-                    required
-                  />
+                  <div className="sm:col-span-2 rounded-3xl border border-blue-400/20 bg-blue-400/[0.045] p-4 sm:p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+                      <div className="flex-1">
+                        <label className="mb-2 block text-sm font-semibold text-slate-300">
+                          Search Truck City / Area
+                        </label>
+
+                        <div className="relative">
+                          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                          <input
+                            type="text"
+                            value={locationSearch}
+                            onChange={(event) => {
+                              setLocationSearch(event.target.value);
+                              if (locationError) setLocationError("");
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                handleLocationSearch();
+                              }
+                            }}
+                            placeholder="Example: Nugegoda, Maharagama, Kandy"
+                            disabled={isSubmittingTruckRequest || isSearchingLocation}
+                            className="w-full rounded-xl border border-white/10 bg-slate-950/70 py-3.5 pl-12 pr-4 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-400/60 focus:ring-4 focus:ring-blue-400/10 disabled:opacity-60"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={handleLocationSearch}
+                          disabled={
+                            isSubmittingTruckRequest ||
+                            isSearchingLocation ||
+                            !locationSearch.trim()
+                          }
+                          className="flex items-center justify-center gap-2 rounded-xl border border-blue-400/30 bg-blue-400/10 px-5 py-3.5 text-sm font-black text-blue-300 transition hover:bg-blue-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isSearchingLocation ? (
+                            <LoaderCircle className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Search className="h-5 w-5" />
+                          )}
+                          {isSearchingLocation ? "Searching..." : "Search Area"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleUseCurrentLocation}
+                          disabled={isSubmittingTruckRequest || isFindingCurrentLocation}
+                          className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-3.5 text-sm font-black text-slate-950 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isFindingCurrentLocation ? (
+                            <LoaderCircle className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <LocateFixed className="h-5 w-5" />
+                          )}
+                          {isFindingCurrentLocation
+                            ? "Finding GPS..."
+                            : "Use My Current Location"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {locationError && (
+                      <div className="mt-4 flex items-start gap-3 rounded-xl border border-red-400/25 bg-red-400/10 p-4 text-sm text-red-300">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        <p>{locationError}</p>
+                      </div>
+                    )}
+
+                    {locationMessage && !locationError && (
+                      <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-sm text-emerald-300">
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                        <p>{locationMessage}</p>
+                      </div>
+                    )}
+
+                    <div className="mt-5 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70">
+                      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
+                        <MapPin className="h-5 w-5 text-blue-300" />
+                        <div>
+                          <p className="text-sm font-black text-white">
+                            Select Exact Truck Location
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Search first, use GPS, or click anywhere on the map to adjust the marker.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="h-[360px] w-full">
+                        <MapContainer
+                          center={[
+                            truckRequestForm.latitude
+                              ? Number(truckRequestForm.latitude)
+                              : DEFAULT_TRUCK_LOCATION.latitude,
+                            truckRequestForm.longitude
+                              ? Number(truckRequestForm.longitude)
+                              : DEFAULT_TRUCK_LOCATION.longitude,
+                          ]}
+                          zoom={
+                            truckRequestForm.latitude && truckRequestForm.longitude
+                              ? 15
+                              : 7
+                          }
+                          scrollWheelZoom
+                          className="h-full w-full"
+                        >
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+
+                          <TruckLocationClickHandler
+                            onLocationSelect={(latitude, longitude) =>
+                              setTruckLocation(
+                                latitude,
+                                longitude,
+                                "Truck location was selected from the map."
+                              )
+                            }
+                          />
+
+                          <RecenterTruckMap
+                            latitude={
+                              truckRequestForm.latitude ||
+                              DEFAULT_TRUCK_LOCATION.latitude
+                            }
+                            longitude={
+                              truckRequestForm.longitude ||
+                              DEFAULT_TRUCK_LOCATION.longitude
+                            }
+                            zoom={
+                              truckRequestForm.latitude &&
+                              truckRequestForm.longitude
+                                ? 15
+                                : 7
+                            }
+                          />
+
+                          {truckRequestForm.latitude &&
+                            truckRequestForm.longitude && (
+                              <Marker
+                                position={[
+                                  Number(truckRequestForm.latitude),
+                                  Number(truckRequestForm.longitude),
+                                ]}
+                              />
+                            )}
+                        </MapContainer>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-300">
+                          Latitude
+                        </label>
+                        <input
+                          type="text"
+                          value={truckRequestForm.latitude}
+                          readOnly
+                          required
+                          placeholder="Auto-filled from GPS, search or map"
+                          className="w-full cursor-not-allowed rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3.5 text-slate-300 outline-none placeholder:text-slate-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-300">
+                          Longitude
+                        </label>
+                        <input
+                          type="text"
+                          value={truckRequestForm.longitude}
+                          readOnly
+                          required
+                          placeholder="Auto-filled from GPS, search or map"
+                          className="w-full cursor-not-allowed rounded-xl border border-white/10 bg-slate-950/80 px-4 py-3.5 text-slate-300 outline-none placeholder:text-slate-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </FormSection>
 
                 <FormSection icon={UserRound} title="Truck Driver Details">
@@ -1078,6 +1688,7 @@ export default function StartPage({ onNavigate }) {
                     name="driverFullName"
                     value={truckRequestForm.driverFullName}
                     onChange={handleTruckRequestChange}
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormInput
@@ -1085,6 +1696,9 @@ export default function StartPage({ onNavigate }) {
                     name="driverNic"
                     value={truckRequestForm.driverNic}
                     onChange={handleTruckRequestChange}
+                    placeholder="200012345678 or 901234567V"
+                    maxLength={12}
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormInput
@@ -1093,6 +1707,7 @@ export default function StartPage({ onNavigate }) {
                     type="email"
                     value={truckRequestForm.driverEmail}
                     onChange={handleTruckRequestChange}
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormInput
@@ -1101,6 +1716,10 @@ export default function StartPage({ onNavigate }) {
                     type="tel"
                     value={truckRequestForm.driverContactNumber}
                     onChange={handleTruckRequestChange}
+                    placeholder="07XXXXXXXX"
+                    maxLength={10}
+                    pattern="0[0-9]{9}"
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormInput
@@ -1108,6 +1727,7 @@ export default function StartPage({ onNavigate }) {
                     name="licenceNumber"
                     value={truckRequestForm.licenceNumber}
                     onChange={handleTruckRequestChange}
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormInput
@@ -1116,6 +1736,8 @@ export default function StartPage({ onNavigate }) {
                     type="date"
                     value={truckRequestForm.licenceExpiryDate}
                     onChange={handleTruckRequestChange}
+                    min={new Date().toISOString().slice(0, 10)}
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                   <FormInput
@@ -1125,26 +1747,90 @@ export default function StartPage({ onNavigate }) {
                     min="0"
                     value={truckRequestForm.experienceYears}
                     onChange={handleTruckRequestChange}
+                    max="60"
+                    step="1"
+                    disabled={isSubmittingTruckRequest}
                     required
                   />
                 </FormSection>
 
                 <AnimatePresence>
                   {truckRequestSent && (
-                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex items-start gap-3 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-emerald-300">
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="flex items-start gap-3 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-emerald-300"
+                    >
                       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
                       <div>
-                        <p className="font-bold">Registration request submitted successfully.</p>
-                        <p className="mt-1 text-sm text-emerald-200/75">The request is currently a frontend demonstration and can later be connected to the Garage Owner Registration Center.</p>
+                        <p className="font-bold">
+                          Registration request submitted successfully.
+                        </p>
+                        <p className="mt-1 text-sm text-emerald-200/75">
+                          The selected garage owner can now review and approve or reject this request.
+                        </p>
                       </div>
+                    </motion.div>
+                  )}
+
+                  {truckRequestError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      role="alert"
+                      className="flex items-start gap-4 rounded-2xl border border-red-400/30 bg-red-400/10 p-5 text-red-300 shadow-[0_15px_45px_rgba(248,113,113,0.08)]"
+                    >
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-400/25 bg-red-400/10">
+                        <ShieldAlert className="h-5 w-5" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="font-black text-red-300">
+                          {truckRequestErrorTitle || "Registration Request Failed"}
+                        </p>
+
+                        <p className="mt-1 text-sm leading-6 text-red-200/80">
+                          {truckRequestError}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTruckRequestError("");
+                          setTruckRequestErrorTitle("");
+                        }}
+                        className="rounded-lg p-1 text-red-300/70 transition hover:bg-red-400/10 hover:text-red-200"
+                        aria-label="Dismiss error message"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
                 <div className="flex flex-col-reverse gap-3 border-t border-white/10 pt-6 sm:flex-row sm:justify-end">
-                  <button type="button" onClick={closeTruckRequest} className="rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 font-bold text-slate-300 transition hover:bg-white/10">Cancel</button>
-                  <motion.button type="submit" whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.98 }} className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-6 py-3.5 font-black text-slate-950 shadow-[0_14px_40px_rgba(45,212,191,0.2)]">
-                    <Send className="h-5 w-5" /> Submit Registration Request
+                  <button
+                    type="button"
+                    onClick={closeTruckRequest}
+                    disabled={isSubmittingTruckRequest}
+                    className="rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 font-bold text-slate-300 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <motion.button
+                    type="submit"
+                    disabled={isSubmittingTruckRequest || isLoadingGarages}
+                    whileHover={isSubmittingTruckRequest ? {} : { y: -2, scale: 1.01 }}
+                    whileTap={isSubmittingTruckRequest ? {} : { scale: 0.98 }}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-6 py-3.5 font-black text-slate-950 shadow-[0_14px_40px_rgba(45,212,191,0.2)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Send className="h-5 w-5" />
+                    {isSubmittingTruckRequest
+                      ? "Submitting Request..."
+                      : "Submit Registration Request"}
                   </motion.button>
                 </div>
               </form>

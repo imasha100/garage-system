@@ -6,7 +6,63 @@ import {
   ArrowLeft,
   UserRound,
   MapPin,
+  LocateFixed,
+  LoaderCircle,
+  Navigation,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
+import {
+  MapContainer,
+  Marker,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// Fix the default Leaflet marker icon in Vite/React projects.
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
+
+const DEFAULT_LOCATION = {
+  latitude: 6.9271,
+  longitude: 79.8612,
+};
+
+function MapClickHandler({ onLocationSelect }) {
+  useMapEvents({
+    click(event) {
+      onLocationSelect(event.latlng.lat, event.latlng.lng);
+    },
+  });
+
+  return null;
+}
+
+function RecenterMap({ latitude, longitude }) {
+  const map = useMap();
+
+  React.useEffect(() => {
+    if (
+      Number.isFinite(Number(latitude)) &&
+      Number.isFinite(Number(longitude))
+    ) {
+      map.setView([Number(latitude), Number(longitude)], 15);
+    }
+  }, [latitude, longitude, map]);
+
+  return null;
+}
 
 export default function ExternalTruckRegistration({
   toggleSidebar,
@@ -18,7 +74,7 @@ export default function ExternalTruckRegistration({
   const generateDriverId = () =>
     `EXT-DRV-${Date.now().toString().slice(-6)}`;
 
-  const [formData, setFormData] = useState({
+  const getInitialFormData = () => ({
     // Truck Information
     truckId: generateTruckId(),
     plateNumber: "",
@@ -42,6 +98,14 @@ export default function ExternalTruckRegistration({
     longitude: "",
   });
 
+  const [formData, setFormData] = useState(getInitialFormData);
+  const [isFindingLocation, setIsFindingLocation] = useState(false);
+  const [isFindingAddress, setIsFindingAddress] = useState(false);
+  const [locationMessage, setLocationMessage] = useState({
+    type: "",
+    text: "",
+  });
+
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -49,10 +113,138 @@ export default function ExternalTruckRegistration({
       ...previousData,
       [name]: value,
     }));
+
+    if (locationMessage.text) {
+      setLocationMessage({ type: "", text: "" });
+    }
+  };
+
+  const reverseGeocodeLocation = async (latitude, longitude) => {
+    setIsFindingAddress(true);
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+        {
+          headers: {
+            "Accept-Language": "en",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to identify the selected location.");
+      }
+
+      const data = await response.json();
+      const address = data.address || {};
+
+      const serviceArea =
+        address.city ||
+        address.town ||
+        address.village ||
+        address.suburb ||
+        address.county ||
+        address.state_district ||
+        data.display_name ||
+        "";
+
+      setFormData((previousData) => ({
+        ...previousData,
+        serviceArea,
+      }));
+    } catch (error) {
+      console.error("Reverse geocoding error:", error);
+
+      setLocationMessage({
+        type: "warning",
+        text:
+          "Coordinates were selected, but the service area could not be filled automatically. Please enter it manually.",
+      });
+    } finally {
+      setIsFindingAddress(false);
+    }
+  };
+
+  const setSelectedLocation = async (latitude, longitude) => {
+    const formattedLatitude = Number(latitude).toFixed(8);
+    const formattedLongitude = Number(longitude).toFixed(8);
+
+    setFormData((previousData) => ({
+      ...previousData,
+      latitude: formattedLatitude,
+      longitude: formattedLongitude,
+    }));
+
+    setLocationMessage({
+      type: "success",
+      text: "Location selected successfully.",
+    });
+
+    await reverseGeocodeLocation(formattedLatitude, formattedLongitude);
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationMessage({
+        type: "error",
+        text: "Location access is not supported by this browser.",
+      });
+      return;
+    }
+
+    setIsFindingLocation(true);
+    setLocationMessage({ type: "", text: "" });
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        await setSelectedLocation(
+          position.coords.latitude,
+          position.coords.longitude
+        );
+
+        setIsFindingLocation(false);
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+
+        let message = "Unable to get your current location.";
+
+        if (error.code === error.PERMISSION_DENIED) {
+          message =
+            "Location permission was denied. Please allow location access or select the location on the map.";
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          message = "Your current location is unavailable.";
+        } else if (error.code === error.TIMEOUT) {
+          message = "Location request timed out. Please try again.";
+        }
+
+        setLocationMessage({
+          type: "error",
+          text: message,
+        });
+
+        setIsFindingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
+
+    if (!formData.latitude || !formData.longitude) {
+      setLocationMessage({
+        type: "error",
+        text:
+          "Please use your current location or select the truck location on the map.",
+      });
+      return;
+    }
 
     const existingExternalTrucks =
       JSON.parse(localStorage.getItem("externalTowTrucks")) || [];
@@ -71,26 +263,8 @@ export default function ExternalTruckRegistration({
 
     alert("External tow truck and driver registered successfully!");
 
-    setFormData({
-      truckId: generateTruckId(),
-      plateNumber: "",
-      truckModel: "",
-      truckType: "",
-      capacity: "",
-
-      driverId: generateDriverId(),
-      driverName: "",
-      driverNic: "",
-      driverEmail: "",
-      contactNumber: "",
-      licenseNumber: "",
-      licenseExpireDate: "",
-      driverExperience: "",
-
-      serviceArea: "",
-      latitude: "",
-      longitude: "",
-    });
+    setFormData(getInitialFormData());
+    setLocationMessage({ type: "", text: "" });
   };
 
   const handleBack = () => {
@@ -98,6 +272,14 @@ export default function ExternalTruckRegistration({
       onNavigate("Registration");
     }
   };
+
+  const mapLatitude = formData.latitude
+    ? Number(formData.latitude)
+    : DEFAULT_LOCATION.latitude;
+
+  const mapLongitude = formData.longitude
+    ? Number(formData.longitude)
+    : DEFAULT_LOCATION.longitude;
 
   return (
     <div className="min-h-screen bg-[#07080f] text-white font-sans">
@@ -177,7 +359,6 @@ export default function ExternalTruckRegistration({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Truck ID */}
                 <div>
                   <label
                     htmlFor="truckId"
@@ -196,7 +377,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* Plate Number */}
                 <div>
                   <label
                     htmlFor="plateNumber"
@@ -211,13 +391,12 @@ export default function ExternalTruckRegistration({
                     name="plateNumber"
                     value={formData.plateNumber}
                     onChange={handleChange}
-                    placeholder="WP CAA-1234"
+                    placeholder="CAB-1234 or WP CAA-1234"
                     required
                     className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 outline-none focus:border-purple-500"
                   />
                 </div>
 
-                {/* Truck Model */}
                 <div>
                   <label
                     htmlFor="truckModel"
@@ -238,7 +417,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* Truck Type */}
                 <div>
                   <label
                     htmlFor="truckType"
@@ -256,26 +434,21 @@ export default function ExternalTruckRegistration({
                     className="w-full bg-[#101018] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-purple-500"
                   >
                     <option value="">Select Truck Type</option>
-
                     <option value="Flatbed Tow Truck">
                       Flatbed Tow Truck
                     </option>
-
                     <option value="Wheel Lift Tow Truck">
                       Wheel Lift Tow Truck
                     </option>
-
                     <option value="Integrated Tow Truck">
                       Integrated Tow Truck
                     </option>
-
                     <option value="Heavy Duty Tow Truck">
                       Heavy Duty Tow Truck
                     </option>
                   </select>
                 </div>
 
-                {/* Capacity */}
                 <div className="md:col-span-2">
                   <label
                     htmlFor="capacity"
@@ -292,7 +465,7 @@ export default function ExternalTruckRegistration({
                     onChange={handleChange}
                     placeholder="Example: 3"
                     required
-                    min="0"
+                    min="0.1"
                     step="0.1"
                     className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 outline-none focus:border-purple-500"
                   />
@@ -321,7 +494,6 @@ export default function ExternalTruckRegistration({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Driver ID */}
                 <div>
                   <label
                     htmlFor="driverId"
@@ -340,7 +512,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* Driver Name */}
                 <div>
                   <label
                     htmlFor="driverName"
@@ -361,7 +532,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* Driver NIC */}
                 <div>
                   <label
                     htmlFor="driverNic"
@@ -383,7 +553,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* Driver Email */}
                 <div>
                   <label
                     htmlFor="driverEmail"
@@ -404,7 +573,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* Contact Number */}
                 <div>
                   <label
                     htmlFor="contactNumber"
@@ -425,7 +593,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* License Number */}
                 <div>
                   <label
                     htmlFor="licenseNumber"
@@ -446,7 +613,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* License Expire Date */}
                 <div>
                   <label
                     htmlFor="licenseExpireDate"
@@ -466,7 +632,6 @@ export default function ExternalTruckRegistration({
                   />
                 </div>
 
-                {/* Driver Experience */}
                 <div>
                   <label
                     htmlFor="driverExperience"
@@ -484,6 +649,7 @@ export default function ExternalTruckRegistration({
                     placeholder="Enter years of experience"
                     required
                     min="0"
+                    max="60"
                     className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 outline-none focus:border-emerald-500"
                   />
                 </div>
@@ -494,24 +660,64 @@ export default function ExternalTruckRegistration({
 
             {/* Service Location */}
             <section>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-11 h-11 rounded-xl border border-blue-500/30 bg-blue-500/10 flex items-center justify-center">
-                  <MapPin className="text-blue-400" size={24} />
+              <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl border border-blue-500/30 bg-blue-500/10 flex items-center justify-center">
+                    <MapPin className="text-blue-400" size={24} />
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl md:text-2xl font-black">
+                      Service Location
+                    </h3>
+
+                    <p className="text-xs text-gray-500 mt-1">
+                      Use your current location or select a point on the map
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <h3 className="text-xl md:text-2xl font-black">
-                    Service Location
-                  </h3>
-
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter the operating area and map location
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={isFindingLocation}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-5 py-3 text-sm font-bold text-blue-400 transition hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isFindingLocation ? (
+                    <>
+                      <LoaderCircle size={18} className="animate-spin" />
+                      Finding Location...
+                    </>
+                  ) : (
+                    <>
+                      <LocateFixed size={18} />
+                      Use My Current Location
+                    </>
+                  )}
+                </button>
               </div>
 
+              {locationMessage.text && (
+                <div
+                  className={`mb-5 flex items-start gap-3 rounded-xl border p-4 text-sm ${
+                    locationMessage.type === "success"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                      : locationMessage.type === "warning"
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                      : "border-red-500/30 bg-red-500/10 text-red-300"
+                  }`}
+                >
+                  {locationMessage.type === "success" ? (
+                    <CheckCircle2 size={20} className="shrink-0" />
+                  ) : (
+                    <AlertCircle size={20} className="shrink-0" />
+                  )}
+
+                  <p>{locationMessage.text}</p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Service Area */}
                 <div className="md:col-span-2">
                   <label
                     htmlFor="serviceArea"
@@ -520,19 +726,27 @@ export default function ExternalTruckRegistration({
                     SERVICE AREA
                   </label>
 
-                  <input
-                    id="serviceArea"
-                    type="text"
-                    name="serviceArea"
-                    value={formData.serviceArea}
-                    onChange={handleChange}
-                    placeholder="Example: Colombo"
-                    required
-                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 outline-none focus:border-blue-500"
-                  />
+                  <div className="relative">
+                    <input
+                      id="serviceArea"
+                      type="text"
+                      name="serviceArea"
+                      value={formData.serviceArea}
+                      onChange={handleChange}
+                      placeholder="Automatically filled or enter manually"
+                      required
+                      className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 pr-12 text-white placeholder:text-gray-600 outline-none focus:border-blue-500"
+                    />
+
+                    {isFindingAddress && (
+                      <LoaderCircle
+                        size={18}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-blue-400"
+                      />
+                    )}
+                  </div>
                 </div>
 
-                {/* Latitude */}
                 <div>
                   <label
                     htmlFor="latitude"
@@ -548,13 +762,12 @@ export default function ExternalTruckRegistration({
                     name="latitude"
                     value={formData.latitude}
                     onChange={handleChange}
-                    placeholder="6.9271"
+                    placeholder="Select using location or map"
                     required
                     className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 outline-none focus:border-blue-500"
                   />
                 </div>
 
-                {/* Longitude */}
                 <div>
                   <label
                     htmlFor="longitude"
@@ -570,10 +783,58 @@ export default function ExternalTruckRegistration({
                     name="longitude"
                     value={formData.longitude}
                     onChange={handleChange}
-                    placeholder="79.8612"
+                    placeholder="Select using location or map"
                     required
                     className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 outline-none focus:border-blue-500"
                   />
+                </div>
+
+                <div className="md:col-span-2 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                  <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Navigation size={18} className="text-blue-400" />
+                      <div>
+                        <p className="text-sm font-bold text-white">
+                          Select Truck Location
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Click anywhere on the map to place the marker.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="h-[360px] w-full">
+                    <MapContainer
+                      center={[mapLatitude, mapLongitude]}
+                      zoom={formData.latitude && formData.longitude ? 15 : 8}
+                      scrollWheelZoom
+                      className="h-full w-full"
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+
+                      <MapClickHandler
+                        onLocationSelect={setSelectedLocation}
+                      />
+
+                      <RecenterMap
+                        latitude={mapLatitude}
+                        longitude={mapLongitude}
+                      />
+
+                      {formData.latitude && formData.longitude && (
+                        <Marker
+                          position={[
+                            Number(formData.latitude),
+                            Number(formData.longitude),
+                          ]}
+                        />
+                      )}
+                    </MapContainer>
+                  </div>
                 </div>
               </div>
             </section>
@@ -582,7 +843,8 @@ export default function ExternalTruckRegistration({
             <div className="flex justify-center pt-2">
               <button
                 type="submit"
-                className="w-full md:w-auto flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl px-8 py-3 transition"
+                disabled={isFindingLocation || isFindingAddress}
+                className="w-full md:w-auto flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl px-8 py-3 transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Save size={18} />
                 REGISTER EXTERNAL TRUCK & DRIVER

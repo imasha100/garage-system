@@ -16,7 +16,6 @@ import {
   TileLayer,
   Marker,
   Popup,
-  Polyline,
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
@@ -37,8 +36,6 @@ const ResourceSchedule = ({ openSidebar }) => {
   const [currentCapacity, setCurrentCapacity] = useState(7);
   const maxCapacity = 10;
 
-  const saegisLocation = [6.8728, 79.8887];
-
   const [popup, setPopup] = useState({
     show: false,
     title: "",
@@ -54,43 +51,15 @@ const ResourceSchedule = ({ openSidebar }) => {
   const [selectedVehicles, setSelectedVehicles] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
 
-  const getRequests = () => {
-    return JSON.parse(sessionStorage.getItem("resourceRequests")) || [];
-  };
+  const [emergencyRequests, setEmergencyRequests] = useState([]);
+  const [selectedReq, setSelectedReq] = useState(null);
 
-  const saveRequests = (requests) => {
-    sessionStorage.setItem("resourceRequests", JSON.stringify(requests));
-    window.dispatchEvent(new Event("resourceRequestsUpdated"));
-  };
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [requestsError, setRequestsError] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const addDefaultLocation = (req) => {
-    if (!req) return req;
-
-    const locationMap = {
-      "Colombo 07": { lat: 6.9108, lng: 79.8668 },
-      Nugegoda: { lat: 6.8729, lng: 79.8996 },
-      Kohuwala: { lat: 6.8721, lng: 79.8852 },
-      Dehiwala: { lat: 6.8519, lng: 79.8655 },
-      Maharagama: { lat: 6.848, lng: 79.9265 },
-    };
-
-    const matched = locationMap[req.loc] || locationMap[req.garageName];
-
-    return {
-      ...req,
-      lat: req.lat || matched?.lat || 6.9108,
-      lng: req.lng || matched?.lng || 79.8668,
-    };
-  };
-
-  const [emergencyRequests, setEmergencyRequests] = useState(() => {
-    return getRequests().map(addDefaultLocation);
-  });
-
-  const [selectedReq, setSelectedReq] = useState(() => {
-    const requests = getRequests().map(addDefaultLocation);
-    return requests.length > 0 ? { ...requests[0], status: "pending" } : null;
-  });
+  const [assistanceId, setAssistanceId] = useState(null);
+  const [garageId, setGarageId] = useState(null);
 
   const [availableTechs, setAvailableTechs] = useState([
     "David Vance",
@@ -112,24 +81,168 @@ const ResourceSchedule = ({ openSidebar }) => {
     },
   ]);
 
-  useEffect(() => {
-    const loadRequests = () => {
-      const requests = getRequests().map(addDefaultLocation);
+  const normalizeRequest = (request) => {
+    const latitude = Number(request.customerLatitude);
+    const longitude = Number(request.customerLongitude);
 
-      setEmergencyRequests(requests);
+    return {
+      id: request.requestId,
+      requestId: request.requestId,
+      name: request.customerName || "Customer",
+      contact: request.customerContact || "Not available",
+      vNo: request.vehicleNumber || "Not available",
+      vehicle: request.vehicleType || "Not specified",
+      loc: request.location || "Customer Live GPS Location",
+      garageId: request.garageId || null,
+      garageName: request.garageName || "Selected Garage",
+      lat: Number.isFinite(latitude) ? latitude : null,
+      lng: Number.isFinite(longitude) ? longitude : null,
+      eta: "Live GPS",
+      dist: "See Map",
+      status: String(request.requestStatus || "Pending").toLowerCase(),
+      requestDate: request.requestDate || null,
+      requestTime: request.requestTime || null,
+    };
+  };
 
-      setSelectedReq(
-        requests.length > 0 ? { ...requests[0], status: "pending" } : null
+  const loadRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      setRequestsError("");
+
+      const storedStaffUser = sessionStorage.getItem("staffUser");
+
+      if (!storedStaffUser) {
+        throw new Error(
+          "Logged-in assistance officer details were not found."
+        );
+      }
+
+      const staffUser = JSON.parse(storedStaffUser);
+      const loggedAssistanceId = Number(staffUser?.staffId);
+
+      if (
+        String(staffUser?.role || "").toLowerCase() !== "assistance" ||
+        !Number.isInteger(loggedAssistanceId) ||
+        loggedAssistanceId <= 0
+      ) {
+        throw new Error(
+          "A valid assistance officer account could not be identified."
+        );
+      }
+
+      const assistanceResponse = await fetch(
+        `http://localhost:5000/api/assistances/${loggedAssistanceId}`
       );
-    };
 
+      const assistanceResult = await assistanceResponse.json();
+
+      if (
+        !assistanceResponse.ok ||
+        assistanceResult.success === false ||
+        !assistanceResult.assistance
+      ) {
+        throw new Error(
+          assistanceResult.message ||
+            "Unable to load assistance officer details."
+        );
+      }
+
+      const assistance = assistanceResult.assistance;
+
+      const relatedGarageId = Number(
+        assistance.garageId ??
+          assistance.garage_id ??
+          assistance.garageGarageId ??
+          assistance.garage_garage_id
+      );
+
+      if (
+        !Number.isInteger(relatedGarageId) ||
+        relatedGarageId <= 0
+      ) {
+        throw new Error(
+          "The garage related to this assistance officer could not be identified."
+        );
+      }
+
+      const pendingResponse = await fetch(
+        `http://localhost:5000/api/service-requests?garageId=${relatedGarageId}&status=Pending`
+      );
+
+      const pendingResult = await pendingResponse.json();
+
+      if (!pendingResponse.ok || !pendingResult.success) {
+        throw new Error(
+          pendingResult.message ||
+            "Unable to load pending service requests."
+        );
+      }
+
+      const acceptedResponse = await fetch(
+        `http://localhost:5000/api/service-requests?garageId=${relatedGarageId}&status=Accepted`
+      );
+
+      const acceptedResult = await acceptedResponse.json();
+
+      if (!acceptedResponse.ok || !acceptedResult.success) {
+        throw new Error(
+          acceptedResult.message ||
+            "Unable to load accepted service requests."
+        );
+      }
+
+      const pendingRequests = (
+        Array.isArray(pendingResult.requests)
+          ? pendingResult.requests
+          : []
+      ).map(normalizeRequest);
+
+      const accepted = (
+        Array.isArray(acceptedResult.requests)
+          ? acceptedResult.requests
+          : []
+      ).map(normalizeRequest);
+
+      setAssistanceId(loggedAssistanceId);
+      setGarageId(relatedGarageId);
+      setEmergencyRequests(pendingRequests);
+      setAcceptedRequests(accepted);
+
+      setCurrentCapacity(
+        Math.min(7 + accepted.length, maxCapacity)
+      );
+
+      setSelectedReq((previousSelected) => {
+        if (
+          previousSelected &&
+          pendingRequests.some(
+            (request) => request.id === previousSelected.id
+          )
+        ) {
+          return previousSelected;
+        }
+
+        return pendingRequests.length > 0
+          ? { ...pendingRequests[0], status: "pending" }
+          : null;
+      });
+    } catch (error) {
+      console.error("Load resource requests error:", error);
+      setEmergencyRequests([]);
+      setAcceptedRequests([]);
+      setSelectedReq(null);
+      setRequestsError(
+        error.message ||
+          "Unable to load service requests."
+      );
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadRequests();
-
-    window.addEventListener("resourceRequestsUpdated", loadRequests);
-
-    return () => {
-      window.removeEventListener("resourceRequestsUpdated", loadRequests);
-    };
   }, []);
 
   const handleAllocate = (techName) => {
@@ -169,8 +282,8 @@ const ResourceSchedule = ({ openSidebar }) => {
     });
   };
 
-  const handleAccept = () => {
-    if (!selectedReq) return;
+  const handleAccept = async () => {
+    if (!selectedReq || actionLoading) return;
 
     if (currentCapacity >= maxCapacity) {
       setPopup({
@@ -184,77 +297,175 @@ const ResourceSchedule = ({ openSidebar }) => {
       return;
     }
 
-    const acceptedReq = { ...selectedReq, status: "accepted" };
+    if (
+      !Number.isInteger(assistanceId) ||
+      assistanceId <= 0
+    ) {
+      setPopup({
+        show: true,
+        title: "OFFICER NOT FOUND",
+        message:
+          "The logged-in assistance officer could not be identified.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+      return;
+    }
 
-    setCurrentCapacity((prev) => prev + 1);
-    setAcceptedRequests((prev) => [...prev, acceptedReq]);
+    try {
+      setActionLoading(true);
 
-    const updatedRequests = emergencyRequests.filter(
-      (req) => req.id !== selectedReq.id
-    );
+      const response = await fetch(
+        `http://localhost:5000/api/service-requests/${selectedReq.requestId}/accept`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            assistanceId,
+          }),
+        }
+      );
 
-    setEmergencyRequests(updatedRequests);
-    saveRequests(updatedRequests);
+      const result = await response.json();
 
-    setSelectedReq(
-      updatedRequests.length > 0
-        ? { ...updatedRequests[0], status: "pending" }
-        : null
-    );
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+            "Unable to accept the service request."
+        );
+      }
 
-    setPopup({
-      show: true,
-      title: "REQUEST ACCEPTED",
-      message: `${selectedReq.id} has been accepted successfully.`,
-      color: "#52f0ac",
-      showCancel: true,
-      requestData: acceptedReq,
-    });
+      const acceptedReq = {
+        ...selectedReq,
+        status: "accepted",
+      };
+
+      const updatedRequests = emergencyRequests.filter(
+        (request) => request.id !== selectedReq.id
+      );
+
+      setEmergencyRequests(updatedRequests);
+      setAcceptedRequests((previous) => [
+        acceptedReq,
+        ...previous.filter(
+          (request) => request.id !== acceptedReq.id
+        ),
+      ]);
+
+      setCurrentCapacity((previous) =>
+        Math.min(previous + 1, maxCapacity)
+      );
+
+      setSelectedReq(
+        updatedRequests.length > 0
+          ? { ...updatedRequests[0], status: "pending" }
+          : null
+      );
+
+      setPopup({
+        show: true,
+        title: "REQUEST ACCEPTED",
+        message: `${selectedReq.id} has been accepted successfully.`,
+        color: "#52f0ac",
+        showCancel: false,
+        requestData: acceptedReq,
+      });
+    } catch (error) {
+      console.error("Accept request error:", error);
+
+      setPopup({
+        show: true,
+        title: "ACCEPT FAILED",
+        message:
+          error.message ||
+          "Unable to accept the service request.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleReject = () => {
-    if (!selectedReq) return;
+  const handleReject = async () => {
+    if (!selectedReq || actionLoading) return;
 
-    const rejectedReq = { ...selectedReq, status: "rejected" };
+    try {
+      setActionLoading(true);
 
-    setRejectedRequests((prev) => [...prev, rejectedReq]);
+      const response = await fetch(
+        `http://localhost:5000/api/service-requests/${selectedReq.requestId}/reject`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-    const updatedRequests = emergencyRequests.filter(
-      (req) => req.id !== selectedReq.id
-    );
+      const result = await response.json();
 
-    setEmergencyRequests(updatedRequests);
-    saveRequests(updatedRequests);
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+            "Unable to reject the service request."
+        );
+      }
 
-    setSelectedReq(
-      updatedRequests.length > 0
-        ? { ...updatedRequests[0], status: "pending" }
-        : null
-    );
+      const rejectedReq = {
+        ...selectedReq,
+        status: "rejected",
+      };
 
-    setPopup({
-      show: true,
-      title: "REQUEST REJECTED",
-      message: `${selectedReq.id} has been rejected successfully.`,
-      color: "#f59e0b",
-      showCancel: false,
-      requestData: null,
-    });
+      const updatedRequests = emergencyRequests.filter(
+        (request) => request.id !== selectedReq.id
+      );
+
+      setEmergencyRequests(updatedRequests);
+      setRejectedRequests((previous) => [
+        rejectedReq,
+        ...previous.filter(
+          (request) => request.id !== rejectedReq.id
+        ),
+      ]);
+
+      setSelectedReq(
+        updatedRequests.length > 0
+          ? { ...updatedRequests[0], status: "pending" }
+          : null
+      );
+
+      setPopup({
+        show: true,
+        title: "REQUEST REJECTED",
+        message: `${selectedReq.id} has been rejected successfully.`,
+        color: "#f59e0b",
+        showCancel: false,
+        requestData: null,
+      });
+    } catch (error) {
+      console.error("Reject request error:", error);
+
+      setPopup({
+        show: true,
+        title: "REJECT FAILED",
+        message:
+          error.message ||
+          "Unable to reject the service request.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleCancel = (req) => {
-    if (!req) return;
-
-    setAcceptedRequests((prev) => prev.filter((r) => r.id !== req.id));
-    setCurrentCapacity((prev) => Math.max(prev - 1, 0));
-
-    const pendingReq = { ...req, status: "pending" };
-    const updatedRequests = [pendingReq, ...emergencyRequests];
-
-    setEmergencyRequests(updatedRequests);
-    saveRequests(updatedRequests);
-    setSelectedReq(pendingReq);
-
+  const handleCancel = () => {
     setPopup({
       show: false,
       title: "",
@@ -282,9 +493,34 @@ const ResourceSchedule = ({ openSidebar }) => {
   });
 
   const RequestMap = ({ request, height = "h-64" }) => {
+    const hasValidLocation =
+      Number.isFinite(Number(request?.lat)) &&
+      Number.isFinite(Number(request?.lng));
+
+    if (!hasValidLocation) {
+      return (
+        <div
+          className={`${height} rounded-lg overflow-hidden border border-[#1a1f26] mb-6 flex items-center justify-center bg-[#0b0e14] p-6 text-center`}
+        >
+          <div>
+            <MapPin
+              size={38}
+              className="mx-auto mb-3 text-[#6e7681]"
+            />
+            <p className="font-bold text-white">
+              No Customer GPS Location
+            </p>
+            <p className="mt-2 text-sm text-[#6e7681]">
+              Latitude and longitude were not received for this request.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     const customerLocation = [
-      request?.lat || 6.9108,
-      request?.lng || 79.8668,
+      Number(request.lat),
+      Number(request.lng),
     ];
 
     return (
@@ -292,8 +528,9 @@ const ResourceSchedule = ({ openSidebar }) => {
         className={`${height} rounded-lg overflow-hidden border border-[#1a1f26] mb-6`}
       >
         <MapContainer
+          key={`${request.id}-${customerLocation[0]}-${customerLocation[1]}`}
           center={customerLocation}
-          zoom={12}
+          zoom={14}
           scrollWheelZoom={true}
           className="w-full h-full z-0"
         >
@@ -302,32 +539,21 @@ const ResourceSchedule = ({ openSidebar }) => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
-          <Marker position={saegisLocation}>
-            <Popup>
-              <strong>Saegis Campus</strong>
-              <br />
-              Dispatch Center
-            </Popup>
-          </Marker>
-
           <Marker position={customerLocation}>
             <Popup>
               <strong>{request?.name}</strong>
               <br />
-              {request?.vehicle} ({request?.vNo})
+              Contact: {request?.contact}
               <br />
-              {request?.loc}
+              Vehicle: {request?.vehicle} ({request?.vNo})
+              <br />
+              Request Location: Customer Live GPS
+              <br />
+              Latitude: {customerLocation[0].toFixed(6)}
+              <br />
+              Longitude: {customerLocation[1].toFixed(6)}
             </Popup>
           </Marker>
-
-          <Polyline
-            positions={[saegisLocation, customerLocation]}
-            pathOptions={{
-              color: "#3b82f6",
-              weight: 5,
-              dashArray: "10 8",
-            }}
-          />
         </MapContainer>
       </div>
     );
@@ -497,7 +723,33 @@ const ResourceSchedule = ({ openSidebar }) => {
           <div className="space-y-4">
             <h2 className="text-white font-bold mb-2">PENDING REQUESTS</h2>
 
-            {filteredEmergencyRequests.length > 0 ? (
+            {requestsLoading ? (
+              <div className="bg-[#15191f] rounded-xl border border-[#1a1f26] p-8 text-center">
+                <p className="text-sm text-[#6e7681]">
+                  Loading pending requests...
+                </p>
+              </div>
+            ) : requestsError ? (
+              <div className="bg-[#15191f] rounded-xl border border-red-900/40 p-8 text-center">
+                <AlertCircle
+                  size={45}
+                  className="text-[#e78181] mx-auto mb-4"
+                />
+                <h2 className="text-white font-bold">
+                  Unable to Load Requests
+                </h2>
+                <p className="text-sm text-[#e78181] mt-2">
+                  {requestsError}
+                </p>
+                <button
+                  type="button"
+                  onClick={loadRequests}
+                  className="mt-4 bg-[#3b82f6] text-black px-4 py-2 rounded text-xs font-bold"
+                >
+                  TRY AGAIN
+                </button>
+              </div>
+            ) : filteredEmergencyRequests.length > 0 ? (
               filteredEmergencyRequests.map((req) => (
                 <div
                   key={req.id}
@@ -593,16 +845,20 @@ const ResourceSchedule = ({ openSidebar }) => {
               <div className="flex flex-col md:flex-row gap-4 mt-auto">
                 <button
                   onClick={handleAccept}
-                  className="flex-1 bg-[#52f0ac] hover:bg-[#45cc92] text-black py-3 rounded font-bold cursor-pointer"
+                  disabled={actionLoading}
+                  className="flex-1 bg-[#52f0ac] hover:bg-[#45cc92] disabled:cursor-not-allowed disabled:opacity-60 text-black py-3 rounded font-bold cursor-pointer"
                 >
-                  ACCEPT REQUEST
+                  {actionLoading
+                    ? "PROCESSING..."
+                    : "ACCEPT REQUEST"}
                 </button>
 
                 <button
                   onClick={handleReject}
-                  className="flex-1 border border-[#e78181] text-[#e78181] py-3 rounded font-bold cursor-pointer"
+                  disabled={actionLoading}
+                  className="flex-1 border border-[#e78181] text-[#e78181] disabled:cursor-not-allowed disabled:opacity-60 py-3 rounded font-bold cursor-pointer"
                 >
-                  REJECT
+                  {actionLoading ? "PROCESSING..." : "REJECT"}
                 </button>
               </div>
             </div>
