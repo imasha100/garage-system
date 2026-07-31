@@ -46,6 +46,14 @@ export default function GarageMap({
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
+  const [customerStatusPopup, setCustomerStatusPopup] = useState({
+    show: false,
+    title: "",
+    message: "",
+    ticketNumber: "",
+    status: "",
+  });
+
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestError, setRequestError] = useState("");
 
@@ -309,6 +317,116 @@ export default function GarageMap({
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    let intervalId;
+
+    const checkLatestRequestStatus = async () => {
+      try {
+        const storedRequest = JSON.parse(
+          sessionStorage.getItem("latestServiceRequest") || "null"
+        );
+
+        const contact = String(storedRequest?.contact || "")
+          .trim()
+          .replace(/\s+/g, "");
+
+        if (!/^0\d{9}$/.test(contact)) {
+          return;
+        }
+
+        const response = await fetch(
+          `http://localhost:5000/api/service-requests/customer/${contact}/latest`
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.request) {
+          return;
+        }
+
+        const latestRequest = result.request;
+        const latestStatus = String(
+          latestRequest.requestStatus || "Pending"
+        ).toLowerCase();
+
+        const ticketNumber =
+          latestRequest.ticketNumber ||
+          storedRequest?.ticketNumber ||
+          `SR-${String(latestRequest.requestId || storedRequest?.requestId || "")
+            .padStart(4, "0")}`;
+
+        const updatedStoredRequest = {
+          ...storedRequest,
+          ...latestRequest,
+          id: latestRequest.requestId,
+          requestId: latestRequest.requestId,
+          ticketNumber,
+          contact,
+          status: latestStatus,
+          requestStatus: latestRequest.requestStatus || "Pending",
+        };
+
+        sessionStorage.setItem(
+          "latestServiceRequest",
+          JSON.stringify(updatedStoredRequest)
+        );
+
+        if (!isMounted || !["accepted", "rejected"].includes(latestStatus)) {
+          return;
+        }
+
+        const notificationKey = `customerRequestNotification:${latestRequest.requestId}:${latestStatus}`;
+
+        if (sessionStorage.getItem(notificationKey)) {
+          return;
+        }
+
+        sessionStorage.setItem(notificationKey, "shown");
+
+        if (latestStatus === "accepted") {
+          setCustomerStatusPopup({
+            show: true,
+            title: "Request Accepted",
+            message: `Your request has been accepted by ${
+  latestRequest.garageName || "the selected garage"
+}.
+
+Garage Contact: ${
+  latestRequest.garageContact || "Not available"
+}
+
+The garage will contact you shortly. If you need immediate assistance, you may call the above number.`,
+            ticketNumber,
+            status: "accepted",
+          });
+        } else {
+          setCustomerStatusPopup({
+            show: true,
+            title: "Request Rejected",
+            message:
+              "Your request could not be accepted by the selected garage. Please select another garage and submit a new request.",
+            ticketNumber,
+            status: "rejected",
+          });
+        }
+      } catch (error) {
+        console.error("Check customer request status error:", error);
+      }
+    };
+
+    checkLatestRequestStatus();
+    intervalId = window.setInterval(checkLatestRequestStatus, 5000);
+
+    return () => {
+      isMounted = false;
+
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, []);
+
 
   const resetForm = () => {
     setRequestData({
@@ -446,17 +564,23 @@ export default function GarageMap({
       setRequestSubmitting(true);
 
       const payload = {
-        customerName: validatedData.customerName,
-        contact: validatedData.contact,
-        vehicleNumber: validatedData.vehicleNumber,
-        vehicleType: validatedData.vehicleType,
-        vehicleModel: validatedData.vehicleType,
-        garageId: selectedGarage.id,
-        location: "Customer Live GPS Location",
-        customerLatitude: userLocation[0],
-        customerLongitude: userLocation[1],
-        requestType: "Garage Service",
-      };
+  customerName: validatedData.customerName,
+  contact: validatedData.contact,
+  vehicleNumber: validatedData.vehicleNumber,
+  vehicleType: validatedData.vehicleType,
+  vehicleModel: validatedData.vehicleType,
+  garageId: selectedGarage.id,
+  location: "Customer Live GPS Location",
+  customerLatitude: userLocation[0],
+  customerLongitude: userLocation[1],
+  requestType: "Garage Service",
+
+  estimatedDistance:
+    selectedGarage?.distance || "",
+
+  estimatedTime:
+    selectedGarage?.time || "",
+};
 
       const response = await fetch(
         "http://localhost:5000/api/service-requests",
@@ -481,6 +605,9 @@ export default function GarageMap({
       const savedRequest = {
         id: result.request.requestId,
         requestId: result.request.requestId,
+        ticketNumber:
+          result.request.ticketNumber ||
+          `SR-${String(result.request.requestId).padStart(4, "0")}`,
         name: validatedData.customerName,
         contact: validatedData.contact,
         vehicle: validatedData.vehicleType,
@@ -592,15 +719,26 @@ export default function GarageMap({
 
       <div className="w-screen h-screen max-h-screen overflow-hidden bg-[#02050b] text-[#cbd5e1] font-mono flex flex-col">
       <div className="w-full h-14 border-b border-slate-900 bg-[#02050b]/90 backdrop-blur-md px-3 md:px-6 flex items-center justify-between z-20 text-xs shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="flex h-2 w-2 relative shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-          </span>
-          <span className="text-slate-400 font-bold tracking-widest">
-            LIVE GARAGE MAP
-          </span>
-        </div>
+        <div className="flex items-center gap-3 min-w-0">
+  <button
+    type="button"
+    onClick={() => onNavigate("customer-login")}
+    className="flex items-center gap-2 px-3 py-2 border border-slate-700 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:text-cyan-300 hover:border-cyan-500 transition-all"
+  >
+    ← BACK
+  </button>
+
+  <div className="flex items-center gap-2">
+    <span className="flex h-2 w-2 relative shrink-0">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+    </span>
+
+    <span className="text-slate-400 font-bold tracking-widest">
+      LIVE GARAGE MAP
+    </span>
+  </div>
+</div>
 
         <div className="flex items-center gap-2 md:gap-3 shrink-0">
           <div className="text-right hidden sm:block">
@@ -1115,6 +1253,77 @@ export default function GarageMap({
           </div>
         )}
 
+        {customerStatusPopup.show && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[1000] px-4">
+            <div
+              className={`w-full max-w-md rounded-xl border p-6 text-center shadow-2xl ${
+                customerStatusPopup.status === "accepted"
+                  ? "border-emerald-500/40 bg-[#0b1120] shadow-[0_0_35px_rgba(16,185,129,0.25)]"
+                  : "border-red-500/40 bg-[#0b1120] shadow-[0_0_35px_rgba(239,68,68,0.22)]"
+              }`}
+            >
+              <h2
+                className={`text-xl font-black uppercase tracking-widest mb-3 ${
+                  customerStatusPopup.status === "accepted"
+                    ? "text-emerald-400"
+                    : "text-red-400"
+                }`}
+              >
+                {customerStatusPopup.title}
+              </h2>
+
+              <div className="mb-4 rounded-lg border border-slate-700/70 bg-black/20 px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Ticket Number
+                </p>
+                <p className="mt-1 text-base font-black tracking-wider text-cyan-300">
+                  {customerStatusPopup.ticketNumber}
+                </p>
+              </div>
+
+              <p className="text-sm leading-6 text-slate-300 whitespace-pre-line">
+  {customerStatusPopup.message}
+</p>
+
+              {customerStatusPopup.status === "accepted" ? (
+  <button
+    type="button"
+    onClick={() => {
+      setCustomerStatusPopup({
+        show: false,
+        title: "",
+        message: "",
+        ticketNumber: "",
+        status: "",
+      });
+
+      onNavigate("navigation-hub");
+    }}
+    className="mt-6 w-full rounded-lg bg-emerald-600 py-3.5 text-sm font-bold uppercase tracking-widest text-white hover:bg-emerald-500"
+  >
+    Go to Navigation Hub
+  </button>
+) : (
+  <button
+    type="button"
+    onClick={() =>
+      setCustomerStatusPopup({
+        show: false,
+        title: "",
+        message: "",
+        ticketNumber: "",
+        status: "",
+      })
+    }
+    className="mt-6 w-full rounded-lg bg-indigo-600 py-3.5 text-sm font-bold uppercase tracking-widest text-white hover:bg-indigo-500"
+  >
+    Close
+  </button>
+)}
+            </div>
+          </div>
+        )}
+
         {showSuccessMessage && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[999] px-4">
             <div className="w-full max-w-md bg-[#0b1120] border border-emerald-500/40 rounded-xl p-6 text-center shadow-[0_0_35px_rgba(16,185,129,0.25)]">
@@ -1122,10 +1331,19 @@ export default function GarageMap({
                 Request Submitted
               </h2>
 
-              <p className="text-slate-300 text-sm mb-6">
+              <p className="text-slate-300 text-sm">
                 Your request was submitted successfully and is waiting for
                 assistance approval.
               </p>
+
+              <div className="my-5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Ticket Number
+                </p>
+                <p className="mt-1 text-base font-black tracking-wider text-cyan-300">
+                  {selectedGarage?.customerRequest?.ticketNumber || "Pending"}
+                </p>
+              </div>
 
               <button
                 type="button"

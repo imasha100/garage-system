@@ -37,6 +37,10 @@ const serviceRequestRoutes = require(
   "./routes/serviceRequestRoutes"
 );
 
+const towDispatchRoutes = require(
+  "./routes/towDispatchRoutes"
+);
+
 const vehicleTypeRoutes = require(
   "./routes/vehicleTypeRoutes"
 );
@@ -90,6 +94,9 @@ app.use("/api", externalTruckRequestRoutes);
 
 // Customer Service Requests
 app.use("/api", serviceRequestRoutes);
+
+// Tow Dispatch
+app.use("/api", towDispatchRoutes);
 
 // Vehicle Types
 app.use("/api", vehicleTypeRoutes);

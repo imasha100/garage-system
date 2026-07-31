@@ -8,9 +8,7 @@ const {
   acceptServiceRequest,
   rejectServiceRequest,
   getLatestCustomerRequest,
-} = require(
-  "../controllers/serviceRequestController"
-);
+} = require("../controllers/serviceRequestController");
 
 // ======================================================
 // CREATE CUSTOMER SERVICE REQUEST
@@ -24,11 +22,6 @@ router.post(
 
 // ======================================================
 // GET SERVICE REQUESTS
-//
-// Examples:
-// GET /api/service-requests
-// GET /api/service-requests?garageId=1
-// GET /api/service-requests?garageId=1&status=Pending
 // ======================================================
 
 router.get(
@@ -39,7 +32,7 @@ router.get(
 // ======================================================
 // GET LATEST REQUEST OF CUSTOMER
 //
-// GET /api/service-requests/customer/1/latest
+// GET /api/service-requests/customer/0712345678/latest
 // ======================================================
 
 router.get(
@@ -49,8 +42,6 @@ router.get(
 
 // ======================================================
 // GET SINGLE SERVICE REQUEST
-//
-// GET /api/service-requests/10
 // ======================================================
 
 router.get(
@@ -60,13 +51,6 @@ router.get(
 
 // ======================================================
 // ACCEPT SERVICE REQUEST
-//
-// PUT /api/service-requests/10/accept
-//
-// Body:
-// {
-//   "assistanceId": 1
-// }
 // ======================================================
 
 router.put(
@@ -76,8 +60,6 @@ router.put(
 
 // ======================================================
 // REJECT SERVICE REQUEST
-//
-// PUT /api/service-requests/10/reject
 // ======================================================
 
 router.put(

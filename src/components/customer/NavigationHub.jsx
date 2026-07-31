@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Bell, User, Menu, X } from "lucide-react";
+import { Bell, User, Menu, X, Truck, MapPin, Clock, Phone } from "lucide-react";
 
 import {
   MapContainer,
@@ -82,8 +82,17 @@ function RoutingMachine({
     });
 
     return () => {
+  try {
+    if (map && routingControl) {
       map.removeControl(routingControl);
-    };
+    }
+  } catch (error) {
+    console.warn(
+      "Routing cleanup skipped:",
+      error
+    );
+  }
+};
   }, [map, customerLocation, garageLocation]);
 
   useEffect(() => {
@@ -138,8 +147,39 @@ function MapAutoCenter({ position }) {
 export default function NavigationHub({ onNavigate, selectedGarage }) {
   const [activeTab, setActiveTab] = useState("navigation");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTowRequest, setActiveTowRequest] = useState(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("currentCustomerRequest") || "null"
+      );
+    } catch {
+      return null;
+    }
+  });
+  const [isLoadingTowRequest, setIsLoadingTowRequest] =
+    useState(false);
+  const [towRequestError, setTowRequestError] = useState("");
 
-  const customerLocation = [6.8728, 79.8887];
+  const savedRequest = JSON.parse(
+  sessionStorage.getItem("latestServiceRequest") || "null"
+);
+
+const savedCustomerLatitude = Number(
+  savedRequest?.customerLatitude
+);
+
+const savedCustomerLongitude = Number(
+  savedRequest?.customerLongitude
+);
+
+const customerLocation =
+  Number.isFinite(savedCustomerLatitude) &&
+  Number.isFinite(savedCustomerLongitude)
+    ? [
+        savedCustomerLatitude,
+        savedCustomerLongitude,
+      ]
+    : [6.8728, 79.8887];
 
   const garageLocation =
     selectedGarage?.lat && selectedGarage?.lng
@@ -155,6 +195,90 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
     setProgress(0);
     setIsAutoPilot(false);
   }, [selectedGarage]);
+
+  useEffect(() => {
+    if (activeTab !== "track-tow") return undefined;
+
+    const loadActiveTowRequest = async () => {
+      try {
+        setIsLoadingTowRequest(true);
+        setTowRequestError("");
+
+        const storedRequest = JSON.parse(
+          localStorage.getItem("currentCustomerRequest") || "null"
+        );
+
+        const dispatchId = Number(storedRequest?.dispatchId);
+
+        if (!Number.isInteger(dispatchId) || dispatchId <= 0) {
+          setActiveTowRequest(null);
+          return;
+        }
+
+        const response = await fetch(
+          `http://localhost:5000/api/tow-dispatches/${dispatchId}`
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success || !result.dispatch) {
+          throw new Error(
+            result.message || "Unable to load your tow truck request."
+          );
+        }
+
+        const updatedRequest = {
+          ...storedRequest,
+          dispatchId,
+          dispatchStatus: result.dispatch.dispatchStatus,
+          estimatedArrivalTime:
+            result.dispatch.estimatedArrivalTime ||
+            storedRequest?.estimatedArrivalTime,
+          selectedTruck: {
+            ...(storedRequest?.selectedTruck || {}),
+            number:
+              result.dispatch.truckNumber ||
+              storedRequest?.selectedTruck?.number,
+            driverName:
+              result.dispatch.driverName ||
+              storedRequest?.selectedTruck?.driverName,
+            phone:
+              result.dispatch.driverContact ||
+              storedRequest?.selectedTruck?.phone,
+            latitude:
+              result.dispatch.truckLatitude ??
+              storedRequest?.selectedTruck?.latitude,
+            longitude:
+              result.dispatch.truckLongitude ??
+              storedRequest?.selectedTruck?.longitude,
+          },
+        };
+
+        localStorage.setItem(
+          "currentCustomerRequest",
+          JSON.stringify(updatedRequest)
+        );
+
+        setActiveTowRequest(updatedRequest);
+      } catch (error) {
+        console.error("Load active tow request error:", error);
+        setTowRequestError(
+          error.message || "Unable to load your tow truck request."
+        );
+      } finally {
+        setIsLoadingTowRequest(false);
+      }
+    };
+
+    loadActiveTowRequest();
+
+    const intervalId = window.setInterval(
+      loadActiveTowRequest,
+      5000
+    );
+
+    return () => window.clearInterval(intervalId);
+  }, [activeTab]);
 
   if (!selectedGarage) {
     return (
@@ -184,7 +308,11 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
   return (
     <div className="w-screen h-screen bg-[#070814] text-slate-200 font-mono flex overflow-hidden">
       <div className="hidden md:block">
-        <CustomerSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <CustomerSidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onNavigate={onNavigate}
+        />
       </div>
 
       <div
@@ -213,6 +341,7 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
               setActiveTab(tab);
               setSidebarOpen(false);
             }}
+            onNavigate={onNavigate}
           />
         </div>
       </div>
@@ -232,7 +361,7 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-white leading-none">
-                  AMILA PERERA
+                  {savedRequest?.customerName || "Customer"}
                 </p>
                 <p className="text-[10px] text-purple-400 uppercase tracking-widest">
                   User
@@ -253,6 +382,20 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
                 {selectedGarage.name} - LOGISTICS SYNC
               </h1>
 
+              <p className="text-sm text-slate-400 mb-6">
+  Vehicle :
+  <span className="ml-2 font-bold text-cyan-400">
+    {savedRequest?.vehicleNumber || "-"}
+  </span>
+</p>
+
+<p className="text-sm text-slate-400 mb-6">
+  Ticket No :
+  <span className="ml-2 font-bold text-emerald-400">
+    {savedRequest?.ticketNumber || "-"}
+  </span>
+</p>
+
               <div className="grid lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 h-[450px] bg-black border border-slate-800 rounded overflow-hidden relative">
                   <MapContainer
@@ -267,7 +410,7 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
                     />
 
                     <Marker position={customerLocation}>
-                      <Popup>Current Location - Saegis Campus</Popup>
+                      <Popup>Customer Current Location</Popup>
                     </Marker>
 
                     <Marker position={garageLocation}>
@@ -366,7 +509,7 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
                         : "bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
                     }`}
                   >
-                    {isAutoPilot ? "MOVING..." : "START AUTO PILOT"}
+                    {isAutoPilot ? "NAVIGATING.." : "START NAVIGATION"}
                   </button>
 
                   <button
@@ -384,14 +527,158 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
                     onClick={() => onNavigate("garage-map")}
                     className="w-full mt-3 border border-slate-600 cursor-pointer text-slate-300 py-3 rounded font-bold hover:bg-slate-800"
                   >
-                    REROUTE TO SECONDARY
+                    SELECT ANOTHER GARAGE
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab === "mobility" && <MobilityRecovery />}
+          {activeTab === "mobility" && (
+  <MobilityRecovery
+    onNavigate={onNavigate}
+    setActiveTab={setActiveTab}
+  />
+)}
+          {activeTab === "track-tow" && (
+            <div className="mx-auto w-full max-w-4xl">
+              <div className="mb-6">
+                <h1 className="text-2xl font-black text-white">
+                  Track My Tow Truck
+                </h1>
+                <p className="mt-2 text-sm text-slate-400">
+                  View the latest status of your active tow truck request.
+                </p>
+              </div>
+
+              {isLoadingTowRequest && (
+                <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-5 text-cyan-200">
+                  Loading your active tow truck request...
+                </div>
+              )}
+
+              {!isLoadingTowRequest && towRequestError && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-300">
+                  {towRequestError}
+                </div>
+              )}
+
+              {!isLoadingTowRequest &&
+                !towRequestError &&
+                !activeTowRequest && (
+                  <div className="rounded-2xl border border-slate-800 bg-[#0c0d19] p-8 text-center">
+                    <Truck className="mx-auto h-12 w-12 text-slate-600" />
+
+                    <h2 className="mt-4 text-xl font-black text-white">
+                      No Active Tow Truck Request
+                    </h2>
+
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                      You currently do not have an active tow truck request.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("mobility")}
+                      className="mt-6 rounded-xl bg-red-600 px-6 py-3 font-bold text-white hover:bg-red-500"
+                    >
+                      Request A Tow Truck
+                    </button>
+                  </div>
+                )}
+
+              {!isLoadingTowRequest &&
+                !towRequestError &&
+                activeTowRequest && (
+                  <div className="rounded-2xl border border-cyan-500/30 bg-[#0c0d19] p-5 shadow-[0_0_30px_rgba(6,182,212,0.08)] md:p-7">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">
+                          Active Tow Truck
+                        </p>
+
+                        <h2 className="mt-2 text-2xl font-black text-white">
+                          {activeTowRequest?.selectedTruck?.number ||
+                            "Assigned Tow Truck"}
+                        </h2>
+                      </div>
+
+                      <span className="w-fit rounded-full bg-emerald-500/15 px-4 py-2 text-xs font-black uppercase text-emerald-300">
+                        {activeTowRequest.dispatchStatus ||
+                          "Pending Verification"}
+                      </span>
+                    </div>
+
+                    <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                      <div className="rounded-xl border border-slate-800 bg-black/20 p-4">
+                        <p className="flex items-center gap-2 text-xs text-slate-500">
+                          <User className="h-4 w-4" />
+                          Driver
+                        </p>
+
+                        <p className="mt-2 font-bold text-white">
+                          {activeTowRequest?.selectedTruck?.driverName ||
+                            "Awaiting assignment"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-800 bg-black/20 p-4">
+                        <p className="flex items-center gap-2 text-xs text-slate-500">
+                          <Phone className="h-4 w-4" />
+                          Contact
+                        </p>
+
+                        <p className="mt-2 font-bold text-white">
+                          {activeTowRequest?.selectedTruck?.phone ||
+                            "Not available"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-800 bg-black/20 p-4">
+                        <p className="flex items-center gap-2 text-xs text-slate-500">
+                          <Clock className="h-4 w-4" />
+                          Estimated Arrival
+                        </p>
+
+                        <p className="mt-2 font-bold text-white">
+                          {activeTowRequest?.selectedTruck?.etaMins
+                            ? `${activeTowRequest.selectedTruck.etaMins} Minutes`
+                            : activeTowRequest.estimatedArrivalTime ||
+                              "Not available"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-800 bg-black/20 p-4">
+                        <p className="flex items-center gap-2 text-xs text-slate-500">
+                          <MapPin className="h-4 w-4" />
+                          Distance
+                        </p>
+
+                        <p className="mt-2 font-bold text-white">
+                          {Number.isFinite(
+                            Number(activeTowRequest?.selectedTruck?.distanceKm)
+                          )
+                            ? `${Number(
+                                activeTowRequest.selectedTruck.distanceKm
+                              ).toFixed(1)} KM`
+                            : "Not available"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("mobility")}
+                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 py-3.5 font-bold text-white hover:bg-cyan-500"
+                    >
+                      <MapPin className="h-4 w-4" />
+                      View Live Route
+                    </button>
+                  </div>
+                )}
+            </div>
+          )}
+
           {activeTab === "progress" && <LiveProgress />}
           {activeTab === "invoice" && <InvoiceLedger />}
           {activeTab === "audit" && <ExperienceAudit />}
