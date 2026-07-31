@@ -5,12 +5,14 @@ import {
   Activity,
   FileText,
   ClipboardList,
-  
+  Truck,
+  LogOut,
 } from "lucide-react";
 
 export default function CustomerSidebar({
   activeTab,
   setActiveTab,
+  onNavigate,
 }) {
   const menuItems = [
     {
@@ -22,6 +24,11 @@ export default function CustomerSidebar({
       id: "mobility",
       label: "Mobility Recovery",
       icon: RefreshCw,
+    },
+    {
+      id: "track-tow",
+      label: "Track My Tow Truck",
+      icon: Truck,
     },
     {
       id: "progress",
@@ -40,9 +47,22 @@ export default function CustomerSidebar({
     },
   ];
 
+  const handleLogout = () => {
+    sessionStorage.removeItem("latestServiceRequest");
+    sessionStorage.removeItem("selectedGarage");
+    sessionStorage.removeItem("customerUser");
+    sessionStorage.removeItem("customerId");
+
+    if (typeof onNavigate === "function") {
+      onNavigate("start");
+      return;
+    }
+
+    window.location.href = "/";
+  };
+
   return (
     <div className="w-72 h-screen bg-[#070b0f] text-slate-400 flex flex-col justify-between border-r-4 border-blue-500 font-mono">
-      {/* Header */}
       <div className="p-8">
         <h1 className="text-white font-black text-2xl tracking-widest">
           GEAR_OS
@@ -52,7 +72,6 @@ export default function CustomerSidebar({
           Enterprise Terminal
         </p>
 
-        {/* Navigation */}
         <nav className="flex flex-col gap-4 mt-10">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -61,6 +80,7 @@ export default function CustomerSidebar({
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => setActiveTab(item.id)}
                 className={`flex items-center gap-4 px-5 py-4 rounded-xl border transition-all duration-300 ${
                   isActive
@@ -79,8 +99,19 @@ export default function CustomerSidebar({
         </nav>
       </div>
 
-      
-      
+      <div className="p-6 border-t border-slate-800">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500 hover:text-white transition-all duration-300"
+        >
+          <LogOut className="w-5 h-5" />
+
+          <span className="text-sm font-bold uppercase tracking-wider">
+            Logout
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

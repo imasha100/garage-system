@@ -386,21 +386,52 @@ const getAllGarages = async (req, res) => {
   try {
     const [garages] = await db.query(`
       SELECT
-        garage_id,
-        garage_code,
-        garage_name,
-        contact_number,
-        address,
-        latitude,
-        longitude,
-        capacity,
-        opening_time,
-        closing_time,
-        shift_type,
-        district,
-        working_days
-      FROM garage
-      ORDER BY garage_id ASC
+        g.garage_id,
+        g.garage_code,
+        g.garage_name,
+        g.contact_number,
+        g.address,
+        g.latitude,
+        g.longitude,
+        g.capacity,
+        g.opening_time,
+        g.closing_time,
+        g.shift_type,
+        g.district,
+        g.working_days,
+
+        COUNT(
+          CASE
+            WHEN sr.request_status IN (
+              'Accepted',
+              'In Progress'
+            )
+            THEN sr.request_id
+          END
+        ) AS current_capacity
+
+      FROM garage g
+
+      LEFT JOIN service_request sr
+        ON sr.garage_garage_id =
+           g.garage_id
+
+      GROUP BY
+        g.garage_id,
+        g.garage_code,
+        g.garage_name,
+        g.contact_number,
+        g.address,
+        g.latitude,
+        g.longitude,
+        g.capacity,
+        g.opening_time,
+        g.closing_time,
+        g.shift_type,
+        g.district,
+        g.working_days
+
+      ORDER BY g.garage_id ASC
     `);
 
     return res.status(200).json({
@@ -415,8 +446,11 @@ const getAllGarages = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Unable to load garages.",
-      error: error.sqlMessage || error.message,
+      message:
+        "Unable to load garages.",
+      error:
+        error.sqlMessage ||
+        error.message,
     });
   }
 };

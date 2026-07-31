@@ -125,11 +125,12 @@ function App() {
       );
 
     case "customer-login":
-      return (
-        <CustomerLogin
-          onNavigate={handleNavigate}
-        />
-      );
+  return (
+    <CustomerLogin
+      onNavigate={handleNavigate}
+      setSelectedGarage={setSelectedGarage}
+    />
+  );
 
     case "staff-login":
       return (

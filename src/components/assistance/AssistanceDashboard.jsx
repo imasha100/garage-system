@@ -382,19 +382,19 @@ export default function AssistanceDashboard({
       />
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
-        {/* Header is displayed only on the Assistance Dashboard */}
-        {view === "Dashboard" && (
-          <header className="h-16 shrink-0 flex items-center justify-between px-3 sm:px-6 bg-black border-b border-blue-900/40">
-            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-              <button
-                type="button"
-                className="md:hidden shrink-0 text-slate-300 hover:text-white"
-                onClick={() => setIsSidebarOpen(true)}
-                aria-label="Open sidebar"
-              >
-                <Menu size={21} />
-              </button>
+        {/* Common header is displayed on every Assistance page */}
+        <header className="h-16 shrink-0 flex items-center justify-between px-3 sm:px-6 bg-black border-b border-blue-900/40">
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+            <button
+              type="button"
+              className="md:hidden shrink-0 text-slate-300 hover:text-white"
+              onClick={() => setIsSidebarOpen(true)}
+              aria-label="Open sidebar"
+            >
+              <Menu size={21} />
+            </button>
 
+            {view === "Dashboard" ? (
               <div className="relative w-full max-w-md">
                 <Search
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
@@ -411,46 +411,55 @@ export default function AssistanceDashboard({
                   className="w-full bg-black border border-slate-800 py-2 pl-10 pr-4 rounded-md text-xs focus:outline-none focus:border-blue-500"
                 />
               </div>
-            </div>
+            ) : (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black uppercase tracking-wider text-white">
+                  {view}
+                </p>
+                <p className="mt-0.5 hidden text-[10px] uppercase tracking-widest text-slate-500 sm:block">
+                  Assistance Management
+                </p>
+              </div>
+            )}
+          </div>
 
-            <div className="flex items-center gap-3 sm:gap-6 ml-3">
-              <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                ONLINE
-              </span>
+          <div className="flex items-center gap-3 sm:gap-6 ml-3">
+            <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+              ONLINE
+            </span>
 
-              <button
-                type="button"
-                className="text-slate-400 hover:text-white transition"
-                aria-label="Notifications"
-              >
-                <Bell size={17} />
-              </button>
+            <button
+              type="button"
+              className="text-slate-400 hover:text-white transition"
+              aria-label="Notifications"
+            >
+              <Bell size={17} />
+            </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleNavigate("Assistance Profile")
-                }
-                className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition hover:border-blue-900/50 hover:bg-blue-950/20"
-                aria-label="Open assistance profile"
-              >
-                <div className="hidden max-w-[180px] text-right sm:block">
-                  <p className="truncate text-xs font-bold text-white">
-                    {isLoadingOfficer ? "Loading..." : officerName}
-                  </p>
-                  <p className="mt-0.5 text-[9px] uppercase tracking-widest text-slate-500">
-                    Assistance Officer
-                  </p>
-                </div>
+            <button
+              type="button"
+              onClick={() =>
+                handleNavigate("Assistance Profile")
+              }
+              className="group flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition hover:border-blue-900/50 hover:bg-blue-950/20"
+              aria-label="Open assistance profile"
+            >
+              <div className="hidden max-w-[180px] text-right sm:block">
+                <p className="truncate text-xs font-bold text-white">
+                  {isLoadingOfficer ? "Loading..." : officerName}
+                </p>
+                <p className="mt-0.5 text-[9px] uppercase tracking-widest text-slate-500">
+                  Assistance Officer
+                </p>
+              </div>
 
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-700 text-slate-400 transition group-hover:border-blue-500 group-hover:text-white">
-                  <User size={15} />
-                </div>
-              </button>
-            </div>
-          </header>
-        )}
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-700 text-slate-400 transition group-hover:border-blue-500 group-hover:text-white">
+                <User size={15} />
+              </div>
+            </button>
+          </div>
+        </header>
 
         <div className="flex-1 min-h-0 overflow-hidden">
           {renderContent()}
