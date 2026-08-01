@@ -7,9 +7,6 @@ import {
   X,
   Clock,
   Navigation,
-  Search,
-  Bell,
-  Menu,
 } from "lucide-react";
 
 import {
@@ -154,7 +151,7 @@ const calculateTravelDetails = (
 // ======================================================
 
 const ResourceSchedule = ({
-  openSidebar,
+  searchQuery = "",
 }) => {
   const [
   currentCapacity,
@@ -196,11 +193,6 @@ const [
   ] = useState({});
 
   const [
-    searchQuery,
-    setSearchQuery,
-  ] = useState("");
-
-  const [
     emergencyRequests,
     setEmergencyRequests,
   ] = useState([]);
@@ -235,31 +227,37 @@ const [
     setGarageId,
   ] = useState(null);
 
-  const [
-    availableTechs,
-    setAvailableTechs,
-  ] = useState([
-    "David Vance",
-    "Sarah Jenkins",
-  ]);
+  const [availableTechs, setAvailableTechs] = useState([]);
 
-  const [
-    activeTechs,
-    setActiveTechs,
-  ] = useState([
-    {
-      name: "Marcus Thorne",
-      task: "Hybrid System",
-      completion: 65,
-      time: "18 Mins",
-    },
-    {
-      name: "Alex Mercer",
-      task: "Mechanical Overhaul",
-      completion: 30,
-      time: "42 Mins",
-    },
-  ]);
+const [activeTechs, setActiveTechs] = useState([]);
+
+const [offShiftTechs, setOffShiftTechs] = useState([]);
+
+const [techniciansLoading, setTechniciansLoading] = useState(false);
+
+const [techniciansError, setTechniciansError] = useState("");
+
+  const [extensionModal, setExtensionModal] = useState(null);
+  const [extensionTime, setExtensionTime] = useState("");
+  const [extensionReason, setExtensionReason] = useState("");
+  const [extensionLoading, setExtensionLoading] = useState(false);
+
+  const extensionTimeOptions = Array.from(
+    { length: 16 },
+    (_, index) => {
+      const totalMinutes = (index + 1) * 15;
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+
+      return {
+        value: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`,
+        label:
+          hours > 0
+            ? `${hours} hr${hours > 1 ? "s" : ""}${minutes > 0 ? ` ${minutes} min` : ""}`
+            : `${minutes} min`,
+      };
+    }
+  );
 
   // ====================================================
   // NORMALISE SERVICE REQUEST
@@ -497,6 +495,141 @@ if (
   );
 }
 
+// ==========================================
+// LOAD TECHNICIANS FOR THIS GARAGE
+// ==========================================
+
+setTechniciansLoading(true);
+setTechniciansError("");
+
+const techniciansResponse = await fetch(
+  `http://localhost:5000/api/technicians?garageId=${relatedGarageId}`
+);
+
+const techniciansResult =
+  await techniciansResponse.json();
+
+if (
+  !techniciansResponse.ok ||
+  techniciansResult.success === false
+) {
+  throw new Error(
+    techniciansResult.message ||
+      "Unable to load technicians."
+  );
+}
+
+const garageTechnicians = Array.isArray(
+  techniciansResult.technicians
+)
+  ? techniciansResult.technicians
+  : [];
+
+// ======================================================
+// FILTER TECHNICIANS BY SHIFT + AVAILABILITY
+// ======================================================
+
+const isTechnicianOnShift = (technician) => {
+  const shiftStatus = String(
+    technician.shiftStatus ??
+      technician.shift_status ??
+      ""
+  )
+    .trim()
+    .toUpperCase();
+
+  return (
+    shiftStatus === "ON" ||
+    shiftStatus === "ON_SHIFT" ||
+    shiftStatus === "ON-SHIFT" ||
+    shiftStatus === "ACTIVE"
+  );
+};
+
+const availableTechnicians =
+  garageTechnicians.filter((technician) => {
+    const availabilityStatus = String(
+      technician.availabilityStatus ??
+        technician.availability_status ??
+        ""
+    )
+      .trim()
+      .toUpperCase();
+
+    return (
+      isTechnicianOnShift(technician) &&
+      availabilityStatus === "AVAILABLE"
+    );
+  });
+
+const busyTechnicians =
+  garageTechnicians.filter((technician) => {
+    const availabilityStatus = String(
+      technician.availabilityStatus ??
+        technician.availability_status ??
+        ""
+    )
+      .trim()
+      .toUpperCase();
+
+    return (
+      isTechnicianOnShift(technician) &&
+      availabilityStatus !== "AVAILABLE"
+    );
+  });
+
+const offShiftTechnicians =
+  garageTechnicians.filter(
+    (technician) =>
+      !isTechnicianOnShift(technician)
+  );
+
+setAvailableTechs(
+  availableTechnicians
+);
+
+setOffShiftTechs(
+  offShiftTechnicians
+);
+
+const activeTechniciansWithJobs = await Promise.all(
+  busyTechnicians.map(async (technician) => {
+    try {
+      const jobsResponse = await fetch(
+        `http://localhost:5000/api/service-jobs/technician/${technician.technicianId}`
+      );
+
+      const jobsResult = await jobsResponse.json();
+
+      if (!jobsResponse.ok || jobsResult.success === false) {
+        return { ...technician, jobId: null, jobStatus: "", vehicleNumber: "", ticketNumber: "", estimatedCompletionTime: null };
+      }
+
+      const technicianJobs = Array.isArray(jobsResult.jobs) ? jobsResult.jobs : [];
+      const activeJob =
+        technicianJobs.find((job) => String(job.jobStatus || "").toUpperCase() === "IN_PROGRESS") ||
+        technicianJobs.find((job) => String(job.jobStatus || "").toUpperCase() === "ASSIGNED") ||
+        null;
+
+      return {
+        ...technician,
+        jobId: activeJob?.jobId ?? null,
+        jobStatus: activeJob?.jobStatus || "",
+        vehicleNumber: activeJob?.vehicleNumber || "",
+        ticketNumber: activeJob?.ticketNumber || "",
+        estimatedCompletionTime: activeJob?.estimatedCompletionTime || null,
+      };
+    } catch (error) {
+      console.error("Load technician active job error:", error);
+      return { ...technician, jobId: null, jobStatus: "", vehicleNumber: "", ticketNumber: "", estimatedCompletionTime: null };
+    }
+  })
+);
+
+setActiveTechs(activeTechniciansWithJobs);
+
+setTechniciansLoading(false);
+
 const currentGarage = (
   Array.isArray(garagesResult.data)
     ? garagesResult.data
@@ -652,18 +785,35 @@ setCurrentCapacity(
   // ALLOCATE TECHNICIAN
   // ====================================================
 
-  const handleAllocate = (
-    techName
-  ) => {
-    const vehicleNumber =
-      selectedVehicles[techName];
+  const handleAllocate = async (technician) => {
+    const shiftStatus = String(
+      technician.shiftStatus ??
+        technician.shift_status ??
+        ""
+    )
+      .trim()
+      .toUpperCase();
 
-    if (!vehicleNumber) {
+    const availabilityStatus = String(
+      technician.availabilityStatus ??
+        technician.availability_status ??
+        ""
+    )
+      .trim()
+      .toUpperCase();
+
+    const isOnShift =
+      shiftStatus === "ON" ||
+      shiftStatus === "ON_SHIFT" ||
+      shiftStatus === "ON-SHIFT" ||
+      shiftStatus === "ACTIVE";
+
+    if (!isOnShift) {
       setPopup({
         show: true,
-        title: "SELECT VEHICLE",
+        title: "TECHNICIAN OFF SHIFT",
         message:
-          "Please select a vehicle to allocate.",
+          `${technician.fullName || technician.name || "This technician"} is currently off shift and cannot be allocated.`,
         color: "#e78181",
         showCancel: false,
         requestData: null,
@@ -672,38 +822,190 @@ setCurrentCapacity(
       return;
     }
 
-    setAvailableTechs(
-      (previousTechnicians) =>
-        previousTechnicians.filter(
-          (technician) =>
-            technician !== techName
-        )
+    if (availabilityStatus !== "AVAILABLE") {
+      setPopup({
+        show: true,
+        title: "TECHNICIAN UNAVAILABLE",
+        message:
+          `${technician.fullName || technician.name || "This technician"} is currently busy and cannot be allocated to another vehicle.`,
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+
+      return;
+    }
+
+    const vehicleNumber = selectedVehicles[technician.technicianId];
+
+    if (!vehicleNumber) {
+      setPopup({
+        show: true,
+        title: "SELECT VEHICLE",
+        message: "Please select a vehicle to allocate.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+      return;
+    }
+
+    const selectedRequest = acceptedRequests.find(
+      (request) => request.vNo === vehicleNumber
     );
 
-    setActiveTechs(
-      (previousTechnicians) => [
-        ...previousTechnicians,
+    if (!selectedRequest) {
+      setPopup({
+        show: true,
+        title: "REQUEST NOT FOUND",
+        message: "Unable to identify the selected service request.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+
+      const response = await fetch(
+        "http://localhost:5000/api/service-jobs/assign",
         {
-          name: techName,
-          task:
-            `Assigned: ${vehicleNumber}`,
-          completion: 0,
-          time: "Just Now",
-        },
-      ]
-    );
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId: selectedRequest.requestId,
+            technicianId: technician.technicianId,
+            assistanceId,
+            garageId,
+          }),
+        }
+      );
 
-    setPopup({
-      show: true,
-      title:
-        "TECHNICIAN ALLOCATED",
-      message:
-        `${techName} has been assigned to vehicle ${vehicleNumber}.`,
-      color: "#52f0ac",
-      showCancel: false,
-      requestData: null,
-    });
+      const result = await response.json();
+
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || "Unable to assign technician.");
+      }
+
+      setSelectedVehicles((previousVehicles) => {
+        const updatedVehicles = { ...previousVehicles };
+        delete updatedVehicles[technician.technicianId];
+        return updatedVehicles;
+      });
+
+      setPopup({
+        show: true,
+        title: "TECHNICIAN ALLOCATED",
+        message: `${technician.fullName} has been assigned to vehicle ${vehicleNumber}.`,
+        color: "#52f0ac",
+        showCancel: false,
+        requestData: selectedRequest,
+      });
+
+      await loadRequests();
+    } catch (error) {
+      console.error("Technician allocation error:", error);
+      setPopup({
+        show: true,
+        title: "ALLOCATION FAILED",
+        message: error.message || "Unable to assign technician.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+    } finally {
+      setActionLoading(false);
+    }
   };
+
+  const openExtensionModal = (technician) => {
+    if (!technician?.jobId || String(technician.jobStatus || "").toUpperCase() !== "IN_PROGRESS") {
+      setPopup({
+        show: true,
+        title: "JOB NOT STARTED",
+        message: "Extra time can be added only after the technician starts the job.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+      return;
+    }
+
+    setExtensionModal(technician);
+    setExtensionTime("");
+    setExtensionReason("");
+  };
+
+  const closeExtensionModal = () => {
+    if (extensionLoading) return;
+    setExtensionModal(null);
+    setExtensionTime("");
+    setExtensionReason("");
+  };
+
+  const handleExtendTime = async () => {
+    if (!extensionModal || extensionLoading) return;
+
+    if (!extensionTime) {
+      setPopup({ show: true, title: "SELECT EXTRA TIME", message: "Please select the extra time requested by the technician.", color: "#e78181", showCancel: false, requestData: null });
+      return;
+    }
+
+    if (!extensionReason.trim()) {
+      setPopup({ show: true, title: "REASON REQUIRED", message: "Please enter the reason for the time extension.", color: "#e78181", showCancel: false, requestData: null });
+      return;
+    }
+
+    try {
+      setExtensionLoading(true);
+      const response = await fetch("http://localhost:5000/api/time-extensions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: extensionModal.jobId,
+          technicianId: extensionModal.technicianId,
+          extraTime: extensionTime,
+          reason: extensionReason.trim(),
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || "Unable to extend the service job time.");
+      }
+
+      const technicianName = extensionModal.fullName || extensionModal.name || "Technician";
+      setExtensionModal(null);
+      setExtensionTime("");
+      setExtensionReason("");
+
+      setPopup({
+        show: true,
+        title: "TIME EXTENDED",
+        message: `${technicianName} received the requested additional time successfully.`,
+        color: "#52f0ac",
+        showCancel: false,
+        requestData: null,
+      });
+
+      await loadRequests();
+    } catch (error) {
+      console.error("Extend service time error:", error);
+      setPopup({
+        show: true,
+        title: "TIME EXTENSION FAILED",
+        message: error.message || "Unable to extend the service job time.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+    } finally {
+      setExtensionLoading(false);
+    }
+  };
+
     // ====================================================
   // ACCEPT REQUEST
   // ====================================================
@@ -1302,57 +1604,7 @@ setCurrentCapacity(
     <div className="w-full h-full min-h-0 bg-[#0b0e14] text-[#a0a8b7] font-sans overflow-hidden flex flex-col">
       {/* HEADER */}
 
-      <header className="h-16 shrink-0 flex items-center justify-between px-4 md:px-6 bg-black border-b border-blue-900/40">
-        <div className="flex items-center gap-4 flex-1">
-          <button
-            type="button"
-            onClick={openSidebar}
-            className="md:hidden text-slate-300 hover:text-white cursor-pointer"
-            aria-label="Open sidebar"
-          >
-            <Menu size={20} />
-          </button>
-
-          <div className="relative w-full max-w-md">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              size={16}
-            />
-
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) =>
-                setSearchQuery(
-                  event.target.value
-                )
-              }
-              placeholder="Search ticket, customer, contact or vehicle..."
-              className="w-full bg-black border border-slate-800 py-2 pl-10 pr-4 rounded-md text-xs text-white focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 md:gap-6 ml-4">
-          <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-
-            ONLINE
-          </span>
-
-          <button
-            type="button"
-            className="text-slate-300 hover:text-white cursor-pointer"
-            aria-label="Notifications"
-          >
-            <Bell size={16} />
-          </button>
-
-          <div className="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center">
-            <User size={14} />
-          </div>
-        </div>
-      </header>
+      
 
       <div className="flex-1 min-h-0 w-full bg-[#0b0e14] text-[#a0a8b7] p-4 md:p-8 font-sans overflow-y-auto relative">
         {/* REQUEST DETAILS MODAL */}
@@ -1475,6 +1727,75 @@ setCurrentCapacity(
                     }
                   </span>
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TIME EXTENSION MODAL */}
+
+        {extensionModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
+            <div className="bg-[#15191f] border border-[#2b313d] rounded-xl p-6 md:p-8 w-full max-w-[480px] shadow-xl relative">
+              <button
+                type="button"
+                onClick={closeExtensionModal}
+                disabled={extensionLoading}
+                className="absolute right-4 top-4 text-[#6e7681] hover:text-white disabled:opacity-50"
+              >
+                <X size={20} />
+              </button>
+
+              <h2 className="text-xl font-bold text-white mb-2">EXTEND REPAIR TIME</h2>
+              <p className="text-sm text-[#6e7681] mb-6">Record the extra time requested verbally by the technician.</p>
+
+              <div className="bg-[#0b0e14] border border-[#1a1f26] rounded-lg p-4 mb-5 space-y-2">
+                <p className="text-sm">Technician: <span className="text-white font-bold">{extensionModal.fullName || extensionModal.name || "Technician"}</span></p>
+                <p className="text-sm">Vehicle: <span className="text-[#3b82f6] font-bold">{extensionModal.vehicleNumber || "Not available"}</span></p>
+                <p className="text-sm">Ticket: <span className="text-white">{extensionModal.ticketNumber || "Not available"}</span></p>
+                <p className="text-sm">Current Estimated Completion: <span className="text-white">{extensionModal.estimatedCompletionTime ? new Date(extensionModal.estimatedCompletionTime).toLocaleString() : "Not available"}</span></p>
+              </div>
+
+              <label className="block text-xs uppercase tracking-wider text-[#6e7681] mb-2">Extra Time</label>
+              <select
+                value={extensionTime}
+                onChange={(event) => setExtensionTime(event.target.value)}
+                disabled={extensionLoading}
+                className="w-full bg-[#0b0e14] border border-[#2b313d] text-white rounded-lg px-4 py-3 mb-4 outline-none focus:border-[#3b82f6]"
+              >
+                <option value="">Select Extra Time</option>
+                {extensionTimeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+
+              <label className="block text-xs uppercase tracking-wider text-[#6e7681] mb-2">Reason</label>
+              <textarea
+                value={extensionReason}
+                onChange={(event) => setExtensionReason(event.target.value)}
+                disabled={extensionLoading}
+                rows={4}
+                placeholder="Enter the reason given by the technician..."
+                className="w-full resize-none bg-[#0b0e14] border border-[#2b313d] text-white rounded-lg px-4 py-3 outline-none focus:border-[#3b82f6]"
+              />
+
+              <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={handleExtendTime}
+                  disabled={extensionLoading}
+                  className="flex-1 bg-[#3b82f6] hover:bg-[#45cc92] disabled:opacity-60 text-black font-bold py-3 rounded-lg"
+                >
+                  {extensionLoading ? "UPDATING..." : "CONFIRM EXTENSION"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeExtensionModal}
+                  disabled={extensionLoading}
+                  className="flex-1 border border-[#6e7681] text-white disabled:opacity-60 py-3 rounded-lg"
+                >
+                  CANCEL
+                </button>
               </div>
             </div>
           </div>
@@ -1868,82 +2189,87 @@ setCurrentCapacity(
                 AVAILABLE TECHNICIANS
               </h2>
 
-              {availableTechs.length > 0 ? (
-                availableTechs.map(
-                  (technician) => (
-                    <div
-                      key={technician}
-                      className="bg-[#0b0e14] rounded-lg border border-[#1a1f26] p-4 mb-4"
-                    >
-                      <div className="flex gap-3 items-center mb-2">
-                        <User size={35} />
+               {techniciansLoading ? (
+  <p className="text-sm text-[#6e7681]">
+    Loading technicians...
+  </p>
+) : techniciansError ? (
+  <p className="text-sm text-[#e78181]">
+    {techniciansError}
+  </p>
+) : availableTechs.length > 0 ? (
+  availableTechs.map(
+    (technician) => (
+      <div
+        key={technician.technicianId}
+        className="bg-[#0b0e14] rounded-lg border border-[#1a1f26] p-4 mb-4"
+      >
+        <div className="flex gap-3 items-center mb-2">
+          <User size={35} />
 
-                        <p className="text-white font-bold">
-                          {technician}
-                        </p>
-                      </div>
+          <div>
+            <p className="text-white font-bold">
+              {technician.fullName}
+            </p>
 
-                      <select
-                        className="w-full bg-[#15191f] border border-[#1a2e26] text-white p-2 mb-2 rounded text-sm"
-                        value={
-                          selectedVehicles[
-                            technician
-                          ] || ""
-                        }
-                        onChange={(event) =>
-                          setSelectedVehicles(
-                            (
-                              previousVehicles
-                            ) => ({
-                              ...previousVehicles,
-                              [technician]:
-                                event.target
-                                  .value,
-                            })
-                          )
-                        }
-                      >
-                        <option value="">
-                          Select Vehicle
-                        </option>
+            <p className="text-xs text-[#6e7681]">
+              {technician.specialization?.length > 0
+                ? technician.specialization.join(", ")
+                : "No specialization"}
+            </p>
+          </div>
+        </div>
 
-                        {acceptedRequests.map(
-                          (request) => (
-                            <option
-                              key={
-                                request.id
-                              }
-                              value={
-                                request.vNo
-                              }
-                            >
-                              {
-                                request.ticketNumber
-                              }{" "}
-                              -{" "}
-                              {
-                                request.vNo
-                              }
-                            </option>
-                          )
-                        )}
-                      </select>
+        <select
+          className="w-full bg-[#15191f] border border-[#1a2e26] text-white p-2 mb-2 rounded text-sm"
+          value={
+            selectedVehicles[
+              technician.technicianId
+            ] || ""
+          }
+          onChange={(event) =>
+            setSelectedVehicles(
+              (
+                previousVehicles
+              ) => ({
+                ...previousVehicles,
+                [technician.technicianId]:
+                  event.target.value,
+              })
+            )
+          }
+        >
+          <option value="">
+            Select Vehicle
+          </option>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleAllocate(
-                            technician
-                          )
-                        }
-                        className="w-full bg-[#3b82f6] text-black px-4 py-2 rounded text-xs font-bold hover:bg-[#45cc92] cursor-pointer"
-                      >
-                        ALLOCATE
-                      </button>
-                    </div>
-                  )
-                )
-              ) : (
+          {acceptedRequests.map(
+            (request) => (
+              <option
+                key={request.id}
+                value={request.vNo}
+              >
+                {request.ticketNumber} - {request.vNo}
+              </option>
+            )
+          )}
+        </select>
+
+        <button
+          type="button"
+          onClick={() =>
+            handleAllocate(
+              technician
+            )
+          }
+          className="w-full bg-[#3b82f6] text-black px-4 py-2 rounded text-xs font-bold hover:bg-[#45cc92] cursor-pointer"
+        >
+          ALLOCATE
+        </button>
+      </div>
+    )
+  )
+) : (
                 <p className="text-sm text-[#6e7681]">
                   No technicians are currently available.
                 </p>
@@ -1957,69 +2283,171 @@ setCurrentCapacity(
                 ACTIVE FIELD TECHS
               </h2>
 
-              {activeTechs.length > 0 ? (
-                activeTechs.map(
-                  (
-                    technician,
-                    index
-                  ) => (
+              {techniciansLoading ? (
+                <p className="text-sm text-[#6e7681]">Loading active technicians...</p>
+              ) : techniciansError ? (
+                <p className="text-sm text-[#e78181]">{techniciansError}</p>
+              ) : activeTechs.length > 0 ? (
+                activeTechs.map((technician) => {
+                  const isInProgress =
+                    String(technician.jobStatus || "").toUpperCase() === "IN_PROGRESS";
+
+                  return (
                     <div
-                      key={`${technician.name}-${index}`}
+                      key={technician.technicianId}
                       className="bg-[#0b0e14] rounded-lg border border-[#1a1f26] p-4 mb-4"
                     >
-                      <div className="flex justify-between items-center mb-2 gap-4">
-                        <div className="flex gap-3 items-center">
-                          <User
-                            size={35}
-                          />
-
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex gap-3 items-start">
+                          <User size={35} />
                           <div>
                             <p className="text-white font-bold">
-                              {
-                                technician.name
-                              }
+                              {technician.fullName || technician.name || "Technician"}
                             </p>
-
-                            <p className="text-xs text-[#3b82f6]">
-                              {
-                                technician.task
-                              }
+                            <p className="text-xs text-[#6e7681] mt-1">
+                              {technician.specialization?.length > 0
+                                ? technician.specialization.join(", ")
+                                : "Active Technician"}
                             </p>
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          <p className="text-white font-bold">
-                            {
-                              technician.time
-                            }
-                          </p>
+                        <p className="text-[#e78181] text-xs font-bold uppercase">
+                          {technician.jobStatus || technician.availabilityStatus || "BUSY"}
+                        </p>
+                      </div>
 
-                          <p className="text-xs text-[#6e7681]">
-                            Remaining
-                          </p>
+                      <div className="mt-4 bg-[#15191f] border border-[#1a1f26] rounded-lg p-3 space-y-2 text-xs">
+                        <div className="flex justify-between gap-3">
+                          <span className="text-[#6e7681]">Vehicle</span>
+                          <span className="text-white font-bold text-right">
+                            {technician.vehicleNumber || "Waiting for job start"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-[#6e7681]">Ticket</span>
+                          <span className="text-[#3b82f6] text-right">
+                            {technician.ticketNumber || "Not available"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-[#6e7681]">Estimated Completion</span>
+                          <span className="text-white text-right">
+                            {technician.estimatedCompletionTime
+                              ? new Date(technician.estimatedCompletionTime).toLocaleString()
+                              : "Not set yet"}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="w-full bg-[#15191f] rounded-full h-2">
-                        <div
-                          className="bg-[#e78181] h-2 rounded-full"
-                          style={{
-                            width: `${technician.completion}%`,
-                          }}
-                        />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openExtensionModal(technician)}
+                        disabled={!isInProgress || !technician.jobId}
+                        className="w-full mt-4 border border-[#f59e0b] text-[#f59e0b] px-4 py-2 rounded text-xs font-bold hover:bg-[#f59e0b]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {isInProgress ? "EXTEND TIME" : "WAITING FOR JOB START"}
+                      </button>
                     </div>
-                  )
-                )
+                  );
+                })
+              ) : (
+                <p className="text-sm text-[#6e7681]">No active field technicians.</p>
+              )}
+            </div>
+
+            {/* OFF SHIFT TECHNICIANS */}
+
+            <div className="bg-[#15191f] rounded-xl border border-[#1a1f26] p-6 xl:col-span-2">
+              <h2 className="text-[#e78181] font-bold mb-5">
+                OFF SHIFT TECHNICIANS
+              </h2>
+
+              {techniciansLoading ? (
+                <p className="text-sm text-[#6e7681]">
+                  Loading technicians...
+                </p>
+              ) : techniciansError ? (
+                <p className="text-sm text-[#e78181]">
+                  {techniciansError}
+                </p>
+              ) : offShiftTechs.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {offShiftTechs.map((technician) => (
+                    <div
+                      key={technician.technicianId}
+                      className="bg-[#0b0e14] rounded-lg border border-[#1a1f26] p-4 opacity-75"
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex gap-3 items-center">
+                          <User size={35} />
+
+                          <div>
+                            <p className="text-white font-bold">
+                              {technician.fullName ||
+                                technician.name ||
+                                "Technician"}
+                            </p>
+
+                            <p className="text-xs text-[#6e7681] mt-1">
+                              {Array.isArray(
+                                technician.specialization
+                              ) &&
+                              technician.specialization.length > 0
+                                ? technician.specialization.join(", ")
+                                : technician.specialization ||
+                                  "No specialization"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="text-[10px] font-bold text-[#e78181] border border-[#e78181]/40 bg-[#e78181]/10 px-2 py-1 rounded-full whitespace-nowrap">
+                          OFF SHIFT
+                        </span>
+                      </div>
+
+                      <div className="mt-4 bg-[#15191f] border border-[#1a1f26] rounded-lg p-3 text-xs">
+                        <div className="flex justify-between gap-3">
+                          <span className="text-[#6e7681]">
+                            Availability
+                          </span>
+
+                          <span className="text-[#6e7681] font-bold">
+                            {technician.availabilityStatus ||
+                              technician.availability_status ||
+                              "UNKNOWN"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <select
+                        disabled
+                        className="w-full mt-3 bg-[#15191f] border border-[#1a1f26] text-[#6e7681] p-2 rounded text-sm cursor-not-allowed opacity-50"
+                      >
+                        <option>
+                          Technician is off shift
+                        </option>
+                      </select>
+
+                      <button
+                        type="button"
+                        disabled
+                        className="w-full mt-2 bg-[#2b313d] text-[#6e7681] px-4 py-2 rounded text-xs font-bold cursor-not-allowed"
+                      >
+                        ALLOCATE DISABLED
+                      </button>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <p className="text-sm text-[#6e7681]">
-                  No active field technicians.
+                  No technicians are currently off shift.
                 </p>
               )}
             </div>
           </div>
-                    {/* ACCEPTED AND REJECTED REQUESTS */}
+
+          {/* ACCEPTED AND REJECTED REQUESTS */}
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
             {/* ACCEPTED REQUESTS */}

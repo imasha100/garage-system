@@ -66,12 +66,10 @@ export default function CustomerLogin({
     field,
     value
   ) => {
-    setContinueData(
-      (previousData) => ({
-        ...previousData,
-        [field]: value,
-      })
-    );
+    setContinueData((previousData) => ({
+      ...previousData,
+      [field]: value,
+    }));
 
     setContinueError("");
     setContinueMessage("");
@@ -180,9 +178,57 @@ export default function CustomerLogin({
         JSON.stringify(restoredRequest)
       );
 
-      if (
-        requestStatus === "accepted"
-      ) {
+      // ==================================================
+      // RESTORE LATEST TOW DISPATCH
+      // ==================================================
+
+      const serviceRequestId =
+        existingRequest.requestId ||
+        existingRequest.serviceRequestId ||
+        existingRequest.request_id;
+
+      sessionStorage.removeItem(
+        "latestTowDispatch"
+      );
+
+      if (serviceRequestId) {
+        try {
+          const towResponse = await fetch(
+            `http://localhost:5000/api/tow-dispatches/request/${serviceRequestId}/latest`
+          );
+
+          const towResult =
+            await towResponse.json();
+
+          if (
+            towResponse.ok &&
+            towResult.success &&
+            towResult.dispatch
+          ) {
+            sessionStorage.setItem(
+              "latestTowDispatch",
+              JSON.stringify(
+                towResult.dispatch
+              )
+            );
+          }
+        } catch (towError) {
+          console.error(
+            "Unable to restore tow dispatch:",
+            towError
+          );
+
+          sessionStorage.removeItem(
+            "latestTowDispatch"
+          );
+        }
+      }
+
+      // ==================================================
+      // ACCEPTED REQUEST
+      // ==================================================
+
+      if (requestStatus === "accepted") {
         const restoredGarage = {
           id: existingRequest.garageId,
 
@@ -207,12 +253,12 @@ export default function CustomerLogin({
           ),
 
           distance:
-  existingRequest.estimatedDistance ||
-  "N/A",
+            existingRequest.estimatedDistance ||
+            "N/A",
 
-time:
-  existingRequest.estimatedTime ||
-  "N/A",
+          time:
+            existingRequest.estimatedTime ||
+            "N/A",
 
           customerRequest:
             restoredRequest,
@@ -238,25 +284,36 @@ time:
         return;
       }
 
-      if (
-        requestStatus === "pending"
-      ) {
+      // ==================================================
+      // PENDING REQUEST
+      // ==================================================
+
+      if (requestStatus === "pending") {
         setContinueMessage(
-          `Your request ${existingRequest.ticketNumber || ""} is still waiting for garage approval.`
+          `Your request ${
+            existingRequest.ticketNumber ||
+            ""
+          } is still waiting for garage approval.`
         );
 
         return;
       }
 
-      if (
-        requestStatus === "rejected"
-      ) {
+      // ==================================================
+      // REJECTED REQUEST
+      // ==================================================
+
+      if (requestStatus === "rejected") {
         setContinueMessage(
           "Your previous request was rejected. Please create a new service request and select another garage."
         );
 
         return;
       }
+
+      // ==================================================
+      // COMPLETED OR CANCELLED REQUEST
+      // ==================================================
 
       if (
         requestStatus === "completed" ||

@@ -17,6 +17,7 @@ import L from "leaflet";
 
 import CustomerSidebar from "./CustomerSidebar";
 import MobilityRecovery from "./MobilityRecovery";
+import TrackMyTowTruck from "./TrackMyTowTruck";
 import LiveProgress from "./LiveProgress";
 import InvoiceLedger from "./InvoiceLedger";
 import ExperienceAudit from "./ExperienceAudit";
@@ -208,7 +209,15 @@ const customerLocation =
           localStorage.getItem("currentCustomerRequest") || "null"
         );
 
-        const dispatchId = Number(storedRequest?.dispatchId);
+        const restoredDispatch = JSON.parse(
+          sessionStorage.getItem("latestTowDispatch") || "null"
+        );
+
+        const dispatchId = Number(
+          restoredDispatch?.dispatchId ||
+            restoredDispatch?.dispatch_id ||
+            storedRequest?.dispatchId
+        );
 
         if (!Number.isInteger(dispatchId) || dispatchId <= 0) {
           setActiveTowRequest(null);
@@ -228,7 +237,8 @@ const customerLocation =
         }
 
         const updatedRequest = {
-          ...storedRequest,
+          ...(storedRequest || {}),
+          ...(restoredDispatch || {}),
           dispatchId,
           dispatchStatus: result.dispatch.dispatchStatus,
           estimatedArrivalTime:
@@ -541,142 +551,7 @@ const customerLocation =
   />
 )}
           {activeTab === "track-tow" && (
-            <div className="mx-auto w-full max-w-4xl">
-              <div className="mb-6">
-                <h1 className="text-2xl font-black text-white">
-                  Track My Tow Truck
-                </h1>
-                <p className="mt-2 text-sm text-slate-400">
-                  View the latest status of your active tow truck request.
-                </p>
-              </div>
-
-              {isLoadingTowRequest && (
-                <div className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-5 text-cyan-200">
-                  Loading your active tow truck request...
-                </div>
-              )}
-
-              {!isLoadingTowRequest && towRequestError && (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-300">
-                  {towRequestError}
-                </div>
-              )}
-
-              {!isLoadingTowRequest &&
-                !towRequestError &&
-                !activeTowRequest && (
-                  <div className="rounded-2xl border border-slate-800 bg-[#0c0d19] p-8 text-center">
-                    <Truck className="mx-auto h-12 w-12 text-slate-600" />
-
-                    <h2 className="mt-4 text-xl font-black text-white">
-                      No Active Tow Truck Request
-                    </h2>
-
-                    <p className="mt-2 text-sm leading-6 text-slate-400">
-                      You currently do not have an active tow truck request.
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("mobility")}
-                      className="mt-6 rounded-xl bg-red-600 px-6 py-3 font-bold text-white hover:bg-red-500"
-                    >
-                      Request A Tow Truck
-                    </button>
-                  </div>
-                )}
-
-              {!isLoadingTowRequest &&
-                !towRequestError &&
-                activeTowRequest && (
-                  <div className="rounded-2xl border border-cyan-500/30 bg-[#0c0d19] p-5 shadow-[0_0_30px_rgba(6,182,212,0.08)] md:p-7">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">
-                          Active Tow Truck
-                        </p>
-
-                        <h2 className="mt-2 text-2xl font-black text-white">
-                          {activeTowRequest?.selectedTruck?.number ||
-                            "Assigned Tow Truck"}
-                        </h2>
-                      </div>
-
-                      <span className="w-fit rounded-full bg-emerald-500/15 px-4 py-2 text-xs font-black uppercase text-emerald-300">
-                        {activeTowRequest.dispatchStatus ||
-                          "Pending Verification"}
-                      </span>
-                    </div>
-
-                    <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-xl border border-slate-800 bg-black/20 p-4">
-                        <p className="flex items-center gap-2 text-xs text-slate-500">
-                          <User className="h-4 w-4" />
-                          Driver
-                        </p>
-
-                        <p className="mt-2 font-bold text-white">
-                          {activeTowRequest?.selectedTruck?.driverName ||
-                            "Awaiting assignment"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-800 bg-black/20 p-4">
-                        <p className="flex items-center gap-2 text-xs text-slate-500">
-                          <Phone className="h-4 w-4" />
-                          Contact
-                        </p>
-
-                        <p className="mt-2 font-bold text-white">
-                          {activeTowRequest?.selectedTruck?.phone ||
-                            "Not available"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-800 bg-black/20 p-4">
-                        <p className="flex items-center gap-2 text-xs text-slate-500">
-                          <Clock className="h-4 w-4" />
-                          Estimated Arrival
-                        </p>
-
-                        <p className="mt-2 font-bold text-white">
-                          {activeTowRequest?.selectedTruck?.etaMins
-                            ? `${activeTowRequest.selectedTruck.etaMins} Minutes`
-                            : activeTowRequest.estimatedArrivalTime ||
-                              "Not available"}
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-800 bg-black/20 p-4">
-                        <p className="flex items-center gap-2 text-xs text-slate-500">
-                          <MapPin className="h-4 w-4" />
-                          Distance
-                        </p>
-
-                        <p className="mt-2 font-bold text-white">
-                          {Number.isFinite(
-                            Number(activeTowRequest?.selectedTruck?.distanceKm)
-                          )
-                            ? `${Number(
-                                activeTowRequest.selectedTruck.distanceKm
-                              ).toFixed(1)} KM`
-                            : "Not available"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("mobility")}
-                      className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-600 py-3.5 font-bold text-white hover:bg-cyan-500"
-                    >
-                      <MapPin className="h-4 w-4" />
-                      View Live Route
-                    </button>
-                  </div>
-                )}
-            </div>
+            <TrackMyTowTruck onNavigate={onNavigate} />
           )}
 
           {activeTab === "progress" && <LiveProgress />}

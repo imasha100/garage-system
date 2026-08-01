@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   Wallet,
@@ -12,15 +12,14 @@ import {
   Eye,
   Plus,
   Trash2,
-  Search,
-  Bell,
-  Menu,
-  User,
   AlertTriangle,
 } from "lucide-react";
 import jsPDF from "jspdf";
 
-const CounterReceipt = ({ openSidebar }) => {
+const CounterReceipt = ({
+  openSidebar,
+  searchQuery = "",
+}) => {
   const initialTokens = [
     {
       id: "#TK-9958",
@@ -80,6 +79,50 @@ const CounterReceipt = ({ openSidebar }) => {
   const [itemName, setItemName] = useState("");
   const [itemPrice, setItemPrice] = useState("");
   const [deleteItemIndex, setDeleteItemIndex] = useState(null);
+
+  const filteredTokens = useMemo(() => {
+    const query = String(searchQuery || "")
+      .trim()
+      .toLowerCase();
+
+    if (!query) {
+      return tokens;
+    }
+
+    return tokens.filter((token) =>
+      [
+        token.id,
+        token.name,
+        token.amount,
+        ...token.items.map((item) => item.name),
+        ...token.history.flatMap((historyItem) => [
+          historyItem.ref,
+          historyItem.date,
+          historyItem.total,
+        ]),
+      ].some((value) =>
+        String(value || "")
+          .toLowerCase()
+          .includes(query)
+      )
+    );
+  }, [tokens, searchQuery]);
+
+  useEffect(() => {
+    const query = String(searchQuery || "").trim();
+
+    if (!query || filteredTokens.length === 0) {
+      return;
+    }
+
+    const selectedStillMatches = filteredTokens.some(
+      (token) => token.id === selectedToken?.id
+    );
+
+    if (!selectedStillMatches) {
+      setSelectedToken(filteredTokens[0]);
+    }
+  }, [filteredTokens, searchQuery, selectedToken?.id]);
 
   const updateSelectedToken = (updatedToken) => {
     setSelectedToken(updatedToken);
@@ -182,51 +225,7 @@ const CounterReceipt = ({ openSidebar }) => {
 
   return (
     <div className="h-screen min-h-0 bg-[#050608] text-white font-sans overflow-hidden flex flex-col">
-      {/* HEADER */}
-      <header className="h-14 sm:h-16 shrink-0 flex items-center justify-between px-3 sm:px-4 md:px-6 bg-black border-b border-blue-900/40">
-        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-          <button
-            type="button"
-            onClick={openSidebar}
-            className="md:hidden text-slate-300 hover:text-white cursor-pointer"
-            aria-label="Open sidebar"
-          >
-            <Menu size={20} />
-          </button>
-
-          <div className="relative w-full max-w-md">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              size={16}
-            />
-
-            <input
-              type="text"
-              placeholder="Search system..."
-              className="w-full bg-black border border-slate-800 py-2 pl-9 pr-3 rounded-md text-[11px] sm:text-xs text-white focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 md:gap-6 ml-2 sm:ml-4 shrink-0">
-          <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-            ONLINE
-          </span>
-
-          <button
-            type="button"
-            className="text-slate-300 hover:text-white cursor-pointer"
-            aria-label="Notifications"
-          >
-            <Bell size={16} />
-          </button>
-
-          <div className="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center">
-            <User size={14} />
-          </div>
-        </div>
-      </header>
+      
 
       <div className="flex-1 min-h-0 p-2.5 sm:p-4 lg:p-6 overflow-y-auto">
       <div className="w-full max-w-2xl mx-auto bg-[#15191f] border border-[#2b313d] lg:border-2 lg:border-blue-500 rounded-2xl lg:rounded-xl p-4 sm:p-5 lg:p-6 shadow-2xl flex flex-col mb-4 lg:mb-6">
@@ -266,7 +265,7 @@ const CounterReceipt = ({ openSidebar }) => {
 
           {showDropdown && (
             <div className="absolute w-full mt-2 bg-[#1a1f26] border border-[#2b313d] rounded-lg z-20 shadow-xl max-h-[220px] overflow-y-auto">
-              {tokens.map((token) => (
+              {filteredTokens.map((token) => (
                 <div
                   key={token.id}
                   onClick={() => {
@@ -278,6 +277,12 @@ const CounterReceipt = ({ openSidebar }) => {
                   {token.id} - {token.name}
                 </div>
               ))}
+
+              {filteredTokens.length === 0 && (
+                <div className="p-4 text-center text-sm text-[#6e7681]">
+                  No matching tokens found.
+                </div>
+              )}
             </div>
           )}
         </div>

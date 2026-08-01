@@ -7,6 +7,7 @@ import GarageRegistration from "./components/GarageRegistration";
 import CustomerLogin from "./components/customer/CustomerLogin";
 import GarageMap from "./components/customer/GarageMap";
 import NavigationHub from "./components/customer/NavigationHub";
+import TrackMyTowTruck from "./components/customer/TrackMyTowTruck";
 
 import VehicleIntake from "./components/technician/VehicleIntake";
 import TechnicianDashboard from "./components/technician/TechnicianDashboard";
@@ -125,12 +126,12 @@ function App() {
       );
 
     case "customer-login":
-  return (
-    <CustomerLogin
-      onNavigate={handleNavigate}
-      setSelectedGarage={setSelectedGarage}
-    />
-  );
+      return (
+        <CustomerLogin
+          onNavigate={handleNavigate}
+          setSelectedGarage={setSelectedGarage}
+        />
+      );
 
     case "staff-login":
       return (
@@ -161,6 +162,13 @@ function App() {
         <NavigationHub
           onNavigate={handleNavigate}
           selectedGarage={selectedGarage}
+        />
+      );
+
+    case "track-my-tow-truck":
+      return (
+        <TrackMyTowTruck
+          onNavigate={handleNavigate}
         />
       );
 

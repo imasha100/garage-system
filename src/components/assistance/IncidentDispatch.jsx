@@ -276,6 +276,9 @@ const IncidentDispatch = () => {
       [
         request.dispatchId,
         request.requestId,
+        request.vehicleNumber,
+        request.customerName,
+        request.customerContact,
         request.truckNumber,
         request.truckCategory,
         request.driverName,
@@ -302,6 +305,9 @@ const IncidentDispatch = () => {
         [
           item.dispatchId,
           item.requestId,
+          item.vehicleNumber,
+          item.customerName,
+          item.customerContact,
           item.truckNumber,
           item.driverName,
           item.driverContact,
@@ -459,7 +465,13 @@ const IncidentDispatch = () => {
                     Request #{request.requestId}
                   </strong>
                   <br />
-                  Truck:{" "}
+                  Customer Vehicle:{" "}
+                  {request.vehicleNumber || "N/A"}
+                  <br />
+                  Customer:{" "}
+                  {request.customerName || "N/A"}
+                  <br />
+                  Tow Truck:{" "}
                   {request.truckNumber || "N/A"}
                   <br />
                   Driver:{" "}
@@ -665,8 +677,8 @@ const IncidentDispatch = () => {
                             </p>
 
                             <h3 className="mt-1 text-lg font-bold text-white">
-                              {request.truckNumber ||
-                                "Tow Truck"}
+                              {request.vehicleNumber ||
+                                "Customer Vehicle"}
                             </h3>
                           </div>
 
@@ -679,14 +691,26 @@ const IncidentDispatch = () => {
                         <div className="mt-4 space-y-2 text-xs text-slate-400">
                           <p className="flex gap-2">
                             <User size={14} />
-                            {request.driverName ||
-                              "Driver not assigned"}
+                            {request.customerName ||
+                              "Customer unavailable"}
                           </p>
 
                           <p className="flex gap-2">
                             <Phone size={14} />
-                            {request.driverContact ||
-                              "Contact unavailable"}
+                            {request.customerContact ||
+                              "Customer contact unavailable"}
+                          </p>
+
+                          <p className="flex gap-2">
+                            <Truck size={14} />
+                            Tow Truck: {request.truckNumber ||
+                              "Not assigned"}
+                          </p>
+
+                          <p className="flex gap-2">
+                            <User size={14} />
+                            Driver: {request.driverName ||
+                              "Not assigned"}
                           </p>
 
                           <p className="flex gap-2">
@@ -955,7 +979,12 @@ const IncidentDispatch = () => {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {[
                 ["Request ID", detailItem.requestId],
-                ["Truck", detailItem.truckNumber],
+                ["Customer Vehicle", detailItem.vehicleNumber],
+                ["Vehicle Type", detailItem.vehicleType],
+                ["Vehicle Model", detailItem.vehicleModel],
+                ["Customer", detailItem.customerName],
+                ["Customer Contact", detailItem.customerContact],
+                ["Tow Truck", detailItem.truckNumber],
                 ["Truck Type", detailItem.truckType],
                 ["Truck Model", detailItem.truckModel],
                 ["Category", detailItem.truckCategory],

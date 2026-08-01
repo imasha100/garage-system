@@ -21,7 +21,6 @@ const formatAssistance = (assistance) => ({
   garageId: assistance.garage_garage_id,
 });
 
-// Cryptographically stronger random six-digit number.
 const generateTemporaryPassword = () => {
   const randomNumber =
     Math.floor(100000 + Math.random() * 900000);
@@ -40,6 +39,7 @@ const registerAssistance = async (req, res) => {
     console.log(
       "========== REGISTER ASSISTANCE API CALLED =========="
     );
+
     console.log("Request Body:", req.body);
 
     const {
@@ -49,10 +49,6 @@ const registerAssistance = async (req, res) => {
       nic,
       garageId,
     } = req.body;
-
-    // ==================================================
-    // Required field validation
-    // ==================================================
 
     if (
       !fullName?.trim() ||
@@ -70,24 +66,20 @@ const registerAssistance = async (req, res) => {
       });
     }
 
-    const cleanFullName = fullName.trim();
+    const cleanFullName =
+      fullName.trim();
 
-    const cleanEmail = email
-      .trim()
-      .toLowerCase();
+    const cleanEmail =
+      email.trim().toLowerCase();
 
     const cleanContactNumber =
       contactNumber.trim();
 
-    const cleanNic = nic
-      .trim()
-      .toUpperCase();
+    const cleanNic =
+      nic.trim().toUpperCase();
 
-    const numericGarageId = Number(garageId);
-
-    // ==================================================
-    // Input validation
-    // ==================================================
+    const numericGarageId =
+      Number(garageId);
 
     const fullNameRegex =
       /^[A-Za-z][A-Za-z\s.'-]{1,79}$/;
@@ -95,7 +87,8 @@ const registerAssistance = async (req, res) => {
     const emailRegex =
       /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
-    const contactRegex = /^0\d{9}$/;
+    const contactRegex =
+      /^0\d{9}$/;
 
     const nicRegex =
       /^(\d{9}[VX]|\d{12})$/;
@@ -143,12 +136,10 @@ const registerAssistance = async (req, res) => {
       });
     }
 
-    connection = await db.getConnection();
-    await connection.beginTransaction();
+    connection =
+      await db.getConnection();
 
-    // ==================================================
-    // Check selected garage exists
-    // ==================================================
+    await connection.beginTransaction();
 
     const [garageRows] =
       await connection.query(
@@ -170,10 +161,6 @@ const registerAssistance = async (req, res) => {
           "The selected garage does not exist.",
       });
     }
-
-    // ==================================================
-    // Check duplicate assistance details
-    // ==================================================
 
     const [duplicateRows] =
       await connection.query(
@@ -199,24 +186,30 @@ const registerAssistance = async (req, res) => {
     if (duplicateRows.length > 0) {
       await connection.rollback();
 
-      const duplicate = duplicateRows[0];
-      let duplicateField = "details";
+      const duplicate =
+        duplicateRows[0];
+
+      let duplicateField =
+        "details";
 
       if (
         String(duplicate.email).toLowerCase() ===
         cleanEmail
       ) {
-        duplicateField = "email address";
+        duplicateField =
+          "email address";
       } else if (
         String(duplicate.contact_number) ===
         cleanContactNumber
       ) {
-        duplicateField = "contact number";
+        duplicateField =
+          "contact number";
       } else if (
         String(duplicate.nic).toUpperCase() ===
         cleanNic
       ) {
-        duplicateField = "NIC number";
+        duplicateField =
+          "NIC number";
       }
 
       return res.status(409).json({
@@ -225,10 +218,6 @@ const registerAssistance = async (req, res) => {
           `An assistance officer already exists with this ${duplicateField}.`,
       });
     }
-
-    // ==================================================
-    // Check NIC username is not already used
-    // ==================================================
 
     const [existingLoginRows] =
       await connection.query(
@@ -241,7 +230,9 @@ const registerAssistance = async (req, res) => {
         [cleanNic]
       );
 
-    if (existingLoginRows.length > 0) {
+    if (
+      existingLoginRows.length > 0
+    ) {
       await connection.rollback();
 
       return res.status(409).json({
@@ -251,17 +242,14 @@ const registerAssistance = async (req, res) => {
       });
     }
 
-    const role = "assistance";
+    const role =
+      "assistance";
 
     const temporaryPassword =
       generateTemporaryPassword();
 
-    // Username is the Assistance Officer NIC.
-    const username = cleanNic;
-
-    // ==================================================
-    // Create login account
-    // ==================================================
+    const username =
+      cleanNic;
 
     const [loginResult] =
       await connection.query(
@@ -280,11 +268,8 @@ const registerAssistance = async (req, res) => {
         ]
       );
 
-    const loginId = loginResult.insertId;
-
-    // ==================================================
-    // Create assistance record
-    // ==================================================
+    const loginId =
+      loginResult.insertId;
 
     const [assistanceResult] =
       await connection.query(
@@ -317,7 +302,9 @@ const registerAssistance = async (req, res) => {
       assistanceResult.insertId;
 
     const formattedAssistanceId =
-      formatAssistanceId(assistanceId);
+      formatAssistanceId(
+        assistanceId
+      );
 
     await connection.commit();
 
@@ -328,7 +315,8 @@ const registerAssistance = async (req, res) => {
         formattedAssistanceId,
         loginId,
         username,
-        garageId: numericGarageId,
+        garageId:
+          numericGarageId,
       }
     );
 
@@ -340,13 +328,19 @@ const registerAssistance = async (req, res) => {
       assistance: {
         assistanceId,
         formattedAssistanceId,
-        fullName: cleanFullName,
-        email: cleanEmail,
-        contactNumber: cleanContactNumber,
-        nic: cleanNic,
-        shiftStatus: "OFF",
+        fullName:
+          cleanFullName,
+        email:
+          cleanEmail,
+        contactNumber:
+          cleanContactNumber,
+        nic:
+          cleanNic,
+        shiftStatus:
+          "OFF",
         role,
-        garageId: numericGarageId,
+        garageId:
+          numericGarageId,
       },
 
       loginDetails: {
@@ -369,18 +363,35 @@ const registerAssistance = async (req, res) => {
     console.error(
       "========== REGISTER ASSISTANCE ERROR =========="
     );
-    console.error("Code:", error.code);
-    console.error("Message:", error.message);
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
-    console.error("SQL:", error.sql);
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
     console.error(
       "================================================"
     );
 
-    if (error.code === "ER_DUP_ENTRY") {
+    if (
+      error.code ===
+      "ER_DUP_ENTRY"
+    ) {
       return res.status(409).json({
         success: false,
         message:
@@ -416,7 +427,10 @@ const registerAssistance = async (req, res) => {
 // GET ALL ASSISTANCE OFFICERS
 // ======================================================
 
-const getAllAssistances = async (req, res) => {
+const getAllAssistances = async (
+  req,
+  res
+) => {
   try {
     const requestedGarageId =
       req.query.garageId;
@@ -437,70 +451,99 @@ const getAllAssistances = async (req, res) => {
     const queryValues = [];
 
     if (
-      requestedGarageId !== undefined &&
+      requestedGarageId !==
+        undefined &&
       requestedGarageId !== ""
     ) {
       const numericGarageId =
-        Number(requestedGarageId);
+        Number(
+          requestedGarageId
+        );
 
       if (
-        !Number.isInteger(numericGarageId) ||
+        !Number.isInteger(
+          numericGarageId
+        ) ||
         numericGarageId <= 0
       ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "A valid garage ID is required.",
-        });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "A valid garage ID is required.",
+          });
       }
 
       sql += `
         WHERE garage_garage_id = ?
       `;
 
-      queryValues.push(numericGarageId);
+      queryValues.push(
+        numericGarageId
+      );
     }
 
     sql += `
       ORDER BY full_name ASC
     `;
 
-    const [rows] = await db.query(
-      sql,
-      queryValues
-    );
+    const [rows] =
+      await db.query(
+        sql,
+        queryValues
+      );
 
     const assistances =
-      rows.map(formatAssistance);
+      rows.map(
+        formatAssistance
+      );
 
-    return res.status(200).json({
-      success: true,
-      assistances,
-    });
+    return res
+      .status(200)
+      .json({
+        success: true,
+        assistances,
+      });
   } catch (error) {
     console.error(
       "========== GET ASSISTANCES ERROR =========="
     );
-    console.error("Code:", error.code);
-    console.error("Message:", error.message);
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
-    console.error("SQL:", error.sql);
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
     console.error(
       "==========================================="
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        error.sqlMessage ||
-        "Unable to fetch assistance officers.",
-    });
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          "Unable to fetch assistance officers.",
+      });
   }
 };
-
 // ======================================================
 // GET SINGLE ASSISTANCE OFFICER
 // ======================================================
@@ -510,73 +553,99 @@ const getAssistanceById = async (
   res
 ) => {
   try {
-    const assistanceId = Number(
-      req.params.id
-    );
+    const assistanceId =
+      Number(req.params.id);
 
     if (
-      !Number.isInteger(assistanceId) ||
+      !Number.isInteger(
+        assistanceId
+      ) ||
       assistanceId <= 0
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "A valid assistance ID is required.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "A valid assistance ID is required.",
+        });
     }
 
-    const [rows] = await db.query(
-      `
-      SELECT
-        assistance_id,
-        full_name,
-        email,
-        contact_number,
-        nic,
-        shift_status,
-        role,
-        garage_garage_id
-      FROM assistance
-      WHERE assistance_id = ?
-      LIMIT 1
-      `,
-      [assistanceId]
-    );
+    const [rows] =
+      await db.query(
+        `
+        SELECT
+          assistance_id,
+          full_name,
+          email,
+          contact_number,
+          nic,
+          shift_status,
+          role,
+          garage_garage_id
+        FROM assistance
+        WHERE assistance_id = ?
+        LIMIT 1
+        `,
+        [assistanceId]
+      );
 
     if (rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Assistance officer not found.",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message:
+            "Assistance officer not found.",
+        });
     }
 
-    return res.status(200).json({
-      success: true,
-      assistance:
-        formatAssistance(rows[0]),
-    });
+    return res
+      .status(200)
+      .json({
+        success: true,
+        assistance:
+          formatAssistance(
+            rows[0]
+          ),
+      });
   } catch (error) {
     console.error(
       "========== GET ASSISTANCE ERROR =========="
     );
-    console.error("Code:", error.code);
-    console.error("Message:", error.message);
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
-    console.error("SQL:", error.sql);
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
     console.error(
       "=========================================="
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        error.sqlMessage ||
-        "Unable to fetch assistance officer details.",
-    });
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          "Unable to fetch assistance officer details.",
+      });
   }
 };
 
@@ -584,13 +653,15 @@ const getAssistanceById = async (
 // UPDATE ASSISTANCE OFFICER
 // ======================================================
 
-const updateAssistance = async (req, res) => {
+const updateAssistance = async (
+  req,
+  res
+) => {
   let connection;
 
   try {
-    const assistanceId = Number(
-      req.params.id
-    );
+    const assistanceId =
+      Number(req.params.id);
 
     const {
       fullName,
@@ -600,33 +671,39 @@ const updateAssistance = async (req, res) => {
     } = req.body;
 
     if (
-      !Number.isInteger(assistanceId) ||
+      !Number.isInteger(
+        assistanceId
+      ) ||
       assistanceId <= 0 ||
       !fullName?.trim() ||
       !email?.trim() ||
       !contactNumber?.trim() ||
       !nic?.trim()
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please fill in all required fields.",
-      });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Please fill in all required fields.",
+        });
     }
 
     const cleanFullName =
       fullName.trim();
 
-    const cleanEmail = email
-      .trim()
-      .toLowerCase();
+    const cleanEmail =
+      email
+        .trim()
+        .toLowerCase();
 
     const cleanContactNumber =
       contactNumber.trim();
 
-    const cleanNic = nic
-      .trim()
-      .toUpperCase();
+    const cleanNic =
+      nic
+        .trim()
+        .toUpperCase();
 
     const fullNameRegex =
       /^[A-Za-z][A-Za-z\s.'-]{1,79}$/;
@@ -634,49 +711,72 @@ const updateAssistance = async (req, res) => {
     const emailRegex =
       /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
-    const contactRegex = /^0\d{9}$/;
+    const contactRegex =
+      /^0\d{9}$/;
 
     const nicRegex =
       /^(\d{9}[VX]|\d{12})$/;
 
-    if (!fullNameRegex.test(cleanFullName)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please enter a valid full name.",
-      });
+    if (
+      !fullNameRegex.test(
+        cleanFullName
+      )
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Please enter a valid full name.",
+        });
     }
 
-    if (!emailRegex.test(cleanEmail)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please enter a valid email address.",
-      });
+    if (
+      !emailRegex.test(
+        cleanEmail
+      )
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Please enter a valid email address.",
+        });
     }
 
-    if (!contactRegex.test(cleanContactNumber)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Contact number must contain exactly 10 digits and start with 0.",
-      });
+    if (
+      !contactRegex.test(
+        cleanContactNumber
+      )
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Contact number must contain exactly 10 digits and start with 0.",
+        });
     }
 
-    if (!nicRegex.test(cleanNic)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "NIC must contain 9 digits followed by V/X or exactly 12 digits.",
-      });
+    if (
+      !nicRegex.test(
+        cleanNic
+      )
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "NIC must contain 9 digits followed by V/X or exactly 12 digits.",
+        });
     }
 
-    connection = await db.getConnection();
+    connection =
+      await db.getConnection();
+
     await connection.beginTransaction();
-
-    // ==================================================
-    // Check assistance officer exists
-    // ==================================================
 
     const [existingRows] =
       await connection.query(
@@ -692,25 +792,26 @@ const updateAssistance = async (req, res) => {
         [assistanceId]
       );
 
-    if (existingRows.length === 0) {
+    if (
+      existingRows.length === 0
+    ) {
       await connection.rollback();
 
-      return res.status(404).json({
-        success: false,
-        message:
-          "Assistance officer not found.",
-      });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message:
+            "Assistance officer not found.",
+        });
     }
 
     const existingAssistance =
       existingRows[0];
 
     const loginId =
-      existingAssistance.login_login_id;
-
-    // ==================================================
-    // Check duplicate details
-    // ==================================================
+      existingAssistance
+        .login_login_id;
 
     const [duplicateRows] =
       await connection.query(
@@ -737,38 +838,52 @@ const updateAssistance = async (req, res) => {
         ]
       );
 
-    if (duplicateRows.length > 0) {
+    if (
+      duplicateRows.length > 0
+    ) {
       await connection.rollback();
 
-      const duplicate = duplicateRows[0];
-      let duplicateField = "details";
+      const duplicate =
+        duplicateRows[0];
+
+      let duplicateField =
+        "details";
 
       if (
-        String(duplicate.email).toLowerCase() ===
+        String(
+          duplicate.email
+        ).toLowerCase() ===
         cleanEmail
       ) {
-        duplicateField = "email address";
+        duplicateField =
+          "email address";
       } else if (
-        String(duplicate.contact_number) ===
+        String(
+          duplicate.contact_number
+        ) ===
         cleanContactNumber
       ) {
-        duplicateField = "contact number";
+        duplicateField =
+          "contact number";
       } else if (
-        String(duplicate.nic).toUpperCase() ===
+        String(
+          duplicate.nic
+        ).toUpperCase() ===
         cleanNic
       ) {
-        duplicateField = "NIC number";
+        duplicateField =
+          "NIC number";
       }
 
-      return res.status(409).json({
-        success: false,
-        message:
-          `Another assistance officer already uses this ${duplicateField}.`,
-      });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message:
+            `Another assistance officer already uses this ${duplicateField}.`,
+        });
     }
 
-    // Check that the new NIC username is not used by
-    // another login account.
     const [duplicateLoginRows] =
       await connection.query(
         `
@@ -778,22 +893,26 @@ const updateAssistance = async (req, res) => {
           AND login_id <> ?
         LIMIT 1
         `,
-        [cleanNic, loginId]
+        [
+          cleanNic,
+          loginId,
+        ]
       );
 
-    if (duplicateLoginRows.length > 0) {
+    if (
+      duplicateLoginRows.length >
+      0
+    ) {
       await connection.rollback();
 
-      return res.status(409).json({
-        success: false,
-        message:
-          "This NIC number is already used as another system username.",
-      });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message:
+            "This NIC number is already used as another system username.",
+        });
     }
-
-    // ==================================================
-    // Update assistance record
-    // ==================================================
 
     await connection.query(
       `
@@ -814,41 +933,56 @@ const updateAssistance = async (req, res) => {
       ]
     );
 
-    // Since NIC is the username, update login username too.
     await connection.query(
       `
       UPDATE login
       SET user_name = ?
       WHERE login_id = ?
       `,
-      [cleanNic, loginId]
+      [
+        cleanNic,
+        loginId,
+      ]
     );
 
     await connection.commit();
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "Assistance officer details updated successfully.",
+    return res
+      .status(200)
+      .json({
+        success: true,
+        message:
+          "Assistance officer details updated successfully.",
 
-      assistance: {
-        assistanceId,
-        formattedAssistanceId:
-          formatAssistanceId(assistanceId),
-        fullName: cleanFullName,
-        email: cleanEmail,
-        contactNumber:
-          cleanContactNumber,
-        nic: cleanNic,
-        garageId:
-          existingAssistance.garage_garage_id,
-      },
-    });
+        assistance: {
+          assistanceId,
+          formattedAssistanceId:
+            formatAssistanceId(
+              assistanceId
+            ),
+          fullName:
+            cleanFullName,
+          email:
+            cleanEmail,
+          contactNumber:
+            cleanContactNumber,
+          nic:
+            cleanNic,
+          shiftStatus:
+            existingAssistance
+              .shift_status,
+          garageId:
+            existingAssistance
+              .garage_garage_id,
+        },
+      });
   } catch (error) {
     if (connection) {
       try {
         await connection.rollback();
-      } catch (rollbackError) {
+      } catch (
+        rollbackError
+      ) {
         console.error(
           "Assistance update rollback failed:",
           rollbackError
@@ -859,37 +993,206 @@ const updateAssistance = async (req, res) => {
     console.error(
       "========== UPDATE ASSISTANCE ERROR =========="
     );
-    console.error("Code:", error.code);
-    console.error("Message:", error.message);
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
-    console.error("SQL:", error.sql);
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
     console.error(
       "============================================="
     );
 
-    if (error.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({
-        success: false,
-        message:
-          "This username, email, contact number or NIC is already used.",
-      });
+    if (
+      error.code ===
+      "ER_DUP_ENTRY"
+    ) {
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message:
+            "This username, email, contact number or NIC is already used.",
+        });
     }
 
-    return res.status(500).json({
-      success: false,
-      message:
-        error.sqlMessage ||
-        "Unable to update assistance officer.",
-    });
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message:
+          error.sqlMessage ||
+          "Unable to update assistance officer.",
+      });
   } finally {
     if (connection) {
       connection.release();
     }
   }
 };
+// ======================================================
+// UPDATE ASSISTANCE SHIFT STATUS
+// ======================================================
+
+const updateAssistanceShiftStatus =
+  async (req, res) => {
+    try {
+      const assistanceId =
+        Number(req.params.id);
+
+      const normalizedShiftStatus =
+        String(
+          req.body?.shiftStatus ||
+            ""
+        )
+          .trim()
+          .toUpperCase();
+
+      if (
+        !Number.isInteger(
+          assistanceId
+        ) ||
+        assistanceId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "A valid assistance ID is required.",
+          });
+      }
+
+      if (
+        normalizedShiftStatus !==
+          "ON" &&
+        normalizedShiftStatus !==
+          "OFF"
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Shift status must be ON or OFF.",
+          });
+      }
+
+      const [existingRows] =
+        await db.query(
+          `
+          SELECT
+            assistance_id,
+            full_name,
+            email,
+            contact_number,
+            nic,
+            shift_status,
+            role,
+            garage_garage_id
+          FROM assistance
+          WHERE assistance_id = ?
+          LIMIT 1
+          `,
+          [assistanceId]
+        );
+
+      if (
+        existingRows.length ===
+        0
+      ) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message:
+              "Assistance officer not found.",
+          });
+      }
+
+      await db.query(
+        `
+        UPDATE assistance
+        SET shift_status = ?
+        WHERE assistance_id = ?
+        `,
+        [
+          normalizedShiftStatus,
+          assistanceId,
+        ]
+      );
+
+      const updatedAssistance = {
+        ...existingRows[0],
+        shift_status:
+          normalizedShiftStatus,
+      };
+
+      return res
+        .status(200)
+        .json({
+          success: true,
+          message:
+            "Shift status updated successfully.",
+          assistance:
+            formatAssistance(
+              updatedAssistance
+            ),
+        });
+    } catch (error) {
+      console.error(
+        "========== UPDATE ASSISTANCE SHIFT ERROR =========="
+      );
+
+      console.error(
+        "Code:",
+        error.code
+      );
+
+      console.error(
+        "Message:",
+        error.message
+      );
+
+      console.error(
+        "SQL Message:",
+        error.sqlMessage
+      );
+
+      console.error(
+        "SQL:",
+        error.sql
+      );
+
+      console.error(
+        "==================================================="
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+          message:
+            error.sqlMessage ||
+            "Unable to update assistance shift status.",
+        });
+    }
+  };
 
 // ======================================================
 // EXPORT CONTROLLER FUNCTIONS
@@ -900,4 +1203,5 @@ module.exports = {
   getAllAssistances,
   getAssistanceById,
   updateAssistance,
+  updateAssistanceShiftStatus,
 };

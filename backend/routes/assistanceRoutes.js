@@ -6,6 +6,7 @@ const {
   getAllAssistances,
   getAssistanceById,
   updateAssistance,
+  updateAssistanceShiftStatus,
 } = require("../controllers/assistanceController");
 
 // Register Assistance Officer
@@ -24,6 +25,12 @@ router.get(
 router.get(
   "/assistances/:id",
   getAssistanceById
+);
+
+// Update Assistance Shift Status
+router.put(
+  "/assistances/:id/shift-status",
+  updateAssistanceShiftStatus
 );
 
 // Update Assistance Officer
