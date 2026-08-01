@@ -95,6 +95,7 @@ const registerTechnician = async (req, res) => {
     console.log(
       "=== REGISTER TECHNICIAN API CALLED ==="
     );
+
     console.log("Request Body:", req.body);
 
     const {
@@ -130,6 +131,7 @@ const registerTechnician = async (req, res) => {
 
     const trimmedFullName = fullName.trim();
     const trimmedEmail = email.trim();
+
     const trimmedContactNumber =
       contactNumber.trim();
 
@@ -264,6 +266,7 @@ const registerTechnician = async (req, res) => {
       await connection.rollback();
 
       const duplicate = duplicateRows[0];
+
       let duplicateField = "details";
 
       if (
@@ -290,20 +293,13 @@ const registerTechnician = async (req, res) => {
     }
 
     const temporaryPassword =
-  "Temp@" + Math.floor(100000 + Math.random() * 900000);
+      "Temp@" +
+      Math.floor(
+        100000 +
+          Math.random() * 900000
+      );
+
     const role = "technician";
-
-    /*
-      Technician ID is AUTO_INCREMENT.
-
-      The login record must exist before the
-      technician record because technician has
-      login_login_id as a foreign key.
-
-      Therefore, first create a temporary unique
-      username. After MySQL generates technician_id,
-      update the username to tech1, tech2, tech3...
-    */
 
     const temporaryUsername =
       `pending_tech_${Date.now()}_${Math.floor(
@@ -338,7 +334,6 @@ const registerTechnician = async (req, res) => {
 
     // ==========================================
     // Insert technician
-    // technician_id is AUTO_INCREMENT
     // ==========================================
 
     const [technicianResult] =
@@ -378,9 +373,6 @@ const registerTechnician = async (req, res) => {
 
     const technicianId =
       technicianResult.insertId;
-
-    // Technician ID 1 -> username tech1
-    // Technician ID 2 -> username tech2
 
     const username = trimmedNic;
 
@@ -444,13 +436,17 @@ const registerTechnician = async (req, res) => {
     console.error(
       "========== REGISTER TECHNICIAN ERROR =========="
     );
+
     console.error("Code:", error.code);
     console.error("Message:", error.message);
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
+
     console.error("SQL:", error.sql);
+
     console.error(
       "================================================"
     );
@@ -489,6 +485,7 @@ const registerTechnician = async (req, res) => {
 
 // ======================================================
 // GET ALL TECHNICIANS
+// GET /api/technicians?garageId=1
 // ======================================================
 
 const getAllTechnicians = async (req, res) => {
@@ -541,13 +538,17 @@ const getAllTechnicians = async (req, res) => {
     console.error(
       "========== GET TECHNICIANS ERROR =========="
     );
+
     console.error("Code:", error.code);
     console.error("Message:", error.message);
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
+
     console.error("SQL:", error.sql);
+
     console.error(
       "==========================================="
     );
@@ -610,26 +611,33 @@ const getTechnicianById = async (
     if (rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Technician not found.",
+        message:
+          "Technician not found.",
       });
     }
 
     return res.status(200).json({
       success: true,
       technician:
-        formatTechnician(rows[0]),
+        formatTechnician(
+          rows[0]
+        ),
     });
   } catch (error) {
     console.error(
       "========== GET TECHNICIAN ERROR =========="
     );
+
     console.error("Code:", error.code);
     console.error("Message:", error.message);
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
+
     console.error("SQL:", error.sql);
+
     console.error(
       "=========================================="
     );
@@ -663,7 +671,9 @@ const updateTechnician = async (req, res) => {
     } = req.body;
 
     const cleanedSpecializations =
-      normalizeSpecialization(specialization);
+      normalizeSpecialization(
+        specialization
+      );
 
     if (
       !Number.isInteger(technicianId) ||
@@ -718,12 +728,17 @@ const updateTechnician = async (req, res) => {
     const emailRegex =
       /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
-    const contactRegex = /^0\d{9}$/;
+    const contactRegex =
+      /^0\d{9}$/;
 
     const nicRegex =
       /^(\d{9}[VX]|\d{12})$/;
 
-    if (!fullNameRegex.test(trimmedFullName)) {
+    if (
+      !fullNameRegex.test(
+        trimmedFullName
+      )
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -731,7 +746,11 @@ const updateTechnician = async (req, res) => {
       });
     }
 
-    if (!emailRegex.test(trimmedEmail)) {
+    if (
+      !emailRegex.test(
+        trimmedEmail
+      )
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -740,7 +759,9 @@ const updateTechnician = async (req, res) => {
     }
 
     if (
-      !contactRegex.test(trimmedContactNumber)
+      !contactRegex.test(
+        trimmedContactNumber
+      )
     ) {
       return res.status(400).json({
         success: false,
@@ -749,7 +770,11 @@ const updateTechnician = async (req, res) => {
       });
     }
 
-    if (!nicRegex.test(trimmedNic)) {
+    if (
+      !nicRegex.test(
+        trimmedNic
+      )
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -772,10 +797,13 @@ const updateTechnician = async (req, res) => {
         [technicianId]
       );
 
-    if (existingRows.length === 0) {
+    if (
+      existingRows.length === 0
+    ) {
       return res.status(404).json({
         success: false,
-        message: "Technician not found.",
+        message:
+          "Technician not found.",
       });
     }
 
@@ -804,7 +832,9 @@ const updateTechnician = async (req, res) => {
         ]
       );
 
-    if (duplicateRows.length > 0) {
+    if (
+      duplicateRows.length > 0
+    ) {
       return res.status(409).json({
         success: false,
         message:
@@ -813,7 +843,9 @@ const updateTechnician = async (req, res) => {
     }
 
     const specializationText =
-      cleanedSpecializations.join(", ");
+      cleanedSpecializations.join(
+        ", "
+      );
 
     await db.query(
       `
@@ -845,32 +877,43 @@ const updateTechnician = async (req, res) => {
 
       technician: {
         technicianId,
-        fullName: trimmedFullName,
-        email: trimmedEmail,
+        fullName:
+          trimmedFullName,
+        email:
+          trimmedEmail,
         contactNumber:
           trimmedContactNumber,
-        nic: trimmedNic,
+        nic:
+          trimmedNic,
         specialization:
           cleanedSpecializations,
-        experience: numericExperience,
+        experience:
+          numericExperience,
       },
     });
   } catch (error) {
     console.error(
       "========== UPDATE TECHNICIAN ERROR =========="
     );
+
     console.error("Code:", error.code);
     console.error("Message:", error.message);
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
+
     console.error("SQL:", error.sql);
+
     console.error(
       "============================================="
     );
 
-    if (error.code === "ER_DUP_ENTRY") {
+    if (
+      error.code ===
+      "ER_DUP_ENTRY"
+    ) {
       return res.status(409).json({
         success: false,
         message:
@@ -896,18 +939,23 @@ const updateTechnicianShiftStatus = async (
   res
 ) => {
   try {
-    const technicianId = Number(
-      req.params.id
-    );
+    const technicianId =
+      Number(
+        req.params.id
+      );
 
-    const shiftStatus = String(
-      req.body.shiftStatus || ""
-    )
-      .trim()
-      .toUpperCase();
+    const shiftStatus =
+      String(
+        req.body.shiftStatus ||
+          ""
+      )
+        .trim()
+        .toUpperCase();
 
     if (
-      !Number.isInteger(technicianId) ||
+      !Number.isInteger(
+        technicianId
+      ) ||
       technicianId <= 0
     ) {
       return res.status(400).json({
@@ -918,7 +966,12 @@ const updateTechnicianShiftStatus = async (
     }
 
     if (
-      !["ON", "OFF"].includes(shiftStatus)
+      ![
+        "ON",
+        "OFF",
+      ].includes(
+        shiftStatus
+      )
     ) {
       return res.status(400).json({
         success: false,
@@ -940,10 +993,14 @@ const updateTechnicianShiftStatus = async (
         [technicianId]
       );
 
-    if (technicianRows.length === 0) {
+    if (
+      technicianRows.length ===
+      0
+    ) {
       return res.status(404).json({
         success: false,
-        message: "Technician not found.",
+        message:
+          "Technician not found.",
       });
     }
 
@@ -961,6 +1018,7 @@ const updateTechnicianShiftStatus = async (
 
     return res.status(200).json({
       success: true,
+
       message:
         `Technician shift turned ${shiftStatus} successfully.`,
 
@@ -973,19 +1031,34 @@ const updateTechnicianShiftStatus = async (
     console.error(
       "========== UPDATE SHIFT STATUS ERROR =========="
     );
-    console.error("Code:", error.code);
-    console.error("Message:", error.message);
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
-    console.error("SQL:", error.sql);
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
     console.error(
       "==============================================="
     );
 
     return res.status(500).json({
       success: false,
+
       message:
         error.sqlMessage ||
         "Unable to update technician shift status.",

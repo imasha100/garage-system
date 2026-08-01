@@ -1,4 +1,11 @@
-import React, { useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import {
   Paperclip,
   Send,
@@ -22,85 +29,538 @@ import {
   Menu,
   ArrowLeft,
   MoreVertical,
+  RefreshCw,
 } from "lucide-react";
+
 import { motion } from "framer-motion";
 
-const ChatInterface = ({ openSidebar }) => {
-  const [conversations, setConversations] = useState([
-    {
-      id: 1,
-      name: "Amila Perera",
-      vehicle: "BMW i3 (WP-CAS-1234)",
-      status: "Under Repair",
-      completion: "11:05 AM",
-      startTime: "08:30 AM",
-      technician: "Kamal Perera",
-      unreadCount: 2,
-      history: [
-        "Engine Oil Change - 2025/10/12",
-        "Brake Pad Replacement - 2026/01/15",
-      ],
-      messages: [
-        {
-          sender: "user",
-          text: "Is the inverter replacement still on track?",
-          time: "10:14 AM",
-        },
-        {
-          sender: "ai",
-          text: "Yes, our technician is finalizing tests.",
-          time: "10:15 AM",
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: "Sunil Shantha",
-      vehicle: "Toyota Aqua (WP-AQ-5566)",
-      status: "Diagnostic Mode",
-      completion: "01:30 PM",
-      startTime: "09:00 AM",
-      technician: "Nimal Silva",
-      unreadCount: 1,
-      history: [
-        "Tire Rotation - 2026/02/01",
-        "Battery Check - 2026/05/10",
-      ],
-      messages: [
-        {
-          sender: "user",
-          text: "Thank you for the update.",
-          time: "09:00 AM",
-        },
-      ],
-    },
-  ]);
+const API_BASE_URL = "http://localhost:5000/api";
 
-  const [activeChatId, setActiveChatId] = useState(1);
+const getStoredAssistanceUser = () => {
+  try {
+    const storedStaffUser = sessionStorage.getItem("staffUser");
+
+    if (!storedStaffUser) {
+      return null;
+    }
+
+    const staffUser = JSON.parse(storedStaffUser);
+    const assistanceId = Number(staffUser?.staffId);
+
+    if (
+      String(staffUser?.role || "").toLowerCase() !== "assistance" ||
+      !Number.isInteger(assistanceId) ||
+      assistanceId <= 0
+    ) {
+      return null;
+    }
+
+    return {
+      ...staffUser,
+      staffId: assistanceId,
+    };
+  } catch (error) {
+    console.error("Unable to read assistance session:", error);
+    return null;
+  }
+};
+
+const formatDisplayTime = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  const [hours = "0", minutes = "00"] = String(value).split(":");
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return "Not Available";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
+
+const normalizeConversation = (conversation) => ({
+  id: conversation.requestId,
+  requestId: conversation.requestId,
+  ticketNumber: conversation.ticketNumber || "",
+  customerId: conversation.customerId ?? null,
+  name: conversation.customerName || "Customer",
+  contact: conversation.customerContact || "",
+  vehicleId: conversation.vehicleId ?? null,
+  vehicleNumber: conversation.vehicleNumber || "Not Available",
+  vehicleType: conversation.vehicleType || "Vehicle",
+  vehicleModel: conversation.vehicleModel || "",
+  requestType: conversation.requestType || "Garage Service",
+  requestStatus: conversation.requestStatus || "Pending",
+  status: conversation.jobStatus || conversation.requestStatus || "Pending",
+  assistanceId: conversation.assistanceId ?? null,
+  assistanceName: conversation.assistanceName || "",
+  garageId: conversation.garageId ?? null,
+  garageName: conversation.garageName || "",
+  jobId: conversation.jobId ?? null,
+  jobType: conversation.jobType || "",
+  technicianId: conversation.technicianId ?? null,
+  technician: conversation.technicianName || "Not Assigned",
+  startDate: conversation.startDate || null,
+  startTime: conversation.startTime || null,
+  endDate: conversation.endDate || null,
+  endTime: conversation.endTime || null,
+  estimatedCompletionTime:
+    conversation.estimatedCompletionTime || null,
+  actualCompletionTime:
+    conversation.actualCompletionTime || null,
+  remarks: conversation.remarks || "",
+  unreadCount: Number(conversation.unreadCount) || 0,
+  lastMessage: conversation.lastMessage || "",
+  lastMessageSender: conversation.lastMessageSender || "",
+  lastMessageDate: conversation.lastMessageDate || null,
+  lastMessageTime: conversation.lastMessageTime || null,
+  messages: [],
+  history: [],
+});
+
+const normalizeMessage = (message) => ({
+  id: message.chatId,
+  sender:
+    String(message.senderType || "").toLowerCase() === "customer"
+      ? "user"
+      : "ai",
+  senderType: message.senderType || "",
+  text: message.message || "",
+  sentDate: message.sentDate || null,
+  sentTime: message.sentTime || null,
+  time: formatDisplayTime(message.sentTime),
+  status: message.messageStatus || "Sent",
+});
+
+const ChatInterface = ({
+  openSidebar,
+  searchQuery = "",
+  setSearchQuery = () => {},
+}) => {
+  const [conversations, setConversations] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [showMenu, setShowMenu] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [showMobileContext, setShowMobileContext] = useState(false);
-
-  // Mobile WhatsApp-style views: list / chat
   const [mobileView, setMobileView] = useState("list");
 
-  const activeChat =
-    conversations.find((chat) => chat.id === activeChatId) ||
-    conversations[0];
+  const [garageId, setGarageId] = useState(null);
+  const [assistanceId, setAssistanceId] = useState(null);
 
-  const filteredConversations = conversations.filter(
-    (chat) =>
-      chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      chat.vehicle.toLowerCase().includes(searchQuery.toLowerCase())
+  const [isLoadingConversations, setIsLoadingConversations] =
+    useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const messagesEndRef = useRef(null);
+
+  const activeChat = useMemo(
+    () =>
+      conversations.find((chat) => chat.id === activeChatId) ||
+      conversations[0] ||
+      null,
+    [conversations, activeChatId]
   );
 
-  const containerVariants = {
-    hidden: {
-      opacity: 0,
+  const loadLoggedInOfficer = useCallback(async () => {
+    const staffUser = getStoredAssistanceUser();
+
+    if (!staffUser) {
+      throw new Error(
+        "Logged-in assistance officer details were not found."
+      );
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/assistances/${staffUser.staffId}`
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || result.success === false || !result.assistance) {
+      throw new Error(
+        result.message || "Unable to load assistance officer details."
+      );
+    }
+
+    const resolvedGarageId = Number(
+      result.assistance.garageId ??
+        result.assistance.garage_id ??
+        result.assistance.garageGarageId ??
+        result.assistance.garage_garage_id
+    );
+
+    if (
+      !Number.isInteger(resolvedGarageId) ||
+      resolvedGarageId <= 0
+    ) {
+      throw new Error(
+        "The garage related to this assistance officer could not be identified."
+      );
+    }
+
+    setAssistanceId(staffUser.staffId);
+    setGarageId(resolvedGarageId);
+
+    return {
+      assistanceId: staffUser.staffId,
+      garageId: resolvedGarageId,
+    };
+  }, []);
+
+  const loadConversations = useCallback(
+    async (selectedGarageId = garageId, preserveSelection = true) => {
+      if (!selectedGarageId) {
+        return;
+      }
+
+      try {
+        setError("");
+
+        const response = await fetch(
+          `${API_BASE_URL}/chats/garage/${selectedGarageId}`
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || result.success === false) {
+          throw new Error(
+            result.message || "Unable to load customer conversations."
+          );
+        }
+
+        const normalizedConversations = Array.isArray(result.conversations)
+          ? result.conversations.map(normalizeConversation)
+          : [];
+
+        setConversations(normalizedConversations);
+
+        setActiveChatId((currentId) => {
+          if (
+            preserveSelection &&
+            normalizedConversations.some((chat) => chat.id === currentId)
+          ) {
+            return currentId;
+          }
+
+          return normalizedConversations[0]?.id ?? null;
+        });
+      } catch (loadError) {
+        console.error("Load conversations error:", loadError);
+        setError(
+          loadError.message || "Unable to load customer conversations."
+        );
+      } finally {
+        setIsLoadingConversations(false);
+      }
     },
+    [garageId]
+  );
+
+  const loadMessages = useCallback(
+    async (requestId, markAsRead = false) => {
+      if (!requestId) {
+        setMessages([]);
+        return;
+      }
+
+      try {
+        setIsLoadingMessages(true);
+        setError("");
+
+        const response = await fetch(
+          `${API_BASE_URL}/chats/${requestId}/messages`
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || result.success === false) {
+          throw new Error(
+            result.message || "Unable to load chat messages."
+          );
+        }
+
+        setMessages(
+          Array.isArray(result.messages)
+            ? result.messages.map(normalizeMessage)
+            : []
+        );
+
+        if (markAsRead) {
+          await fetch(`${API_BASE_URL}/chats/${requestId}/read`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          setConversations((previousConversations) =>
+            previousConversations.map((chat) =>
+              chat.id === requestId
+                ? {
+                    ...chat,
+                    unreadCount: 0,
+                  }
+                : chat
+            )
+          );
+        }
+      } catch (loadError) {
+        console.error("Load chat messages error:", loadError);
+        setError(loadError.message || "Unable to load chat messages.");
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initialise = async () => {
+      setIsLoadingConversations(true);
+
+      try {
+        const officer = await loadLoggedInOfficer();
+
+        if (isMounted && officer?.garageId) {
+          await loadConversations(officer.garageId, false);
+        }
+      } catch (initialiseError) {
+        console.error("Initialise chat error:", initialiseError);
+
+        if (isMounted) {
+          setError(
+            initialiseError.message ||
+              "Unable to initialise customer communication."
+          );
+          setIsLoadingConversations(false);
+        }
+      }
+    };
+
+    initialise();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [loadLoggedInOfficer, loadConversations]);
+
+  useEffect(() => {
+    if (!activeChatId) {
+      setMessages([]);
+      return;
+    }
+
+    loadMessages(activeChatId, true);
+  }, [activeChatId, loadMessages]);
+
+  useEffect(() => {
+    if (!garageId) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      loadConversations(garageId, true);
+
+      if (activeChatId) {
+        loadMessages(activeChatId, false);
+      }
+    }, 5000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [
+    garageId,
+    activeChatId,
+    loadConversations,
+    loadMessages,
+  ]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
+
+  const filteredConversations = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return conversations;
+    }
+
+    return conversations.filter((chat) =>
+      [
+        chat.name,
+        chat.contact,
+        chat.vehicleNumber,
+        chat.vehicleType,
+        chat.vehicleModel,
+        chat.status,
+        chat.technician,
+        chat.ticketNumber,
+      ].some((value) =>
+        String(value || "")
+          .toLowerCase()
+          .includes(query)
+      )
+    );
+  }, [conversations, searchQuery]);
+
+  const handleSendMessage = async () => {
+    const message = inputValue.trim();
+
+    if (!message || !activeChat || !assistanceId || isSending) {
+      return;
+    }
+
+    try {
+      setIsSending(true);
+      setError("");
+
+      const response = await fetch(`${API_BASE_URL}/chats/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestId: activeChat.requestId,
+          senderType: "Assistance",
+          message,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.success === false) {
+        throw new Error(
+          result.message || "Unable to send the message."
+        );
+      }
+
+      setInputValue("");
+      setShowMenu(false);
+
+      await loadMessages(activeChat.requestId, false);
+      await loadConversations(garageId, true);
+    } catch (sendError) {
+      console.error("Send message error:", sendError);
+      setError(sendError.message || "Unable to send the message.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const selectConversation = (chatId) => {
+    setActiveChatId(chatId);
+    setShowMenu(false);
+    setShowMobileContext(false);
+    setMobileView("chat");
+  };
+
+  const handleBackToConversations = () => {
+    setMobileView("list");
+    setShowMenu(false);
+    setShowMobileContext(false);
+  };
+
+  const getLastMessage = (chat) => ({
+    text: chat.lastMessage || "No messages yet",
+    time: formatDisplayTime(chat.lastMessageTime),
+  });
+
+  const activeVehicleLabel = activeChat
+    ? `${activeChat.vehicleModel || activeChat.vehicleType}${
+        activeChat.vehicleNumber
+          ? ` (${activeChat.vehicleNumber})`
+          : ""
+      }`
+    : "";
+
+  const vehicleDetails = activeChat
+    ? [
+        {
+          icon: Info,
+          label: "REGISTRATION",
+          val: activeChat.vehicleNumber || "Not Available",
+        },
+        {
+          icon: Car,
+          label: "MODEL",
+          val:
+            activeChat.vehicleModel ||
+            activeChat.vehicleType ||
+            "Not Available",
+        },
+        {
+          icon: Wrench,
+          label: "TECHNICIAN",
+          val: activeChat.technician || "Not Assigned",
+        },
+        {
+          icon: Play,
+          label: "START TIME",
+          val: activeChat.startTime
+            ? formatDisplayTime(activeChat.startTime)
+            : "Not Available",
+        },
+        {
+          icon: AlertCircle,
+          label: "STATUS",
+          val: activeChat.status || "Pending",
+          isAlert: true,
+        },
+        {
+          icon: Clock,
+          label: "COMPLETION",
+          val:
+            activeChat.actualCompletionTime
+              ? formatDateTime(activeChat.actualCompletionTime)
+              : activeChat.estimatedCompletionTime
+              ? formatDateTime(activeChat.estimatedCompletionTime)
+              : "Not Available",
+        },
+      ]
+    : [];
+
+  const attachmentItems = [
+    { icon: Image, label: "Gallery" },
+    { icon: Camera, label: "Camera" },
+    { icon: MapPin, label: "Location" },
+    { icon: User, label: "Contact" },
+    { icon: FileText, label: "Document" },
+    { icon: BarChart, label: "Poll" },
+    { icon: Calendar, label: "Event" },
+    { icon: Sparkles, label: "AI Images" },
+  ];
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
@@ -125,240 +585,32 @@ const ChatInterface = ({ openSidebar }) => {
     },
   };
 
-  const handleInputChange = (e) => {
-    setInputValue(e.target.value);
-
-    if (!isTyping) {
-      setIsTyping(true);
-
-      setTimeout(() => {
-        setIsTyping(false);
-      }, 2000);
-    }
-  };
-
-  const handleSendMessage = () => {
-    if (inputValue.trim() === "") return;
-
-    const currentTime = new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    setConversations((previousConversations) =>
-      previousConversations.map((chat) =>
-        chat.id === activeChatId
-          ? {
-              ...chat,
-              unreadCount: 0,
-              messages: [
-                ...chat.messages,
-                {
-                  sender: "ai",
-                  text: inputValue.trim(),
-                  time: currentTime,
-                },
-              ],
-            }
-          : chat
-      )
-    );
-
-    setInputValue("");
-    setShowMenu(false);
-    setIsTyping(false);
-  };
-
-  const selectConversation = (chatId) => {
-    setActiveChatId(chatId);
-    setShowMenu(false);
-    setShowMobileContext(false);
-    setMobileView("chat");
-
-    setConversations((previousConversations) =>
-      previousConversations.map((chat) =>
-        chat.id === chatId
-          ? {
-              ...chat,
-              unreadCount: 0,
-            }
-          : chat
-      )
-    );
-  };
-
-  const handleBackToConversations = () => {
-    setMobileView("list");
-    setShowMenu(false);
-    setShowMobileContext(false);
-  };
-
-  const getRegistrationNumber = () => {
-    const vehicleParts = activeChat.vehicle.split("(");
-
-    if (vehicleParts.length < 2) {
-      return activeChat.vehicle;
-    }
-
-    return vehicleParts[1].replace(")", "").trim();
-  };
-
-  const getVehicleModel = () => {
-    return activeChat.vehicle.split("(")[0].trim();
-  };
-
-  const getLastMessage = (chat) => {
-    if (!chat.messages || chat.messages.length === 0) {
-      return {
-        text: "No messages yet",
-        time: "",
-      };
-    }
-
-    return chat.messages[chat.messages.length - 1];
-  };
-
-  const vehicleDetails = [
-    {
-      icon: Info,
-      label: "REGISTRATION",
-      val: getRegistrationNumber(),
-    },
-    {
-      icon: Car,
-      label: "MODEL",
-      val: getVehicleModel(),
-    },
-    {
-      icon: Wrench,
-      label: "TECHNICIAN",
-      val: activeChat.technician,
-    },
-    {
-      icon: Play,
-      label: "START TIME",
-      val: activeChat.startTime,
-    },
-    {
-      icon: AlertCircle,
-      label: "STATUS",
-      val: activeChat.status,
-      isAlert: true,
-    },
-    {
-      icon: Clock,
-      label: "COMPLETION",
-      val: activeChat.completion,
-    },
-  ];
-
-  const attachmentItems = [
-    {
-      icon: Image,
-      label: "Gallery",
-    },
-    {
-      icon: Camera,
-      label: "Camera",
-    },
-    {
-      icon: MapPin,
-      label: "Location",
-    },
-    {
-      icon: User,
-      label: "Contact",
-    },
-    {
-      icon: FileText,
-      label: "Document",
-    },
-    {
-      icon: BarChart,
-      label: "Poll",
-    },
-    {
-      icon: Calendar,
-      label: "Event",
-    },
-    {
-      icon: Sparkles,
-      label: "AI Images",
-    },
-  ];
-
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-[#0b0e14] font-sans text-[#a0a8b7]">
-      {/* ================================================= */}
-      {/* MAIN DESKTOP / TABLET HEADER */}
-      {/* Mobile list එකේ custom WhatsApp header එක පෙන්වනවා */}
-      {/* ================================================= */}
-      <header
-        className={`h-14 shrink-0 items-center justify-between border-b border-blue-900/40 bg-black px-3 sm:h-16 sm:px-4 md:px-6 lg:flex ${
-          mobileView === "list" ? "hidden" : "flex"
-        }`}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
-          <button
-            type="button"
-            onClick={openSidebar}
-            className="hidden shrink-0 cursor-pointer text-slate-300 transition hover:text-white md:block lg:hidden"
-            aria-label="Open sidebar"
-          >
-            <Menu size={20} />
-          </button>
-
-          <div className="relative hidden w-full max-w-md lg:block">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              size={15}
-            />
-
-            <input
-              type="text"
-              placeholder="Search customer or vehicle..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-md border border-slate-800 bg-black py-2 pl-9 pr-3 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500"
-            />
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0b0e14] font-sans text-[#a0a8b7]">
+      {error && (
+        <div className="flex shrink-0 items-center justify-between border-b border-red-500/30 bg-red-950/40 px-4 py-2 text-xs text-red-200">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={15} />
+            <span>{error}</span>
           </div>
-        </div>
-
-        <div className="ml-2 hidden shrink-0 items-center gap-3 sm:ml-4 sm:gap-5 lg:flex">
-          <span className="hidden items-center gap-2 text-xs text-slate-400 sm:flex">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-            ONLINE
-          </span>
 
           <button
             type="button"
-            className="cursor-pointer text-slate-300 transition hover:text-white"
-            aria-label="Notifications"
+            onClick={() => setError("")}
+            className="text-red-300 hover:text-white"
+            aria-label="Close error"
           >
-            <Bell size={17} />
+            <X size={15} />
           </button>
-
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700">
-            <User size={14} />
-          </div>
         </div>
-      </header>
+      )}
 
-      {/* ================================================= */}
-      {/* MAIN CHAT LAYOUT */}
-      {/* ================================================= */}
       <div className="flex min-h-0 flex-1 overflow-hidden bg-[#0b0e14]">
-        {/* ================================================= */}
-        {/* CONVERSATION LIST */}
-        {/* Mobile: Full-screen WhatsApp list */}
-        {/* Desktop: Left sidebar */}
-        {/* ================================================= */}
         <aside
           className={`h-full w-full shrink-0 flex-col border-[#1a1f26] bg-[#0b0e14] lg:flex lg:w-72 lg:border-r xl:w-80 ${
             mobileView === "list" ? "flex" : "hidden"
           }`}
         >
-          {/* Mobile WhatsApp Header */}
           <div className="shrink-0 border-b border-[#1f2c33] bg-[#111b21] lg:hidden">
             <div className="flex h-16 items-center justify-between px-4">
               <div className="flex items-center gap-3">
@@ -379,10 +631,16 @@ const ChatInterface = ({ openSidebar }) => {
               <div className="flex items-center gap-5">
                 <button
                   type="button"
+                  onClick={() => loadConversations(garageId, true)}
                   className="text-[#aebac1] transition hover:text-white"
-                  aria-label="Notifications"
+                  aria-label="Refresh conversations"
                 >
-                  <Bell size={20} />
+                  <RefreshCw
+                    size={19}
+                    className={
+                      isLoadingConversations ? "animate-spin" : ""
+                    }
+                  />
                 </button>
 
                 <button
@@ -395,7 +653,6 @@ const ChatInterface = ({ openSidebar }) => {
               </div>
             </div>
 
-            {/* Mobile Search */}
             <div className="px-3 pb-3">
               <div className="relative">
                 <Search
@@ -405,40 +662,57 @@ const ChatInterface = ({ openSidebar }) => {
 
                 <input
                   type="text"
-                  placeholder="Search or start a new chat"
+                  placeholder="Search customer or vehicle"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg bg-[#202c33] py-2.5 pl-11 pr-4 text-sm text-[#e9edef] outline-none placeholder:text-[#8696a0]"
+                  onChange={(event) =>
+                    setSearchQuery(event.target.value)
+                  }
+                  className="w-full rounded-lg bg-[#202c33] py-2.5 pl-11 pr-10 text-sm text-[#e9edef] outline-none placeholder:text-[#8696a0]"
                 />
+
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8696a0] hover:text-white"
+                    aria-label="Clear search"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Desktop Conversation Heading and Search */}
           <div className="hidden p-5 lg:block">
-            <div className="mb-4 text-sm font-semibold text-[#8b949e]">
-              Active Conversations
-            </div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-[#8b949e]">
+                Active Conversations
+              </div>
 
-            <div className="relative">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6e7681]"
-              />
-
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-full rounded-lg border border-[#1a1f26] bg-[#15191f] py-2.5 pl-10 pr-4 text-sm text-white outline-none placeholder:text-[#6e7681]"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+              <button
+                type="button"
+                onClick={() => loadConversations(garageId, true)}
+                className="text-[#6e7681] transition hover:text-white"
+                aria-label="Refresh conversations"
+              >
+                <RefreshCw
+                  size={16}
+                  className={
+                    isLoadingConversations ? "animate-spin" : ""
+                  }
+                />
+              </button>
             </div>
           </div>
 
-          {/* Conversation Cards */}
           <div className="flex-1 overflow-y-auto">
-            {filteredConversations.length > 0 ? (
+            {isLoadingConversations && conversations.length === 0 ? (
+              <div className="flex h-40 flex-col items-center justify-center gap-3 text-sm text-[#8696a0]">
+                <RefreshCw size={24} className="animate-spin" />
+                Loading conversations...
+              </div>
+            ) : filteredConversations.length > 0 ? (
               filteredConversations.map((chat) => {
                 const lastMessage = getLastMessage(chat);
 
@@ -453,7 +727,6 @@ const ChatInterface = ({ openSidebar }) => {
                         : "lg:border-transparent lg:bg-transparent"
                     }`}
                   >
-                    {/* Mobile Avatar */}
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#26353d] text-[#00a884] lg:hidden">
                       <User size={22} />
                     </div>
@@ -464,18 +737,11 @@ const ChatInterface = ({ openSidebar }) => {
                           {chat.name}
                         </p>
 
-                        <span
-                          className={`shrink-0 text-[11px] lg:hidden ${
-                            chat.unreadCount > 0
-                              ? "text-[#00a884]"
-                              : "text-[#8696a0]"
-                          }`}
-                        >
+                        <span className="shrink-0 text-[11px] text-[#8696a0] lg:hidden">
                           {lastMessage.time}
                         </span>
                       </div>
 
-                      {/* Mobile Last Message */}
                       <div className="mt-1 flex items-center justify-between gap-3 lg:hidden">
                         <p className="min-w-0 flex-1 truncate text-[13px] text-[#8696a0]">
                           {lastMessage.text}
@@ -488,269 +754,348 @@ const ChatInterface = ({ openSidebar }) => {
                         )}
                       </div>
 
-                      {/* Desktop Vehicle Details */}
                       <p className="mt-1 hidden truncate text-xs text-[#a0a8b7] lg:block">
-                        {chat.vehicle}
+                        {chat.vehicleModel || chat.vehicleType}{" "}
+                        {chat.vehicleNumber
+                          ? `(${chat.vehicleNumber})`
+                          : ""}
                       </p>
 
                       <p className="mt-2 hidden text-[10px] uppercase tracking-wider text-[#52f0ac] lg:block">
                         {chat.status}
                       </p>
+
+                      {chat.unreadCount > 0 && (
+                        <span className="mt-2 hidden w-fit rounded-full bg-[#52f0ac] px-2 py-0.5 text-[9px] font-bold text-black lg:block">
+                          {chat.unreadCount} NEW
+                        </span>
+                      )}
                     </div>
                   </button>
                 );
               })
             ) : (
               <div className="flex h-40 items-center justify-center px-4 text-center text-sm text-[#8696a0]">
-                No conversations found.
+                {searchQuery
+                  ? "No conversation matches your search."
+                  : "No customer conversations found for this garage."}
               </div>
             )}
           </div>
         </aside>
 
-        {/* ================================================= */}
-        {/* CHAT AREA */}
-        {/* Mobile: Full-screen chat */}
-        {/* Desktop: Middle area */}
-        {/* ================================================= */}
         <main
           className={`relative min-h-0 flex-1 flex-col bg-[#0b141a] lg:flex lg:bg-[#0b0e14] ${
             mobileView === "chat" ? "flex" : "hidden"
           }`}
         >
-          {/* WhatsApp-style Chat Header */}
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#1f2c33] bg-[#202c33] px-2.5 lg:h-20 lg:border-[#1a1f26] lg:bg-[#0b0e14] lg:px-6 xl:px-8">
-            <div className="flex min-w-0 items-center gap-2">
-              {/* Mobile Back Button */}
-              <button
-                type="button"
-                onClick={handleBackToConversations}
-                className="flex h-10 w-8 shrink-0 items-center justify-center text-[#aebac1] transition hover:text-white lg:hidden"
-                aria-label="Back to conversations"
-              >
-                <ArrowLeft size={23} />
-              </button>
-
-              {/* Profile Image */}
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#26353d] text-[#00a884] lg:bg-[#1a2e26] lg:text-[#52f0ac]">
-                <User size={19} />
-              </div>
-
-              {/* Customer Details */}
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#e9edef] lg:text-base lg:text-white">
-                  {activeChat.name}
-                </p>
-
-                <p className="truncate text-[11px] text-[#8696a0] lg:text-xs">
-                  {isTyping ? (
-                    <span className="text-[#00a884] lg:text-[#52f0ac]">
-                      typing...
-                    </span>
-                  ) : (
-                    activeChat.status
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {/* Header Actions */}
-            <div className="flex shrink-0 items-center gap-4">
-              <button
-                type="button"
-                onClick={() => setShowMobileContext(true)}
-                className="text-[#aebac1] transition hover:text-white lg:hidden"
-                aria-label="Vehicle information"
-              >
-                <Info size={20} />
-              </button>
-
-              <button
-                type="button"
-                className="text-[#aebac1] transition hover:text-white lg:hidden"
-                aria-label="More options"
-              >
-                <MoreVertical size={21} />
-              </button>
-            </div>
-          </header>
-
-          {/* Messages Area */}
-          <div className="flex-1 space-y-2 overflow-y-auto bg-[#0b141a] px-3 py-4 sm:px-4 lg:space-y-6 lg:bg-[#0b0e14] lg:p-8">
-            {activeChat.messages.map((msg, index) => (
-              <div
-                key={`${msg.time}-${index}`}
-                className={`flex ${
-                  msg.sender === "user"
-                    ? "justify-start"
-                    : "justify-end"
-                }`}
-              >
-                <div
-                  className={`relative max-w-[85%] rounded-lg px-3 py-2 pb-5 text-[13px] leading-relaxed shadow-sm sm:max-w-[75%] sm:text-sm lg:max-w-xl lg:rounded-xl lg:px-4 lg:py-3 lg:pb-6 ${
-                    msg.sender === "user"
-                      ? "rounded-tl-none bg-[#202c33] text-[#e9edef] lg:border lg:border-[#1a1f26] lg:bg-[#15191f] lg:text-[#a0a8b7]"
-                      : "rounded-tr-none bg-[#005c4b] text-[#e9edef] lg:bg-[#1a2e26] lg:text-[#52f0ac]"
-                  }`}
-                >
-                  <p className="break-words pr-7">{msg.text}</p>
-
-                  <span className="absolute bottom-1.5 right-2 text-[9px] text-white/55 lg:text-[#6e7681]">
-                    {msg.time}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ================================================= */}
-          {/* ATTACHMENT MENU */}
-          {/* ================================================= */}
-          {showMenu && (
-            <div className="absolute bottom-[70px] left-2 right-2 z-30 grid grid-cols-4 gap-4 rounded-2xl border border-[#26353d] bg-[#202c33] p-4 shadow-2xl sm:left-4 sm:right-4 lg:bottom-28 lg:left-8 lg:right-8 lg:border-[#1a1f26] lg:bg-[#15191f] lg:p-6">
-              {attachmentItems.map((item) => {
-                const AttachmentIcon = item.icon;
-
-                return (
+          {activeChat ? (
+            <>
+              <header className="flex h-16 shrink-0 items-center justify-between border-b border-[#1f2c33] bg-[#202c33] px-2.5 lg:h-20 lg:border-[#1a1f26] lg:bg-[#0b0e14] lg:px-6 xl:px-8">
+                <div className="flex min-w-0 items-center gap-2">
                   <button
                     type="button"
-                    key={item.label}
-                    className="flex min-w-0 flex-col items-center gap-2 text-[#00a884] transition hover:text-white lg:text-[#52f0ac]"
+                    onClick={handleBackToConversations}
+                    className="flex h-10 w-8 shrink-0 items-center justify-center text-[#aebac1] transition hover:text-white lg:hidden"
+                    aria-label="Back to conversations"
                   >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#26353d] sm:h-12 sm:w-12 lg:bg-[#1a2e26]">
-                      <AttachmentIcon size={19} />
-                    </div>
-
-                    <span className="w-full truncate text-center text-[9px] sm:text-[10px]">
-                      {item.label}
-                    </span>
+                    <ArrowLeft size={23} />
                   </button>
-                );
-              })}
-            </div>
-          )}
 
-          {/* ================================================= */}
-          {/* MESSAGE INPUT */}
-          {/* WhatsApp Style on Mobile */}
-          {/* ================================================= */}
-          <div className="shrink-0 bg-[#111b21] p-2 lg:border-t lg:border-[#1a1f26] lg:bg-[#0b0e14] lg:p-6 xl:p-8">
-            <div className="flex items-center gap-2">
-              <div className="flex min-w-0 flex-1 items-center gap-3 rounded-full bg-[#202c33] px-4 py-2.5 lg:rounded-xl lg:border lg:border-[#1a1f26] lg:bg-[#15191f] lg:px-4 lg:py-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowMenu((previousState) => !previousState)
-                  }
-                  className={`shrink-0 transition ${
-                    showMenu
-                      ? "text-[#00a884] lg:text-[#52f0ac]"
-                      : "text-[#8696a0]"
-                  }`}
-                  aria-label="Open attachments"
-                >
-                  <Paperclip size={20} />
-                </button>
-
-                <input
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder="Message"
-                  className="min-w-0 flex-1 bg-transparent text-sm text-[#e9edef] outline-none placeholder:text-[#8696a0] lg:text-white"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSendMessage}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white transition hover:bg-[#06a57f] lg:rounded-lg lg:bg-[#1a2e26] lg:text-[#52f0ac]"
-                aria-label="Send message"
-              >
-                <Send size={19} />
-              </button>
-            </div>
-          </div>
-        </main>
-
-        {/* ================================================= */}
-        {/* DESKTOP VEHICLE CONTEXT */}
-        {/* ================================================= */}
-        <aside
-          key={activeChat.id}
-          className="hidden h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-[#1a1f26] bg-[#0b0e14] p-5 lg:flex xl:w-80 xl:p-6"
-        >
-          <div className="mb-6 text-[10px] tracking-[0.2em] text-[#8b949e]">
-            LIVE VEHICLE CONTEXT
-          </div>
-
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-4"
-          >
-            {vehicleDetails.map((item) => {
-              const DetailIcon = item.icon;
-
-              return (
-                <motion.div
-                  key={item.label}
-                  variants={itemVariants}
-                  className="flex items-center gap-4 rounded-xl border border-[#1a1f26] bg-[#15191f] p-4"
-                >
-                  <div className="rounded-lg bg-[#0b0e14] p-2">
-                    <DetailIcon
-                      size={19}
-                      className={
-                        item.isAlert
-                          ? "text-[#e78181]"
-                          : "text-[#52f0ac]"
-                      }
-                    />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#26353d] text-[#00a884] lg:bg-[#1a2e26] lg:text-[#52f0ac]">
+                    <User size={19} />
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-[9px] text-[#6e7681]">
-                      {item.label}
+                    <p className="truncate text-sm font-semibold text-[#e9edef] lg:text-base lg:text-white">
+                      {activeChat.name}
                     </p>
 
-                    <p className="truncate text-sm font-bold text-white">
-                      {item.val}
+                    <p className="truncate text-[11px] text-[#8696a0] lg:text-xs">
+                      {activeChat.status}
                     </p>
                   </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
+                </div>
 
-          <div className="mt-auto pt-8">
-            <button
-              type="button"
-              onClick={() => setIsHistoryOpen(true)}
-              className="w-full rounded-lg border border-[#1a1f26] py-3 text-xs uppercase tracking-widest transition hover:bg-[#15191f]"
-            >
-              View full service history
-            </button>
-          </div>
+                <div className="flex shrink-0 items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      loadMessages(activeChat.requestId, false)
+                    }
+                    className="text-[#aebac1] transition hover:text-white"
+                    aria-label="Refresh messages"
+                  >
+                    <RefreshCw
+                      size={19}
+                      className={
+                        isLoadingMessages ? "animate-spin" : ""
+                      }
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileContext(true)}
+                    className="text-[#aebac1] transition hover:text-white lg:hidden"
+                    aria-label="Vehicle information"
+                  >
+                    <Info size={20} />
+                  </button>
+                </div>
+              </header>
+
+              <div className="flex-1 space-y-2 overflow-y-auto bg-[#0b141a] px-3 py-4 sm:px-4 lg:space-y-6 lg:bg-[#0b0e14] lg:p-8">
+                {isLoadingMessages && messages.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-[#8696a0]">
+                    <RefreshCw size={24} className="animate-spin" />
+                    Loading messages...
+                  </div>
+                ) : messages.length > 0 ? (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.sender === "user"
+                          ? "justify-start"
+                          : "justify-end"
+                      }`}
+                    >
+                      <div
+                        className={`relative max-w-[85%] rounded-lg px-3 py-2 pb-5 text-[13px] leading-relaxed shadow-sm sm:max-w-[75%] sm:text-sm lg:max-w-xl lg:rounded-xl lg:px-4 lg:py-3 lg:pb-6 ${
+                          message.sender === "user"
+                            ? "rounded-tl-none bg-[#202c33] text-[#e9edef] lg:border lg:border-[#1a1f26] lg:bg-[#15191f] lg:text-[#a0a8b7]"
+                            : "rounded-tr-none bg-[#005c4b] text-[#e9edef] lg:bg-[#1a2e26] lg:text-[#52f0ac]"
+                        }`}
+                      >
+                        <p className="break-words pr-7">
+                          {message.text}
+                        </p>
+
+                        <span className="absolute bottom-1.5 right-2 text-[9px] text-white/55 lg:text-[#6e7681]">
+                          {message.time}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1a2e26] text-[#52f0ac]">
+                      <Send size={23} />
+                    </div>
+
+                    <h2 className="mt-4 text-lg font-semibold text-white">
+                      Start the conversation
+                    </h2>
+
+                    <p className="mt-2 max-w-sm text-sm leading-6 text-[#8696a0]">
+                      Send the first update about this service request.
+                    </p>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+
+              {showMenu && (
+                <div className="absolute bottom-[70px] left-2 right-2 z-30 grid grid-cols-4 gap-4 rounded-2xl border border-[#26353d] bg-[#202c33] p-4 shadow-2xl sm:left-4 sm:right-4 lg:bottom-28 lg:left-8 lg:right-8 lg:border-[#1a1f26] lg:bg-[#15191f] lg:p-6">
+                  {attachmentItems.map((item) => {
+                    const AttachmentIcon = item.icon;
+
+                    return (
+                      <button
+                        type="button"
+                        key={item.label}
+                        className="flex min-w-0 flex-col items-center gap-2 text-[#00a884] transition hover:text-white lg:text-[#52f0ac]"
+                      >
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#26353d] sm:h-12 sm:w-12 lg:bg-[#1a2e26]">
+                          <AttachmentIcon size={19} />
+                        </div>
+
+                        <span className="w-full truncate text-center text-[9px] sm:text-[10px]">
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="shrink-0 bg-[#111b21] p-2 lg:border-t lg:border-[#1a1f26] lg:bg-[#0b0e14] lg:p-6 xl:p-8">
+                <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-3 rounded-full bg-[#202c33] px-4 py-2.5 lg:rounded-xl lg:border lg:border-[#1a1f26] lg:bg-[#15191f] lg:px-4 lg:py-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowMenu(
+                          (previousState) => !previousState
+                        )
+                      }
+                      className={`shrink-0 transition ${
+                        showMenu
+                          ? "text-[#00a884] lg:text-[#52f0ac]"
+                          : "text-[#8696a0]"
+                      }`}
+                      aria-label="Open attachments"
+                    >
+                      <Paperclip size={20} />
+                    </button>
+
+                    <input
+                      value={inputValue}
+                      onChange={(event) =>
+                        setInputValue(event.target.value)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="Message"
+                      maxLength={500}
+                      disabled={isSending}
+                      className="min-w-0 flex-1 bg-transparent text-sm text-[#e9edef] outline-none placeholder:text-[#8696a0] disabled:opacity-60 lg:text-white"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSendMessage}
+                    disabled={
+                      !inputValue.trim() || isSending
+                    }
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white transition hover:bg-[#06a57f] disabled:cursor-not-allowed disabled:opacity-50 lg:rounded-lg lg:bg-[#1a2e26] lg:text-[#52f0ac]"
+                    aria-label="Send message"
+                  >
+                    {isSending ? (
+                      <RefreshCw
+                        size={18}
+                        className="animate-spin"
+                      />
+                    ) : (
+                      <Send size={19} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+              <User size={40} className="text-[#52f0ac]" />
+
+              <h2 className="mt-4 text-xl font-semibold text-white">
+                Select a conversation
+              </h2>
+
+              <p className="mt-2 max-w-sm text-sm leading-6 text-[#8696a0]">
+                Choose a customer conversation from the left side.
+              </p>
+            </div>
+          )}
+        </main>
+
+        <aside
+          key={activeChat?.id || "empty"}
+          className="hidden h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-[#1a1f26] bg-[#0b0e14] p-5 lg:flex xl:w-80 xl:p-6"
+        >
+          {activeChat ? (
+            <>
+              <div className="mb-6 text-[10px] tracking-[0.2em] text-[#8b949e]">
+                LIVE VEHICLE CONTEXT
+              </div>
+
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="space-y-4"
+              >
+                {vehicleDetails.map((item) => {
+                  const DetailIcon = item.icon;
+
+                  return (
+                    <motion.div
+                      key={item.label}
+                      variants={itemVariants}
+                      className="flex items-center gap-4 rounded-xl border border-[#1a1f26] bg-[#15191f] p-4"
+                    >
+                      <div className="rounded-lg bg-[#0b0e14] p-2">
+                        <DetailIcon
+                          size={19}
+                          className={
+                            item.isAlert
+                              ? "text-[#e78181]"
+                              : "text-[#52f0ac]"
+                          }
+                        />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-[9px] text-[#6e7681]">
+                          {item.label}
+                        </p>
+
+                        <p className="break-words text-sm font-bold text-white">
+                          {item.val}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+
+              <div className="mt-5 rounded-xl border border-[#1a1f26] bg-[#15191f] p-4">
+                <p className="text-[9px] text-[#6e7681]">
+                  CUSTOMER CONTACT
+                </p>
+
+                <p className="mt-1 text-sm font-bold text-white">
+                  {activeChat.contact || "Not Available"}
+                </p>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-[#1a1f26] bg-[#15191f] p-4">
+                <p className="text-[9px] text-[#6e7681]">
+                  SERVICE REQUEST
+                </p>
+
+                <p className="mt-1 text-sm font-bold text-white">
+                  {activeChat.ticketNumber ||
+                    `Request ${activeChat.requestId}`}
+                </p>
+
+                <p className="mt-2 text-xs text-[#8b949e]">
+                  {activeChat.requestType}
+                </p>
+              </div>
+
+              <div className="mt-auto pt-8">
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(true)}
+                  className="w-full rounded-lg border border-[#1a1f26] py-3 text-xs uppercase tracking-widest transition hover:bg-[#15191f]"
+                >
+                  View full service details
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="flex h-full items-center justify-center text-center text-sm text-[#8696a0]">
+              No conversation selected.
+            </div>
+          )}
         </aside>
       </div>
 
-      {/* ================================================= */}
-      {/* MOBILE VEHICLE CONTEXT MODAL */}
-      {/* ================================================= */}
-      {showMobileContext && (
+      {showMobileContext && activeChat && (
         <div
           className="fixed inset-0 z-[60] flex items-end bg-black/75 lg:hidden"
           onClick={() => setShowMobileContext(false)}
         >
           <div
             className="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl border-t border-[#26353d] bg-[#111b21] p-4 sm:mx-auto sm:mb-5 sm:max-w-lg sm:rounded-2xl sm:border"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-5 flex items-center justify-between">
               <div>
@@ -763,7 +1108,7 @@ const ChatInterface = ({ openSidebar }) => {
                 </h2>
 
                 <p className="mt-0.5 text-xs text-[#8696a0]">
-                  {activeChat.vehicle}
+                  {activeVehicleLabel}
                 </p>
               </div>
 
@@ -802,7 +1147,7 @@ const ChatInterface = ({ openSidebar }) => {
                         {item.label}
                       </p>
 
-                      <p className="truncate text-xs font-semibold text-[#e9edef]">
+                      <p className="break-words text-xs font-semibold text-[#e9edef]">
                         {item.val}
                       </p>
                     </div>
@@ -810,65 +1155,73 @@ const ChatInterface = ({ openSidebar }) => {
                 );
               })}
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setShowMobileContext(false);
-                setIsHistoryOpen(true);
-              }}
-              className="mt-5 w-full rounded-lg bg-[#00a884] py-3 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-[#06a57f]"
-            >
-              View full service history
-            </button>
           </div>
         </div>
       )}
 
-      {/* ================================================= */}
-      {/* SERVICE HISTORY MODAL */}
-      {/* ================================================= */}
-      {isHistoryOpen && (
+      {isHistoryOpen && activeChat && (
         <div
           className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-5"
           onClick={() => setIsHistoryOpen(false)}
         >
           <div
             className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-[#26353d] bg-[#111b21] p-5 sm:rounded-2xl sm:p-7 lg:border-[#1a1f26] lg:bg-[#15191f]"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
           >
             <button
               type="button"
               onClick={() => setIsHistoryOpen(false)}
               className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#202c33] text-[#aebac1] transition hover:text-white"
-              aria-label="Close service history"
+              aria-label="Close service details"
             >
               <X size={19} />
             </button>
 
             <h2 className="mb-2 pr-12 text-base font-semibold text-[#e9edef] sm:text-lg lg:text-white">
-              Service History
+              Service Details
             </h2>
 
             <p className="mb-5 text-xs text-[#8696a0]">
-              {activeChat.name} · {activeChat.vehicle}
+              {activeChat.name} · {activeVehicleLabel}
             </p>
 
-            <ul className="space-y-3">
-              {activeChat.history.map((historyItem, index) => (
-                <li
-                  key={index}
-                  className="flex items-start gap-3 rounded-xl border border-[#26353d] bg-[#202c33] p-3 text-xs text-[#e9edef] sm:p-4 sm:text-sm lg:border-[#1a1f26] lg:bg-[#0b0e14] lg:text-[#52f0ac]"
+            <div className="space-y-3">
+              {[
+                ["Ticket Number", activeChat.ticketNumber || "Not Available"],
+                ["Request Type", activeChat.requestType],
+                ["Request Status", activeChat.requestStatus],
+                ["Job Status", activeChat.status],
+                ["Technician", activeChat.technician],
+                [
+                  "Start Time",
+                  activeChat.startTime
+                    ? formatDisplayTime(activeChat.startTime)
+                    : "Not Available",
+                ],
+                [
+                  "Estimated Completion",
+                  activeChat.estimatedCompletionTime
+                    ? formatDateTime(
+                        activeChat.estimatedCompletionTime
+                      )
+                    : "Not Available",
+                ],
+                ["Remarks", activeChat.remarks || "No remarks"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-[#26353d] bg-[#202c33] p-4 lg:border-[#1a1f26] lg:bg-[#0b0e14]"
                 >
-                  <Wrench
-                    size={16}
-                    className="mt-0.5 shrink-0 text-[#00a884] lg:text-[#52f0ac]"
-                  />
+                  <p className="text-[9px] uppercase tracking-wider text-[#8696a0]">
+                    {label}
+                  </p>
 
-                  <span>{historyItem}</span>
-                </li>
+                  <p className="mt-1 text-sm text-[#e9edef] lg:text-[#52f0ac]">
+                    {value}
+                  </p>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
       )}

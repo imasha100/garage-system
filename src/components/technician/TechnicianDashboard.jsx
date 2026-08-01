@@ -32,34 +32,42 @@ export default function TechnicianDashboard({
   const [technician, setTechnician] =
     useState(null);
 
-  const [isLoadingTechnician, setIsLoadingTechnician] =
-    useState(true);
+  const [jobs, setJobs] =
+    useState([]);
 
-  const [technicianError, setTechnicianError] =
-    useState("");
+  const [
+    isLoadingTechnician,
+    setIsLoadingTechnician,
+  ] = useState(true);
 
-  const percentage = 66;
-  const radius = 65;
-  const circumference = 2 * Math.PI * radius;
+  const [
+    technicianError,
+    setTechnicianError,
+  ] = useState("");
 
-  const offset =
-    circumference -
-    (percentage / 100) * circumference;
+  const [
+    currentTime,
+    setCurrentTime,
+  ] = useState(new Date());
 
-  // ==========================================
-  // Get logged-in staff details
-  // ==========================================
+  // ======================================================
+  // GET LOGGED-IN STAFF USER
+  // ======================================================
 
   const getLoggedInStaffUser = () => {
     try {
       const storedStaffUser =
-        sessionStorage.getItem("staffUser");
+        sessionStorage.getItem(
+          "staffUser"
+        );
 
       if (!storedStaffUser) {
         return null;
       }
 
-      return JSON.parse(storedStaffUser);
+      return JSON.parse(
+        storedStaffUser
+      );
     } catch (error) {
       console.error(
         "Unable to read logged-in staff user:",
@@ -70,222 +78,1007 @@ export default function TechnicianDashboard({
     }
   };
 
-  // ==========================================
-  // Load logged-in technician details
-  // ==========================================
+  // ======================================================
+  // GET TECHNICIAN ID
+  // ======================================================
 
-  const loadTechnicianDetails = async () => {
-    setIsLoadingTechnician(true);
-    setTechnicianError("");
+  const getLoggedInTechnicianId = () => {
+    const staffUser =
+      getLoggedInStaffUser();
 
-    try {
-      const staffUser =
-        getLoggedInStaffUser();
+    if (!staffUser) {
+      return null;
+    }
 
-      if (!staffUser) {
-        throw new Error(
-          "Logged-in technician details were not found. Please sign in again."
-        );
-      }
+    if (
+      String(
+        staffUser.role || ""
+      ).toLowerCase() !==
+      "technician"
+    ) {
+      return null;
+    }
 
-      if (staffUser.role !== "technician") {
-        throw new Error(
-          "This dashboard is only available for technician accounts."
-        );
-      }
-
-      const technicianId = Number(
+    const technicianId =
+      Number(
         staffUser.staffId
       );
 
-      if (
-        !Number.isInteger(technicianId) ||
-        technicianId <= 0
-      ) {
-        throw new Error(
-          "A valid technician ID could not be found. Please sign in again."
-        );
-      }
-
-      const response = await fetch(
-        `http://localhost:5000/api/technicians/${technicianId}`
-      );
-
-      const data = await response.json();
-
-      if (
-        !response.ok ||
-        data.success === false ||
-        !data.technician
-      ) {
-        throw new Error(
-          data.message ||
-            "Unable to load technician details."
-        );
-      }
-
-      setTechnician(data.technician);
-    } catch (error) {
-      console.error(
-        "Load technician dashboard details error:",
-        error
-      );
-
-      setTechnician(null);
-
-      setTechnicianError(
-        error.message ||
-          "Unable to load technician details."
-      );
-    } finally {
-      setIsLoadingTechnician(false);
+    if (
+      !Number.isInteger(
+        technicianId
+      ) ||
+      technicianId <= 0
+    ) {
+      return null;
     }
+
+    return technicianId;
   };
 
+  // ======================================================
+  // FORMAT DATE ONLY
+  // ======================================================
+
+  const formatDateOnly = (
+    value
+  ) => {
+    if (!value) {
+      return "";
+    }
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return "";
+    }
+
+    const year =
+      date.getFullYear();
+
+    const month =
+      String(
+        date.getMonth() + 1
+      ).padStart(2, "0");
+
+    const day =
+      String(
+        date.getDate()
+      ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  // ======================================================
+  // CREATE DATE + TIME OBJECT
+  // ======================================================
+
+  const createDateTime = (
+    dateValue,
+    timeValue
+  ) => {
+    if (
+      !dateValue ||
+      !timeValue
+    ) {
+      return null;
+    }
+
+    const datePart =
+      formatDateOnly(
+        dateValue
+      );
+
+    if (!datePart) {
+      return null;
+    }
+
+    const cleanTime =
+      String(
+        timeValue
+      )
+        .split(".")[0];
+
+    const date =
+      new Date(
+        `${datePart}T${cleanTime}`
+      );
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return null;
+    }
+
+    return date;
+  };
+
+  // ======================================================
+  // FORMAT MINUTES
+  // ======================================================
+
+  const formatMinutes = (
+    value
+  ) => {
+    const totalMinutes =
+      Math.max(
+        0,
+        Math.round(
+          Number(value) || 0
+        )
+      );
+
+    const hours =
+      Math.floor(
+        totalMinutes / 60
+      );
+
+    const minutes =
+      totalMinutes % 60;
+
+    if (
+      hours > 0 &&
+      minutes > 0
+    ) {
+      return `${hours}h ${minutes}m`;
+    }
+
+    if (hours > 0) {
+      return `${hours}h`;
+    }
+
+    return `${minutes}m`;
+  };
+
+  // ======================================================
+  // GET ACTUAL JOB DURATION
+  // ======================================================
+
+  const getActualJobMinutes = (
+    job
+  ) => {
+    const start =
+      createDateTime(
+        job.startDate,
+        job.startTime
+      );
+
+    if (!start) {
+      return null;
+    }
+
+    let end = null;
+
+    if (
+      job.actualCompletionTime
+    ) {
+      end = new Date(
+        job.actualCompletionTime
+      );
+    } else if (
+      job.endDate &&
+      job.endTime
+    ) {
+      end =
+        createDateTime(
+          job.endDate,
+          job.endTime
+        );
+    }
+
+    if (
+      !end ||
+      Number.isNaN(
+        end.getTime()
+      )
+    ) {
+      return null;
+    }
+
+    return (
+      end.getTime() -
+      start.getTime()
+    ) / 60000;
+  };
+
+  // ======================================================
+  // GET ORIGINAL EXPECTED JOB DURATION
+  // ======================================================
+
+  const getExpectedJobMinutes = (
+    job
+  ) => {
+    const start =
+      createDateTime(
+        job.startDate,
+        job.startTime
+      );
+
+    const expectedValue =
+      job.originalEstimatedCompletionTime ||
+      job.estimatedCompletionTime;
+
+    if (
+      !start ||
+      !expectedValue
+    ) {
+      return null;
+    }
+
+    const expected =
+      new Date(
+        expectedValue
+      );
+
+    if (
+      Number.isNaN(
+        expected.getTime()
+      )
+    ) {
+      return null;
+    }
+
+    return (
+      expected.getTime() -
+      start.getTime()
+    ) / 60000;
+  };
+
+  // ======================================================
+  // FORMAT ELAPSED TIME
+  // ======================================================
+
+  const formatElapsedTime = (
+    startDate,
+    startTime
+  ) => {
+    const start =
+      createDateTime(
+        startDate,
+        startTime
+      );
+
+    if (!start) {
+      return "00:00:00";
+    }
+
+    const difference =
+      Math.max(
+        0,
+        Math.floor(
+          (
+            currentTime.getTime() -
+            start.getTime()
+          ) / 1000
+        )
+      );
+
+    const hours =
+      Math.floor(
+        difference / 3600
+      );
+
+    const minutes =
+      Math.floor(
+        (
+          difference % 3600
+        ) / 60
+      );
+
+    const seconds =
+      difference % 60;
+
+    return `${String(
+      hours
+    ).padStart(
+      2,
+      "0"
+    )}:${String(
+      minutes
+    ).padStart(
+      2,
+      "0"
+    )}:${String(
+      seconds
+    ).padStart(
+      2,
+      "0"
+    )}`;
+  };
+
+  // ======================================================
+  // LOAD TECHNICIAN + JOB DETAILS
+  // ======================================================
+
+  const loadDashboardData =
+    async () => {
+      try {
+        setTechnicianError("");
+
+        const technicianId =
+          getLoggedInTechnicianId();
+
+        if (!technicianId) {
+          throw new Error(
+            "A valid logged-in technician account could not be identified."
+          );
+        }
+
+        const [
+          technicianResponse,
+          jobsResponse,
+        ] =
+          await Promise.all([
+            fetch(
+              `http://localhost:5000/api/technicians/${technicianId}`
+            ),
+
+            fetch(
+              `http://localhost:5000/api/service-jobs/technician/${technicianId}`
+            ),
+          ]);
+
+        const technicianResult =
+          await technicianResponse.json();
+
+        const jobsResult =
+          await jobsResponse.json();
+
+        if (
+          !technicianResponse.ok ||
+          technicianResult.success ===
+            false ||
+          !technicianResult.technician
+        ) {
+          throw new Error(
+            technicianResult.message ||
+              "Unable to load technician details."
+          );
+        }
+
+        if (
+          !jobsResponse.ok ||
+          jobsResult.success ===
+            false
+        ) {
+          throw new Error(
+            jobsResult.message ||
+              "Unable to load technician jobs."
+          );
+        }
+
+        setTechnician(
+          technicianResult.technician
+        );
+
+        setJobs(
+          Array.isArray(
+            jobsResult.jobs
+          )
+            ? jobsResult.jobs
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "Load technician dashboard error:",
+          error
+        );
+
+        setTechnicianError(
+          error.message ||
+            "Unable to load dashboard data."
+        );
+      } finally {
+        setIsLoadingTechnician(
+          false
+        );
+      }
+    };
+
+  // ======================================================
+  // REAL-TIME DATABASE REFRESH
+  // ======================================================
+
   useEffect(() => {
-    loadTechnicianDetails();
+    loadDashboardData();
+
+    const refreshInterval =
+      setInterval(() => {
+        loadDashboardData();
+      }, 5000);
+
+    return () => {
+      clearInterval(
+        refreshInterval
+      );
+    };
   }, []);
 
-  // ==========================================
-  // Display values
-  // ==========================================
+  // ======================================================
+  // LIVE CLOCK FOR ELAPSED TIME
+  // ======================================================
+
+  useEffect(() => {
+    const timer =
+      setInterval(() => {
+        setCurrentTime(
+          new Date()
+        );
+      }, 1000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+
+  // ======================================================
+  // TECHNICIAN DISPLAY DETAILS
+  // ======================================================
 
   const technicianName =
     technician?.fullName ||
     "Technician";
 
   const technicianRole =
-    technician?.specialization?.length > 0
-      ? technician.specialization[0]
+    technician
+      ?.specialization
+      ?.length > 0
+      ? technician
+          .specialization[0]
       : "Workshop Technician";
 
   const technicianEmail =
-    technician?.email || "";
+    technician?.email ||
+    "";
 
   const technicianInitials =
     technicianName
       .split(" ")
       .filter(Boolean)
       .slice(0, 2)
-      .map((namePart) =>
-        namePart.charAt(0).toUpperCase()
+      .map(
+        (namePart) =>
+          namePart
+            .charAt(0)
+            .toUpperCase()
       )
       .join("") || "T";
 
-  // ==========================================
-  // Dashboard statistics
-  // ==========================================
+  // ======================================================
+  // JOB GROUPS
+  // ======================================================
+
+  const assignedJobs =
+    useMemo(
+      () =>
+        jobs.filter(
+          (job) =>
+            String(
+              job.jobStatus ||
+                ""
+            ).toUpperCase() ===
+            "ASSIGNED"
+        ),
+      [jobs]
+    );
+
+  const inProgressJobs =
+    useMemo(
+      () =>
+        jobs.filter(
+          (job) =>
+            String(
+              job.jobStatus ||
+                ""
+            ).toUpperCase() ===
+            "IN_PROGRESS"
+        ),
+      [jobs]
+    );
+
+  const completedJobs =
+    useMemo(
+      () =>
+        jobs.filter(
+          (job) =>
+            String(
+              job.jobStatus ||
+                ""
+            ).toUpperCase() ===
+            "COMPLETED"
+        ),
+      [jobs]
+    );
+
+  // ======================================================
+  // TODAY'S JOBS
+  // ======================================================
+
+  const todayString =
+    formatDateOnly(
+      new Date()
+    );
+
+  const todayJobs =
+    useMemo(() => {
+      return jobs.filter(
+        (job) => {
+          const status =
+            String(
+              job.jobStatus ||
+                ""
+            ).toUpperCase();
+
+          // Assigned / active jobs belong
+          // to current workload.
+          if (
+            status ===
+              "ASSIGNED" ||
+            status ===
+              "IN_PROGRESS"
+          ) {
+            return true;
+          }
+
+          if (
+            status ===
+              "COMPLETED" &&
+            formatDateOnly(
+              job.startDate
+            ) === todayString
+          ) {
+            return true;
+          }
+
+          return false;
+        }
+      );
+    }, [
+      jobs,
+      todayString,
+    ]);
+
+  const totalToday =
+    todayJobs.length;
+
+  const completedToday =
+    todayJobs.filter(
+      (job) =>
+        String(
+          job.jobStatus ||
+            ""
+        ).toUpperCase() ===
+        "COMPLETED"
+    ).length;
+
+  const pendingToday =
+    todayJobs.filter(
+      (job) => {
+        const status =
+          String(
+            job.jobStatus ||
+              ""
+          ).toUpperCase();
+
+        return (
+          status ===
+            "ASSIGNED" ||
+          status ===
+            "IN_PROGRESS"
+        );
+      }
+    ).length;
+
+  // ======================================================
+  // COMPLETION PERCENTAGE
+  // ======================================================
+
+  const percentage =
+    totalToday > 0
+      ? Math.round(
+          (
+            completedToday /
+            totalToday
+          ) * 100
+        )
+      : 0;
+
+  const radius = 65;
+
+  const circumference =
+    2 *
+    Math.PI *
+    radius;
+
+  const offset =
+    circumference -
+    (
+      percentage /
+      100
+    ) *
+      circumference;
+
+  // ======================================================
+  // AVERAGE REPAIR TIME
+  // ======================================================
+
+  const completedDurations =
+    completedJobs
+      .map(
+        getActualJobMinutes
+      )
+      .filter(
+        (value) =>
+          value !== null &&
+          value >= 0
+      );
+
+  const averageRepairMinutes =
+    completedDurations.length > 0
+      ? completedDurations.reduce(
+          (
+            sum,
+            value
+          ) =>
+            sum + value,
+          0
+        ) /
+        completedDurations.length
+      : 0;
+
+  const averageRepairTime =
+    completedDurations.length > 0
+      ? formatMinutes(
+          averageRepairMinutes
+        )
+      : "0m";
+
+  // ======================================================
+  // EFFICIENCY CALCULATION
+  // ======================================================
+  // Expected vs actual duration.
+  // Finished within expected time = 100%.
+  // ======================================================
+
+  const efficiencyValues =
+    completedJobs
+      .map((job) => {
+        const expected =
+          getExpectedJobMinutes(
+            job
+          );
+
+        const actual =
+          getActualJobMinutes(
+            job
+          );
+
+        if (
+          expected === null ||
+          actual === null ||
+          expected <= 0 ||
+          actual <= 0
+        ) {
+          return null;
+        }
+
+        const value =
+          (
+            expected /
+            actual
+          ) * 100;
+
+        return Math.min(
+          100,
+          Math.max(
+            0,
+            value
+          )
+        );
+      })
+      .filter(
+        (value) =>
+          value !== null
+      );
+
+  const efficiency =
+    efficiencyValues.length >
+    0
+      ? Math.round(
+          efficiencyValues.reduce(
+            (
+              sum,
+              value
+            ) =>
+              sum + value,
+            0
+          ) /
+            efficiencyValues.length
+        )
+      : 0;
+
+  // ======================================================
+  // CURRENT ACTIVE TASK
+  // ======================================================
+
+  const currentActiveTask =
+    inProgressJobs.length > 0
+      ? inProgressJobs[0]
+      : null;
+
+  // ======================================================
+  // CURRENT JOB ELAPSED PROGRESS
+  // ======================================================
+
+  const currentTaskProgress =
+    useMemo(() => {
+      if (
+        !currentActiveTask
+      ) {
+        return 0;
+      }
+
+      const start =
+        createDateTime(
+          currentActiveTask.startDate,
+          currentActiveTask.startTime
+        );
+
+      if (!start) {
+        return 0;
+      }
+
+      const estimated =
+        currentActiveTask
+          .estimatedCompletionTime
+          ? new Date(
+              currentActiveTask.estimatedCompletionTime
+            )
+          : null;
+
+      if (
+        !estimated ||
+        Number.isNaN(
+          estimated.getTime()
+        )
+      ) {
+        return 0;
+      }
+
+      const total =
+        estimated.getTime() -
+        start.getTime();
+
+      const elapsed =
+        currentTime.getTime() -
+        start.getTime();
+
+      if (total <= 0) {
+        return 100;
+      }
+
+      return Math.min(
+        100,
+        Math.max(
+          0,
+          Math.round(
+            (
+              elapsed /
+              total
+            ) * 100
+          )
+        )
+      );
+    }, [
+      currentActiveTask,
+      currentTime,
+    ]);
+
+  // ======================================================
+  // DASHBOARD STATS
+  // ======================================================
 
   const stats = [
     {
-      label: "Assigned Vehicles",
-      value: "12",
-      sub: "Today workload",
-      icon: ClipboardList,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/20",
+      label:
+        "Assigned Vehicles",
+
+      value:
+        String(totalToday),
+
+      sub:
+        "Current workload",
+
+      icon:
+        ClipboardList,
+
+      color:
+        "text-blue-400",
+
+      bg:
+        "bg-blue-500/10",
+
+      border:
+        "border-blue-500/20",
     },
+
     {
-      label: "Completed Tasks",
-      value: "8 / 12",
-      sub: "Daily progress",
-      icon: CheckCircle,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/20",
+      label:
+        "Completed Tasks",
+
+      value:
+        `${completedToday} / ${totalToday}`,
+
+      sub:
+        "Daily progress",
+
+      icon:
+        CheckCircle,
+
+      color:
+        "text-emerald-400",
+
+      bg:
+        "bg-emerald-500/10",
+
+      border:
+        "border-emerald-500/20",
     },
+
     {
-      label: "Efficiency Index",
-      value: "94%",
-      sub: "Performance KPI",
-      icon: Activity,
-      color: "text-purple-400",
-      bg: "bg-purple-500/10",
-      border: "border-purple-500/20",
+      label:
+        "Efficiency Index",
+
+      value:
+        `${efficiency}%`,
+
+      sub:
+        "Performance KPI",
+
+      icon:
+        Activity,
+
+      color:
+        "text-purple-400",
+
+      bg:
+        "bg-purple-500/10",
+
+      border:
+        "border-purple-500/20",
     },
+
     {
-      label: "Avg Repair Time",
-      value: "42m",
-      sub: "Per vehicle",
-      icon: Clock,
-      color: "text-amber-400",
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/20",
+      label:
+        "Avg Repair Time",
+
+      value:
+        averageRepairTime,
+
+      sub:
+        "Completed vehicles",
+
+      icon:
+        Clock,
+
+      color:
+        "text-amber-400",
+
+      bg:
+        "bg-amber-500/10",
+
+      border:
+        "border-amber-500/20",
     },
   ];
 
-  // ==========================================
-  // Dashboard queue
-  // ==========================================
+  // ======================================================
+  // TODAY'S QUEUE
+  // Only jobs waiting to start
+  // ======================================================
 
-  const queue = [
-    {
-      no: "09",
-      vehicle: "VW Golf GTI",
-      vehicleNumber: "WP-CAS-1234",
-      job: "Brake Pad Replacement",
-      eta: "25m",
-      status: "Queued",
-    },
-    {
-      no: "10",
-      vehicle: "Audi RS6",
-      vehicleNumber: "CP-CB-8890",
-      job: "Oil System Flush",
-      eta: "40m",
-      status: "Waiting",
-    },
-    {
-      no: "11",
-      vehicle: "Ford F-150",
-      vehicleNumber: "WP-KV-1122",
-      job: "Suspension Tuning",
-      eta: "1h",
-      status: "Waiting",
-    },
-  ];
+  const queue =
+    useMemo(() => {
+      return assignedJobs.map(
+        (
+          job,
+          index
+        ) => {
+          const vehicleDescription =
+            [
+              job.vehicleType,
+              job.vehicleModel,
+            ]
+              .filter(Boolean)
+              .join(" ");
 
-  // ==========================================
-  // Queue search
-  // ==========================================
+          return {
+            id:
+              job.jobId,
 
-  const filteredQueue = useMemo(() => {
-    const query =
-      searchQuery.trim().toLowerCase();
+            no:
+              String(
+                index + 1
+              ).padStart(
+                2,
+                "0"
+              ),
 
-    if (!query) {
-      return queue;
-    }
+            vehicle:
+              vehicleDescription ||
+              "Vehicle",
 
-    return queue.filter((item) =>
-      [
-        item.no,
-        item.vehicle,
-        item.vehicleNumber,
-        item.job,
-        item.eta,
-        item.status,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query)
-    );
-  }, [searchQuery]);
+            vehicleNumber:
+              job.vehicleNumber ||
+              "N/A",
+
+            job:
+              job.jobType ||
+              "General Service",
+
+            eta:
+              "Awaiting Start",
+
+            status:
+              "Assigned",
+          };
+        }
+      );
+    }, [
+      assignedJobs,
+    ]);
+
+  // ======================================================
+  // SEARCH QUEUE
+  // ======================================================
+
+  const filteredQueue =
+    useMemo(() => {
+      const query =
+        searchQuery
+          .trim()
+          .toLowerCase();
+
+      if (!query) {
+        return queue;
+      }
+
+      return queue.filter(
+        (item) =>
+          [
+            item.no,
+            item.vehicle,
+            item.vehicleNumber,
+            item.job,
+            item.eta,
+            item.status,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(query)
+      );
+    }, [
+      searchQuery,
+      queue,
+    ]);
 
   return (
     <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-[#0a0d14] font-mono text-slate-300">
-      {/* ======================================
-          Header
-      ======================================= */}
-
+      {/* HEADER */}
       <header className="sticky top-0 z-50 flex h-[70px] items-center gap-3 border-b border-slate-800 bg-[#111827]/95 px-4 backdrop-blur-xl sm:gap-4 sm:px-6">
         <div className="flex w-auto shrink-0 items-center gap-3 md:w-48">
-          {/* Mobile Sidebar Menu Button */}
-
           <button
             type="button"
-            onClick={toggleSidebar}
+            onClick={
+              toggleSidebar
+            }
             aria-label="Open technician sidebar"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#0a0d14] text-slate-400 transition hover:border-indigo-500 hover:text-white md:hidden"
           >
@@ -297,8 +1090,7 @@ export default function TechnicianDashboard({
           </h1>
         </div>
 
-        {/* Desktop Search */}
-
+        {/* DESKTOP SEARCH */}
         <div className="hidden flex-1 justify-center md:flex">
           <div className="relative w-full max-w-[525px]">
             <Search
@@ -308,9 +1100,16 @@ export default function TechnicianDashboard({
 
             <input
               type="search"
-              value={searchQuery}
-              onChange={(event) =>
-                setSearchQuery(event.target.value)
+              value={
+                searchQuery
+              }
+              onChange={(
+                event
+              ) =>
+                setSearchQuery(
+                  event.target
+                    .value
+                )
               }
               placeholder="Search Workshop..."
               aria-label="Search dashboard queue"
@@ -318,8 +1117,6 @@ export default function TechnicianDashboard({
             />
           </div>
         </div>
-
-        {/* Header Actions */}
 
         <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
           <button
@@ -335,10 +1132,10 @@ export default function TechnicianDashboard({
             aria-label="Help"
             className="text-slate-400 transition hover:text-white"
           >
-            <HelpCircle size={17} />
+            <HelpCircle
+              size={17}
+            />
           </button>
-
-          {/* Logged-in Technician Header Profile */}
 
           <div className="flex items-center gap-3 border-l border-slate-800 pl-3 sm:pl-4">
             <div className="hidden text-right sm:block">
@@ -355,11 +1152,15 @@ export default function TechnicianDashboard({
               ) : (
                 <>
                   <p className="max-w-[150px] truncate text-[10px] font-bold text-white">
-                    {technicianName}
+                    {
+                      technicianName
+                    }
                   </p>
 
                   <p className="max-w-[150px] truncate text-[9px] uppercase text-slate-500">
-                    {technicianRole}
+                    {
+                      technicianRole
+                    }
                   </p>
                 </>
               )}
@@ -367,27 +1168,30 @@ export default function TechnicianDashboard({
 
             <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
               <img
-                src={avatarImage}
+                src={
+                  avatarImage
+                }
                 alt={`${technicianName} profile`}
                 className="h-full w-full object-cover"
-                onError={(event) => {
+                onError={(
+                  event
+                ) => {
                   event.currentTarget.style.display =
                     "none";
                 }}
               />
 
               <div className="absolute inset-0 -z-10 flex items-center justify-center text-xs font-black text-indigo-300">
-                {technicianInitials}
+                {
+                  technicianInitials
+                }
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* ======================================
-          Mobile Search
-      ======================================= */}
-
+      {/* MOBILE SEARCH */}
       <div className="border-b border-slate-800 bg-[#111827] px-4 py-3 md:hidden">
         <div className="relative">
           <Search
@@ -397,9 +1201,16 @@ export default function TechnicianDashboard({
 
           <input
             type="search"
-            value={searchQuery}
-            onChange={(event) =>
-              setSearchQuery(event.target.value)
+            value={
+              searchQuery
+            }
+            onChange={(
+              event
+            ) =>
+              setSearchQuery(
+                event.target
+                  .value
+              )
             }
             placeholder="Search Workshop..."
             aria-label="Search dashboard queue"
@@ -408,29 +1219,32 @@ export default function TechnicianDashboard({
         </div>
       </div>
 
-      {/* ======================================
-          Dashboard Content
-      ======================================= */}
-
+      {/* DASHBOARD */}
       <div className="mx-auto max-w-7xl px-4 py-6 pb-20 md:px-6 md:py-8">
-        {/* Technician Loading Error */}
+        {/* ERROR */}
 
         {technicianError && (
           <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-bold text-red-300">
-                Unable to load technician details
+                Unable to load dashboard
               </p>
 
               <p className="mt-1 text-xs leading-5 text-red-300/70">
-                {technicianError}
+                {
+                  technicianError
+                }
               </p>
             </div>
 
             <button
               type="button"
-              onClick={loadTechnicianDetails}
-              disabled={isLoadingTechnician}
+              onClick={
+                loadDashboardData
+              }
+              disabled={
+                isLoadingTechnician
+              }
               className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw
@@ -447,7 +1261,7 @@ export default function TechnicianDashboard({
           </div>
         )}
 
-        {/* Welcome Section */}
+        {/* WELCOME */}
 
         <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
@@ -462,13 +1276,25 @@ export default function TechnicianDashboard({
             </h1>
 
             <p className="mt-2 text-sm text-slate-500 md:text-base">
-              You have 4 remaining high-priority
-              diagnostics today.
+              You have{" "}
+              <span className="font-bold text-indigo-300">
+                {
+                  pendingToday
+                }
+              </span>{" "}
+              active or pending{" "}
+              {pendingToday === 1
+                ? "task"
+                : "tasks"}{" "}
+              in your current workload.
             </p>
 
             {technicianEmail && (
               <p className="mt-2 text-xs text-slate-600">
-                Signed in as {technicianEmail}
+                Signed in as{" "}
+                {
+                  technicianEmail
+                }
               </p>
             )}
           </div>
@@ -476,64 +1302,80 @@ export default function TechnicianDashboard({
           <button
             type="button"
             onClick={() =>
-              onNavigate?.("technician-intake")
+              onNavigate?.(
+                "technician-intake"
+              )
             }
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-indigo-700 sm:w-auto"
           >
             <Plus size={16} />
 
-            Start New Intake
+            Vehicle Intake
           </button>
         </div>
 
-        {/* ======================================
-            Statistics
-        ======================================= */}
+        {/* STATISTICS */}
 
         <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((card, index) => {
-            const Icon = card.icon;
+          {stats.map(
+            (
+              card,
+              index
+            ) => {
+              const Icon =
+                card.icon;
 
-            return (
-              <div
-                key={index}
-                className={`relative overflow-hidden rounded-2xl border bg-[#10121b] p-5 ${card.border}`}
-              >
-                <div className="mb-5 flex items-start justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500">
-                      {card.label}
-                    </p>
+              return (
+                <div
+                  key={
+                    index
+                  }
+                  className={`relative overflow-hidden rounded-2xl border bg-[#10121b] p-5 ${card.border}`}
+                >
+                  <div className="mb-5 flex items-start justify-between">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-slate-500">
+                        {
+                          card.label
+                        }
+                      </p>
 
-                    <p className="mt-1 text-[10px] text-slate-600">
-                      {card.sub}
-                    </p>
+                      <p className="mt-1 text-[10px] text-slate-600">
+                        {
+                          card.sub
+                        }
+                      </p>
+                    </div>
+
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.bg}`}
+                    >
+                      <Icon
+                        size={
+                          18
+                        }
+                        className={
+                          card.color
+                        }
+                      />
+                    </div>
                   </div>
 
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.bg}`}
-                  >
-                    <Icon
-                      size={18}
-                      className={card.color}
-                    />
-                  </div>
+                  <h2 className="text-3xl font-black text-white">
+                    {
+                      card.value
+                    }
+                  </h2>
                 </div>
-
-                <h2 className="text-3xl font-black text-white">
-                  {card.value}
-                </h2>
-              </div>
-            );
-          })}
+              );
+            }
+          )}
         </div>
 
-        {/* ======================================
-            Workflow and Current Task
-        ======================================= */}
+        {/* WORKFLOW + CURRENT TASK */}
 
         <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Daily Workflow */}
+          {/* DAILY WORKFLOW */}
 
           <div className="rounded-2xl border border-slate-800 bg-[#10121b] p-6 lg:col-span-2">
             <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -562,7 +1404,9 @@ export default function TechnicianDashboard({
                   <circle
                     cx="80"
                     cy="80"
-                    r={radius}
+                    r={
+                      radius
+                    }
                     stroke="#1e293b"
                     strokeWidth="12"
                     fill="none"
@@ -571,20 +1415,29 @@ export default function TechnicianDashboard({
                   <circle
                     cx="80"
                     cy="80"
-                    r={radius}
+                    r={
+                      radius
+                    }
                     stroke="#6366f1"
                     strokeWidth="12"
                     fill="none"
                     strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
+                    strokeDasharray={
+                      circumference
+                    }
+                    strokeDashoffset={
+                      offset
+                    }
                     className="transition-all duration-1000"
                   />
                 </svg>
 
                 <div className="z-10 text-center">
                   <h2 className="text-4xl font-black text-white">
-                    {percentage}%
+                    {
+                      percentage
+                    }
+                    %
                   </h2>
 
                   <p className="text-[10px] uppercase tracking-widest text-slate-500">
@@ -600,7 +1453,9 @@ export default function TechnicianDashboard({
                   </p>
 
                   <p className="text-2xl font-black text-white">
-                    4
+                    {
+                      pendingToday
+                    }
                   </p>
                 </div>
 
@@ -610,7 +1465,9 @@ export default function TechnicianDashboard({
                   </p>
 
                   <p className="text-2xl font-black text-emerald-400">
-                    8
+                    {
+                      completedToday
+                    }
                   </p>
                 </div>
 
@@ -620,7 +1477,9 @@ export default function TechnicianDashboard({
                   </p>
 
                   <p className="text-2xl font-black text-amber-400">
-                    42m
+                    {
+                      averageRepairTime
+                    }
                   </p>
                 </div>
 
@@ -630,14 +1489,17 @@ export default function TechnicianDashboard({
                   </p>
 
                   <p className="text-2xl font-black text-purple-400">
-                    94%
+                    {
+                      efficiency
+                    }
+                    %
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Current Active Task */}
+          {/* CURRENT ACTIVE TASK */}
 
           <div className="rounded-2xl border border-indigo-500/20 bg-[#10121b] p-6">
             <div className="mb-5 flex items-start justify-between">
@@ -651,57 +1513,150 @@ export default function TechnicianDashboard({
                 </p>
               </div>
 
-              <span className="rounded border border-indigo-500/20 bg-indigo-500/10 px-2 py-1 text-[9px] text-indigo-400">
-                IN_PROGRESS
+              <span
+                className={`rounded border px-2 py-1 text-[9px] ${
+                  currentActiveTask
+                    ? "border-indigo-500/20 bg-indigo-500/10 text-indigo-400"
+                    : "border-slate-700 bg-slate-800 text-slate-500"
+                }`}
+              >
+                {currentActiveTask
+                  ? "IN_PROGRESS"
+                  : "NO ACTIVE JOB"}
               </span>
             </div>
 
-            <div className="mb-5 flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10">
+            {currentActiveTask ? (
+              <>
+                <div className="mb-5 flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-indigo-500/20 bg-indigo-500/10">
+                    <Car
+                      size={
+                        24
+                      }
+                      className="text-indigo-400"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-xl font-black text-white">
+                      {currentActiveTask.vehicleNumber ||
+                        "N/A"}
+                    </p>
+
+                    <p className="text-[11px] text-slate-500">
+                      {[
+                        currentActiveTask.vehicleType,
+                        currentActiveTask.vehicleModel,
+                        currentActiveTask.jobType,
+                      ]
+                        .filter(
+                          Boolean
+                        )
+                        .join(
+                          " - "
+                        )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-4 rounded-xl border border-slate-800 bg-[#0a0d14] p-4">
+                  <div className="mb-2 flex justify-between text-[11px]">
+                    <span className="text-slate-500">
+                      Elapsed Time
+                    </span>
+
+                    <span className="font-bold text-white">
+                      {formatElapsedTime(
+                        currentActiveTask.startDate,
+                        currentActiveTask.startTime
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-indigo-400 transition-all duration-1000"
+                      style={{
+                        width: `${currentTaskProgress}%`,
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-2 flex justify-between text-[9px] text-slate-600">
+                    <span>
+                      Progress
+                    </span>
+
+                    <span>
+                      {
+                        currentTaskProgress
+                      }
+                      %
+                    </span>
+                  </div>
+                </div>
+
+                {currentActiveTask.timeExtended ? (
+                  <div className="flex items-start gap-2 text-xs text-amber-400">
+                    <AlertTriangle
+                      size={
+                        14
+                      }
+                      className="mt-0.5 shrink-0"
+                    />
+
+                    <div>
+                      <p className="font-bold">
+                        Time Extended +
+                        {formatMinutes(
+                          currentActiveTask.totalExtensionMinutes
+                        )}
+                      </p>
+
+                      {currentActiveTask.latestExtensionReason && (
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          {
+                            currentActiveTask.latestExtensionReason
+                          }
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-emerald-400">
+                    <Activity
+                      size={
+                        14
+                      }
+                    />
+
+                    Repair currently in progress
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex min-h-[190px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-[#0a0d14] p-6 text-center">
                 <Car
-                  size={24}
-                  className="text-indigo-400"
+                  size={
+                    32
+                  }
+                  className="mb-3 text-slate-700"
                 />
-              </div>
 
-              <div>
-                <p className="text-xl font-black text-white">
-                  B-7729-TX
+                <p className="text-sm font-bold text-slate-400">
+                  No active repair
                 </p>
 
-                <p className="text-[11px] text-slate-500">
-                  Tesla Model 3 - Battery Diagnostic
+                <p className="mt-2 text-[10px] leading-5 text-slate-600">
+                  An active vehicle will appear here after you start an assigned job.
                 </p>
               </div>
-            </div>
-
-            <div className="mb-4 rounded-xl border border-slate-800 bg-[#0a0d14] p-4">
-              <div className="mb-2 flex justify-between text-[11px]">
-                <span className="text-slate-500">
-                  Elapsed Time
-                </span>
-
-                <span className="font-bold text-white">
-                  01:14:22
-                </span>
-              </div>
-
-              <div className="h-2 w-full rounded-full bg-slate-800">
-                <div className="h-full w-2/3 rounded-full bg-indigo-400" />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-amber-400">
-              <AlertTriangle size={14} />
-
-              High voltage safety check required
-            </div>
+            )}
           </div>
         </div>
 
-        {/* ======================================
-            Today's Queue
-        ======================================= */}
+        {/* TODAY'S QUEUE */}
 
         <div className="rounded-2xl border border-slate-800 bg-[#10121b] p-6">
           <div className="mb-5 flex items-center justify-between">
@@ -715,8 +1670,11 @@ export default function TechnicianDashboard({
               </p>
             </div>
 
-            <span className="cursor-pointer text-[10px] text-indigo-400">
-              View All
+            <span className="text-[10px] text-indigo-400">
+              {
+                assignedJobs.length
+              }{" "}
+              Waiting
             </span>
           </div>
 
@@ -741,7 +1699,7 @@ export default function TechnicianDashboard({
                   </th>
 
                   <th className="pb-4 text-left">
-                    ETA
+                    Status
                   </th>
 
                   <th className="pb-4 text-right">
@@ -751,42 +1709,69 @@ export default function TechnicianDashboard({
               </thead>
 
               <tbody>
-                {filteredQueue.length > 0 ? (
+                {filteredQueue.length >
+                0 ? (
                   filteredQueue.map(
-                    (item, index) => (
+                    (item) => (
                       <tr
-                        key={index}
+                        key={
+                          item.id
+                        }
                         className="border-b border-slate-800/50 last:border-0"
                       >
                         <td className="py-4">
                           <span className="rounded bg-slate-900 px-2 py-1">
-                            {item.no}
+                            {
+                              item.no
+                            }
                           </span>
                         </td>
 
                         <td className="py-4">
                           <span className="rounded bg-slate-900 px-2 py-1 font-bold tracking-wider text-indigo-300">
-                            {item.vehicleNumber}
+                            {
+                              item.vehicleNumber
+                            }
                           </span>
                         </td>
 
                         <td className="py-4 font-bold text-white">
-                          {item.vehicle}
+                          {
+                            item.vehicle
+                          }
                         </td>
 
                         <td className="py-4">
-                          {item.job}
+                          {
+                            item.job
+                          }
                         </td>
 
                         <td className="py-4">
-                          {item.eta}
+                          <span className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[9px] text-amber-400">
+                            {
+                              item.status
+                            }
+                          </span>
                         </td>
 
                         <td className="py-4 text-right">
-                          <ChevronRight
-                            size={16}
-                            className="inline cursor-pointer text-slate-600 hover:text-white"
-                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onNavigate?.(
+                                "technician-intake"
+                              )
+                            }
+                            aria-label="Open assigned vehicle"
+                          >
+                            <ChevronRight
+                              size={
+                                16
+                              }
+                              className="inline cursor-pointer text-slate-600 transition hover:text-white"
+                            />
+                          </button>
                         </td>
                       </tr>
                     )
@@ -797,8 +1782,9 @@ export default function TechnicianDashboard({
                       colSpan="6"
                       className="py-10 text-center text-xs italic text-slate-500"
                     >
-                      No dashboard records found for "
-                      {searchQuery}".
+                      {searchQuery
+                        ? `No dashboard records found for "${searchQuery}".`
+                        : "No assigned vehicles are waiting to start."}
                     </td>
                   </tr>
                 )}

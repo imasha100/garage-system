@@ -1,4 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   Search,
@@ -15,45 +19,94 @@ import {
   CreditCard,
   Briefcase,
   UserCog,
+  Save,
+  Pencil,
 } from "lucide-react";
 
 import avatarImage from "../../assets/profile.png";
 
-export default function TechnicianProfile({ toggleSidebar }) {
-  const [searchQuery, setSearchQuery] = useState("");
+export default function TechnicianProfile({
+  toggleSidebar,
+}) {
+  // ======================================================
+  // STATES
+  // ======================================================
 
-  const [technician, setTechnician] = useState(null);
-  const [isLoadingTechnician, setIsLoadingTechnician] =
-    useState(true);
-  const [technicianError, setTechnicianError] = useState("");
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
-  const [isOnShift, setIsOnShift] = useState(false);
-  const [shiftStartTime, setShiftStartTime] = useState(null);
-  const [duration, setDuration] = useState("00:00:00");
+  const [technician, setTechnician] =
+    useState(null);
 
-  const [skills, setSkills] = useState([]);
-  const [newSkill, setNewSkill] = useState("");
+  const [
+    originalTechnician,
+    setOriginalTechnician,
+  ] = useState(null);
 
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isUpdatingShift, setIsUpdatingShift] = useState(false);
+  const [
+    isLoadingTechnician,
+    setIsLoadingTechnician,
+  ] = useState(true);
 
-  const [shiftHistory, setShiftHistory] = useState([
-    {
-      date: "Oct 24, 2023",
-      dur: "08h 12m",
-      status: "VERIFIED",
-    },
-    {
-      date: "Oct 23, 2023",
-      dur: "07h 55m",
-      status: "VERIFIED",
-    },
-    {
-      date: "Oct 22, 2023",
-      dur: "09h 05m",
-      status: "PENDING",
-    },
-  ]);
+  const [
+    technicianError,
+    setTechnicianError,
+  ] = useState("");
+
+  const [isEditing, setIsEditing] =
+    useState(false);
+
+  const [isOnShift, setIsOnShift] =
+    useState(false);
+
+  const [
+    shiftStartTime,
+    setShiftStartTime,
+  ] = useState(null);
+
+  const [duration, setDuration] =
+    useState("00:00:00");
+
+  const [skills, setSkills] =
+    useState([]);
+
+  const [
+    originalSkills,
+    setOriginalSkills,
+  ] = useState([]);
+
+  const [newSkill, setNewSkill] =
+    useState("");
+
+  const [
+    showConfirm,
+    setShowConfirm,
+  ] = useState(false);
+
+  const [
+    isUpdatingShift,
+    setIsUpdatingShift,
+  ] = useState(false);
+
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
+
+  const [
+    saveMessage,
+    setSaveMessage,
+  ] = useState("");
+
+  const [
+    saveMessageType,
+    setSaveMessageType,
+  ] = useState("success");
+
+  const [
+    shiftActivity,
+    setShiftActivity,
+  ] = useState([]);
 
   // ======================================================
   // GET LOGGED-IN STAFF USER
@@ -62,13 +115,17 @@ export default function TechnicianProfile({ toggleSidebar }) {
   const getLoggedInStaffUser = () => {
     try {
       const storedStaffUser =
-        sessionStorage.getItem("staffUser");
+        sessionStorage.getItem(
+          "staffUser"
+        );
 
       if (!storedStaffUser) {
         return null;
       }
 
-      return JSON.parse(storedStaffUser);
+      return JSON.parse(
+        storedStaffUser
+      );
     } catch (error) {
       console.error(
         "Unable to read logged-in staff user:",
@@ -80,93 +137,257 @@ export default function TechnicianProfile({ toggleSidebar }) {
   };
 
   // ======================================================
+  // GET LOGGED-IN TECHNICIAN ID
+  // ======================================================
+
+  const getTechnicianId = () => {
+    const staffUser =
+      getLoggedInStaffUser();
+
+    if (!staffUser) {
+      return null;
+    }
+
+    if (
+      String(
+        staffUser.role || ""
+      ).toLowerCase() !==
+      "technician"
+    ) {
+      return null;
+    }
+
+    const technicianId =
+      Number(
+        staffUser.staffId
+      );
+
+    if (
+      !Number.isInteger(
+        technicianId
+      ) ||
+      technicianId <= 0
+    ) {
+      return null;
+    }
+
+    return technicianId;
+  };
+
+  // ======================================================
+  // PROFILE PHOTO
+  // ======================================================
+
+  const getProfilePhoto = (
+    value
+  ) => {
+    if (!value) {
+      return avatarImage;
+    }
+
+    const photo =
+      String(value).trim();
+
+    if (
+      photo.startsWith(
+        "http://"
+      ) ||
+      photo.startsWith(
+        "https://"
+      ) ||
+      photo.startsWith(
+        "data:"
+      ) ||
+      photo.startsWith(
+        "blob:"
+      )
+    ) {
+      return photo;
+    }
+
+    if (
+      photo.startsWith("/")
+    ) {
+      return `http://localhost:5000${photo}`;
+    }
+
+    return `http://localhost:5000/${photo}`;
+  };
+
+  // ======================================================
   // LOAD TECHNICIAN PROFILE
   // ======================================================
 
-  const loadTechnicianDetails = async () => {
-    setIsLoadingTechnician(true);
-    setTechnicianError("");
-
-    try {
-      const staffUser = getLoggedInStaffUser();
-
-      if (!staffUser) {
-        throw new Error(
-          "Logged-in technician details were not found. Please sign in again."
+  const loadTechnicianDetails =
+    async (
+      showLoading = true
+    ) => {
+      if (showLoading) {
+        setIsLoadingTechnician(
+          true
         );
       }
 
-      if (staffUser.role !== "technician") {
-        throw new Error(
-          "This profile is only available for technician accounts."
+      setTechnicianError("");
+
+      try {
+        const technicianId =
+          getTechnicianId();
+
+        if (!technicianId) {
+          throw new Error(
+            "A valid logged-in technician account could not be identified."
+          );
+        }
+
+        const response =
+          await fetch(
+            `http://localhost:5000/api/technicians/${technicianId}`
+          );
+
+        const data =
+          await response.json();
+
+        if (
+          !response.ok ||
+          data.success === false ||
+          !data.technician
+        ) {
+          throw new Error(
+            data.message ||
+              "Unable to load technician profile."
+          );
+        }
+
+        const technicianData =
+          data.technician;
+
+        setTechnician(
+          technicianData
         );
-      }
 
-      const technicianId = Number(staffUser.staffId);
-
-      if (
-        !Number.isInteger(technicianId) ||
-        technicianId <= 0
-      ) {
-        throw new Error(
-          "A valid technician ID could not be found. Please sign in again."
+        setOriginalTechnician(
+          technicianData
         );
-      }
 
-      const response = await fetch(
-        `http://localhost:5000/api/technicians/${technicianId}`
-      );
+        const databaseSkills =
+          Array.isArray(
+            technicianData.specialization
+          )
+            ? technicianData.specialization
+            : technicianData.specialization
+            ? [
+                technicianData.specialization,
+              ]
+            : [];
 
-      const data = await response.json();
+        setSkills(
+          databaseSkills
+        );
 
-      if (
-        !response.ok ||
-        data.success === false ||
-        !data.technician
-      ) {
-        throw new Error(
-          data.message ||
+        setOriginalSkills(
+          databaseSkills
+        );
+
+        const currentShift =
+          String(
+            technicianData.shiftStatus ||
+              ""
+          ).toUpperCase() ===
+          "ON";
+
+        setIsOnShift(
+          currentShift
+        );
+
+        const storedShiftStart =
+          sessionStorage.getItem(
+            `technicianShiftStart_${technicianId}`
+          );
+
+        if (
+          currentShift &&
+          storedShiftStart
+        ) {
+          const start =
+            Number(
+              storedShiftStart
+            );
+
+          if (
+            Number.isFinite(start) &&
+            start > 0
+          ) {
+            setShiftStartTime(
+              start
+            );
+          }
+        }
+
+        if (!currentShift) {
+          setShiftStartTime(
+            null
+          );
+
+          setDuration(
+            "00:00:00"
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Load technician profile error:",
+          error
+        );
+
+        setTechnician(null);
+        setOriginalTechnician(null);
+
+        setSkills([]);
+        setOriginalSkills([]);
+
+        setTechnicianError(
+          error.message ||
             "Unable to load technician profile."
         );
+      } finally {
+        if (showLoading) {
+          setIsLoadingTechnician(
+            false
+          );
+        }
       }
+    };
 
-      const technicianData = data.technician;
-
-      setTechnician(technicianData);
-
-      const databaseSkills = Array.isArray(
-        technicianData.specialization
-      )
-        ? technicianData.specialization
-        : [];
-
-      setSkills(databaseSkills);
-
-      setIsOnShift(
-        String(technicianData.shiftStatus).toUpperCase() ===
-          "ON"
-      );
-    } catch (error) {
-      console.error(
-        "Load technician profile error:",
-        error
-      );
-
-      setTechnician(null);
-      setSkills([]);
-
-      setTechnicianError(
-        error.message ||
-          "Unable to load technician profile."
-      );
-    } finally {
-      setIsLoadingTechnician(false);
-    }
-  };
+  // ======================================================
+  // LOAD WHEN PAGE OPENS
+  // ======================================================
 
   useEffect(() => {
     loadTechnicianDetails();
-  }, []);
+
+    const refreshInterval =
+      setInterval(() => {
+        if (
+          !isSaving &&
+          !isUpdatingShift &&
+          !isEditing
+        ) {
+          loadTechnicianDetails(
+            false
+          );
+        }
+      }, 5000);
+
+    return () => {
+      clearInterval(
+        refreshInterval
+      );
+    };
+  }, [
+    isSaving,
+    isUpdatingShift,
+    isEditing,
+  ]);
 
   // ======================================================
   // SHIFT TIMER
@@ -175,35 +396,161 @@ export default function TechnicianProfile({ toggleSidebar }) {
   useEffect(() => {
     let interval;
 
-    if (isOnShift && shiftStartTime) {
-      interval = setInterval(() => {
-        const diff = Date.now() - shiftStartTime;
+    if (
+      isOnShift &&
+      shiftStartTime
+    ) {
+      const updateDuration =
+        () => {
+          const difference =
+            Math.max(
+              0,
+              Date.now() -
+                shiftStartTime
+            );
 
-        const hours = Math.floor(
-          diff / 1000 / 60 / 60
-        );
+          const hours =
+            Math.floor(
+              difference /
+                1000 /
+                60 /
+                60
+            );
 
-        const minutes = Math.floor(
-          (diff / 1000 / 60) % 60
-        );
+          const minutes =
+            Math.floor(
+              (
+                difference /
+                1000 /
+                60
+              ) % 60
+            );
 
-        const seconds = Math.floor(
-          (diff / 1000) % 60
-        );
+          const seconds =
+            Math.floor(
+              (
+                difference /
+                1000
+              ) % 60
+            );
 
-        setDuration(
-          `${String(hours).padStart(2, "0")}:${String(
-            minutes
-          ).padStart(2, "0")}:${String(seconds).padStart(
-            2,
-            "0"
-          )}`
+          setDuration(
+            `${String(
+              hours
+            ).padStart(
+              2,
+              "0"
+            )}:${String(
+              minutes
+            ).padStart(
+              2,
+              "0"
+            )}:${String(
+              seconds
+            ).padStart(
+              2,
+              "0"
+            )}`
+          );
+        };
+
+      updateDuration();
+
+      interval =
+        setInterval(
+          updateDuration,
+          1000
         );
-      }, 1000);
     }
 
-    return () => clearInterval(interval);
-  }, [isOnShift, shiftStartTime]);
+    return () => {
+      if (interval) {
+        clearInterval(
+          interval
+        );
+      }
+    };
+  }, [
+    isOnShift,
+    shiftStartTime,
+  ]);
+
+  // ======================================================
+  // SHOW MESSAGE
+  // ======================================================
+
+  const showSaveMessage = (
+    message,
+    type = "success"
+  ) => {
+    setSaveMessage(
+      message
+    );
+
+    setSaveMessageType(
+      type
+    );
+
+    setTimeout(() => {
+      setSaveMessage("");
+    }, 3500);
+  };
+
+  // ======================================================
+  // EDIT PROFILE
+  // ======================================================
+
+  const startEditing = () => {
+    if (!technician) {
+      return;
+    }
+
+    setOriginalTechnician({
+      ...technician,
+    });
+
+    setOriginalSkills([
+      ...skills,
+    ]);
+
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    if (
+      originalTechnician
+    ) {
+      setTechnician({
+        ...originalTechnician,
+      });
+    }
+
+    setSkills([
+      ...originalSkills,
+    ]);
+
+    setNewSkill("");
+
+    setIsEditing(false);
+  };
+
+  const updateField = (
+    field,
+    value
+  ) => {
+    setTechnician(
+      (
+        previous
+      ) =>
+        previous
+          ? {
+              ...previous,
+              [field]:
+                value,
+            }
+          : previous
+    );
+  };
 
   // ======================================================
   // SHIFT ACTIONS
@@ -213,144 +560,450 @@ export default function TechnicianProfile({ toggleSidebar }) {
     setShowConfirm(true);
   };
 
-  const confirmShiftChange = async () => {
-    if (isUpdatingShift) {
-      return;
-    }
-
-    setIsUpdatingShift(true);
-
-    try {
-      const staffUser = getLoggedInStaffUser();
-      const technicianId = Number(staffUser?.staffId);
-
+  const confirmShiftChange =
+    async () => {
       if (
-        !Number.isInteger(technicianId) ||
-        technicianId <= 0
+        isUpdatingShift
       ) {
-        throw new Error(
-          "A valid technician ID could not be found. Please sign in again."
-        );
+        return;
       }
 
-      const newStatus = isOnShift ? "OFF" : "ON";
+      setIsUpdatingShift(
+        true
+      );
 
-      const response = await fetch(
-        `http://localhost:5000/api/technicians/${technicianId}/shift-status`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            shiftStatus: newStatus,
-          }),
+      try {
+        const technicianId =
+          getTechnicianId();
+
+        if (!technicianId) {
+          throw new Error(
+            "A valid technician account could not be identified."
+          );
         }
-      );
 
-      const data = await response.json();
+        const newStatus =
+          isOnShift
+            ? "OFF"
+            : "ON";
 
-      if (!response.ok || data.success === false) {
-        throw new Error(
-          data.message ||
-            "Unable to update technician shift status."
+        const response =
+          await fetch(
+            `http://localhost:5000/api/technicians/${technicianId}/shift-status`,
+            {
+              method:
+                "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  shiftStatus:
+                    newStatus,
+                }),
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (
+          !response.ok ||
+          data.success === false
+        ) {
+          throw new Error(
+            data.message ||
+              "Unable to update technician shift status."
+          );
+        }
+
+        if (
+          newStatus === "ON"
+        ) {
+          const startTime =
+            Date.now();
+
+          setIsOnShift(true);
+
+          setShiftStartTime(
+            startTime
+          );
+
+          setDuration(
+            "00:00:00"
+          );
+
+          sessionStorage.setItem(
+            `technicianShiftStart_${technicianId}`,
+            String(
+              startTime
+            )
+          );
+
+          setShiftActivity(
+            (
+              previous
+            ) => [
+              {
+                id:
+                  Date.now(),
+
+                date:
+                  new Date().toLocaleString(),
+
+                action:
+                  "SHIFT STARTED",
+
+                duration:
+                  "-",
+              },
+
+              ...previous,
+            ]
+          );
+        }
+
+        if (
+          newStatus === "OFF"
+        ) {
+          const completedDuration =
+            duration;
+
+          setShiftActivity(
+            (
+              previous
+            ) => [
+              {
+                id:
+                  Date.now(),
+
+                date:
+                  new Date().toLocaleString(),
+
+                action:
+                  "SHIFT ENDED",
+
+                duration:
+                  completedDuration,
+              },
+
+              ...previous,
+            ]
+          );
+
+          setIsOnShift(false);
+
+          setShiftStartTime(
+            null
+          );
+
+          setDuration(
+            "00:00:00"
+          );
+
+          sessionStorage.removeItem(
+            `technicianShiftStart_${technicianId}`
+          );
+        }
+
+        setTechnician(
+          (
+            previous
+          ) =>
+            previous
+              ? {
+                  ...previous,
+                  shiftStatus:
+                    newStatus,
+                }
+              : previous
+        );
+
+        setShowConfirm(
+          false
+        );
+
+        showSaveMessage(
+          `Shift turned ${newStatus} successfully.`,
+          "success"
+        );
+      } catch (error) {
+        console.error(
+          "Update technician shift status error:",
+          error
+        );
+
+        setShowConfirm(
+          false
+        );
+
+        showSaveMessage(
+          error.message ||
+            "Unable to update technician shift status.",
+          "error"
+        );
+      } finally {
+        setIsUpdatingShift(
+          false
         );
       }
-
-      if (newStatus === "ON") {
-        setIsOnShift(true);
-        setShiftStartTime(Date.now());
-        setDuration("00:00:00");
-      } else {
-        const newEntry = {
-          date: new Date().toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          dur:
-            duration.split(":")[0] +
-            "h " +
-            duration.split(":")[1] +
-            "m",
-          status: "VERIFIED",
-        };
-
-        setShiftHistory((previousHistory) => [
-          newEntry,
-          ...previousHistory,
-        ]);
-
-        setIsOnShift(false);
-        setShiftStartTime(null);
-        setDuration("00:00:00");
-      }
-
-      setTechnician((previousTechnician) =>
-        previousTechnician
-          ? {
-              ...previousTechnician,
-              shiftStatus: newStatus,
-            }
-          : previousTechnician
-      );
-
-      setShowConfirm(false);
-    } catch (error) {
-      console.error(
-        "Update technician shift status error:",
-        error
-      );
-
-      setTechnicianError(
-        error.message ||
-          "Unable to update technician shift status."
-      );
-    } finally {
-      setIsUpdatingShift(false);
-    }
-  };
+    };
 
   // ======================================================
   // SKILL ACTIONS
   // ======================================================
 
-  const addSkill = (event) => {
+  const addSkill = (
+    event
+  ) => {
     event.preventDefault();
 
-    const trimmedSkill = newSkill.trim();
+    if (!isEditing) {
+      return;
+    }
 
-    if (
-      trimmedSkill &&
-      !skills.some(
+    const trimmedSkill =
+      newSkill.trim();
+
+    if (!trimmedSkill) {
+      return;
+    }
+
+    const alreadyExists =
+      skills.some(
         (skill) =>
-          skill.toLowerCase() ===
+          String(skill)
+            .toLowerCase() ===
           trimmedSkill.toLowerCase()
-      )
-    ) {
-      setSkills((previousSkills) => [
+      );
+
+    if (alreadyExists) {
+      showSaveMessage(
+        "This specialization is already added.",
+        "error"
+      );
+
+      return;
+    }
+
+    setSkills(
+      (
+        previousSkills
+      ) => [
         ...previousSkills,
         trimmedSkill,
-      ]);
+      ]
+    );
 
-      setNewSkill("");
-    }
+    setNewSkill("");
   };
 
-  const removeSkill = (index) => {
-    setSkills((previousSkills) =>
-      previousSkills.filter(
-        (_, skillIndex) => skillIndex !== index
-      )
+  const removeSkill = (
+    index
+  ) => {
+    if (!isEditing) {
+      return;
+    }
+
+    setSkills(
+      (
+        previousSkills
+      ) =>
+        previousSkills.filter(
+          (
+            _,
+            skillIndex
+          ) =>
+            skillIndex !==
+            index
+        )
     );
   };
+
+  // ======================================================
+  // SAVE PROFILE CHANGES
+  // ======================================================
+
+  const saveChanges =
+    async () => {
+      if (
+        isSaving ||
+        !isEditing
+      ) {
+        return;
+      }
+
+      try {
+        const technicianId =
+          getTechnicianId();
+
+        if (!technicianId) {
+          throw new Error(
+            "A valid technician account could not be identified."
+          );
+        }
+
+        if (!technician) {
+          throw new Error(
+            "Technician profile is not available."
+          );
+        }
+
+        if (
+          !String(
+            technician.fullName ||
+              ""
+          ).trim()
+        ) {
+          throw new Error(
+            "Full name is required."
+          );
+        }
+
+        if (
+          !String(
+            technician.email ||
+              ""
+          ).trim()
+        ) {
+          throw new Error(
+            "Email is required."
+          );
+        }
+
+        if (
+          !String(
+            technician.contactNumber ||
+              ""
+          ).trim()
+        ) {
+          throw new Error(
+            "Contact number is required."
+          );
+        }
+
+        if (
+          !String(
+            technician.nic ||
+              ""
+          ).trim()
+        ) {
+          throw new Error(
+            "NIC is required."
+          );
+        }
+
+        setIsSaving(true);
+
+        const response =
+          await fetch(
+            `http://localhost:5000/api/technicians/${technicianId}`,
+            {
+              method:
+                "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  fullName:
+                    String(
+                      technician.fullName ||
+                        ""
+                    ).trim(),
+
+                  email:
+                    String(
+                      technician.email ||
+                        ""
+                    ).trim(),
+
+                  contactNumber:
+                    String(
+                      technician.contactNumber ||
+                        ""
+                    ).trim(),
+
+                  nic:
+                    String(
+                      technician.nic ||
+                        ""
+                    ).trim(),
+
+                  experience:
+                    Number(
+                      technician.experience ??
+                        technician.experienceYears ??
+                        0
+                    ),
+
+                  experienceYears:
+                    Number(
+                      technician.experience ??
+                        technician.experienceYears ??
+                        0
+                    ),
+
+                  specialization:
+                    skills,
+                }),
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (
+          !response.ok ||
+          data.success === false
+        ) {
+          throw new Error(
+            data.message ||
+              "Unable to save technician profile."
+          );
+        }
+
+        setIsEditing(false);
+
+        showSaveMessage(
+          "Profile changes saved successfully.",
+          "success"
+        );
+
+        await loadTechnicianDetails(
+          false
+        );
+      } catch (error) {
+        console.error(
+          "Save technician profile error:",
+          error
+        );
+
+        showSaveMessage(
+          error.message ||
+            "Unable to save technician profile.",
+          "error"
+        );
+      } finally {
+        setIsSaving(
+          false
+        );
+      }
+    };
 
   // ======================================================
   // DISPLAY VALUES
   // ======================================================
 
   const technicianName =
-    technician?.fullName || "Technician";
+    technician?.fullName ||
+    "Technician";
 
   const technicianRole =
     skills.length > 0
@@ -358,28 +1011,49 @@ export default function TechnicianProfile({ toggleSidebar }) {
       : "Workshop Technician";
 
   const technicianEmail =
-    technician?.email || "N/A";
+    technician?.email ||
+    "N/A";
 
   const technicianContact =
-    technician?.contactNumber || "N/A";
+    technician
+      ?.contactNumber ||
+    "N/A";
 
   const technicianNic =
-    technician?.nic || "N/A";
+    technician?.nic ||
+    "N/A";
+
+  const experienceValue =
+    technician?.experience ??
+    technician
+      ?.experienceYears;
 
   const technicianExperience =
-    technician?.experience !== undefined &&
-    technician?.experience !== null &&
-    technician?.experience !== ""
-      ? `${technician.experience} Years`
+    experienceValue !==
+      undefined &&
+    experienceValue !== null &&
+    experienceValue !== ""
+      ? `${experienceValue} Years`
       : "N/A";
+
+  const technicianPhoto =
+    getProfilePhoto(
+      technician
+        ?.profilePhoto
+    );
 
   const technicianInitials =
     technicianName
       .split(" ")
       .filter(Boolean)
       .slice(0, 2)
-      .map((namePart) =>
-        namePart.charAt(0).toUpperCase()
+      .map(
+        (
+          namePart
+        ) =>
+          namePart
+            .charAt(0)
+            .toUpperCase()
       )
       .join("") || "T";
 
@@ -387,54 +1061,110 @@ export default function TechnicianProfile({ toggleSidebar }) {
   // SEARCH
   // ======================================================
 
-  const normalizedSearch = searchQuery
-    .trim()
-    .toLowerCase();
+  const normalizedSearch =
+    searchQuery
+      .trim()
+      .toLowerCase();
 
-  const filteredSkills = useMemo(() => {
-    if (!normalizedSearch) {
-      return skills.map((skill, index) => ({
-        skill,
-        originalIndex: index,
-      }));
-    }
+  const filteredSkills =
+    useMemo(() => {
+      if (
+        !normalizedSearch
+      ) {
+        return skills.map(
+          (
+            skill,
+            index
+          ) => ({
+            skill,
+            originalIndex:
+              index,
+          })
+        );
+      }
 
-    return skills
-      .map((skill, index) => ({
-        skill,
-        originalIndex: index,
-      }))
-      .filter(({ skill }) =>
-        skill.toLowerCase().includes(normalizedSearch)
+      return skills
+        .map(
+          (
+            skill,
+            index
+          ) => ({
+            skill,
+            originalIndex:
+              index,
+          })
+        )
+        .filter(
+          ({
+            skill,
+          }) =>
+            String(
+              skill
+            )
+              .toLowerCase()
+              .includes(
+                normalizedSearch
+              )
+        );
+    }, [
+      skills,
+      normalizedSearch,
+    ]);
+
+  const filteredShiftActivity =
+    useMemo(() => {
+      if (
+        !normalizedSearch
+      ) {
+        return shiftActivity;
+      }
+
+      return shiftActivity.filter(
+        (row) =>
+          [
+            row.date,
+            row.action,
+            row.duration,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(
+              normalizedSearch
+            )
       );
-  }, [skills, normalizedSearch]);
+    }, [
+      shiftActivity,
+      normalizedSearch,
+    ]);
 
-  const filteredShiftHistory = useMemo(() => {
-    return shiftHistory.filter((row) =>
-      [row.date, row.dur, row.status]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedSearch)
-    );
-  }, [shiftHistory, normalizedSearch]);
+  const nextStatus =
+    isOnShift
+      ? "OFF"
+      : "ON";
 
-  const nextStatus = isOnShift ? "OFF" : "ON";
+  // ======================================================
+  // UI
+  // ======================================================
 
   return (
     <div className="relative min-h-screen bg-[#0a0d14] font-mono text-slate-300">
-      {/* ==================================================
-          HEADER
-      =================================================== */}
+      {/* HEADER */}
 
       <header className="sticky top-0 z-50 flex h-[70px] items-center gap-4 border-b border-slate-800 bg-[#111827]/95 px-4 backdrop-blur-xl sm:px-6">
         <div className="flex w-auto shrink-0 items-center gap-3 md:w-48">
           <button
             type="button"
-            onClick={toggleSidebar}
+            onClick={
+              toggleSidebar
+            }
             aria-label="Open technician sidebar"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-[#0a0d14] text-slate-400 transition hover:border-indigo-500 hover:text-white md:hidden"
           >
-            <Menu size={20} />
+            <Menu
+              size={
+                20
+              }
+            />
           </button>
 
           <h1 className="text-sm font-black tracking-[0.15em] text-white">
@@ -451,9 +1181,16 @@ export default function TechnicianProfile({ toggleSidebar }) {
 
             <input
               type="search"
-              value={searchQuery}
-              onChange={(event) =>
-                setSearchQuery(event.target.value)
+              value={
+                searchQuery
+              }
+              onChange={(
+                event
+              ) =>
+                setSearchQuery(
+                  event.target
+                    .value
+                )
               }
               placeholder="Search Workshop..."
               aria-label="Search profile content"
@@ -468,7 +1205,11 @@ export default function TechnicianProfile({ toggleSidebar }) {
             aria-label="Notifications"
             className="text-slate-400 transition hover:text-white"
           >
-            <Bell size={17} />
+            <Bell
+              size={
+                17
+              }
+            />
           </button>
 
           <button
@@ -476,7 +1217,11 @@ export default function TechnicianProfile({ toggleSidebar }) {
             aria-label="Help"
             className="text-slate-400 transition hover:text-white"
           >
-            <HelpCircle size={17} />
+            <HelpCircle
+              size={
+                17
+              }
+            />
           </button>
 
           <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
@@ -496,26 +1241,30 @@ export default function TechnicianProfile({ toggleSidebar }) {
 
             <div className="relative h-9 w-9 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
               <img
-                src={avatarImage}
+                src={
+                  technicianPhoto
+                }
                 alt={`${technicianName} profile`}
                 className="h-full w-full object-cover"
-                onError={(event) => {
-                  event.currentTarget.style.display =
-                    "none";
+                onError={(
+                  event
+                ) => {
+                  event.currentTarget.src =
+                    avatarImage;
                 }}
               />
 
               <div className="absolute inset-0 -z-10 flex items-center justify-center text-xs font-black text-indigo-300">
-                {technicianInitials}
+                {
+                  technicianInitials
+                }
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* ==================================================
-          MOBILE SEARCH
-      =================================================== */}
+      {/* MOBILE SEARCH */}
 
       <div className="border-b border-slate-800 bg-[#111827] px-4 py-3 md:hidden">
         <div className="relative">
@@ -526,20 +1275,24 @@ export default function TechnicianProfile({ toggleSidebar }) {
 
           <input
             type="search"
-            value={searchQuery}
-            onChange={(event) =>
-              setSearchQuery(event.target.value)
+            value={
+              searchQuery
+            }
+            onChange={(
+              event
+            ) =>
+              setSearchQuery(
+                event.target
+                  .value
+              )
             }
             placeholder="Search Workshop..."
-            aria-label="Search profile content"
             className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-10 pr-4 text-xs text-slate-300 outline-none placeholder:text-slate-600 focus:border-indigo-500"
           />
         </div>
       </div>
 
-      {/* ==================================================
-          MAIN CONTENT
-      =================================================== */}
+      {/* MAIN */}
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         {technicianError && (
@@ -550,18 +1303,26 @@ export default function TechnicianProfile({ toggleSidebar }) {
               </p>
 
               <p className="mt-1 text-xs leading-5 text-red-300/70">
-                {technicianError}
+                {
+                  technicianError
+                }
               </p>
             </div>
 
             <button
               type="button"
-              onClick={loadTechnicianDetails}
-              disabled={isLoadingTechnician}
+              onClick={() =>
+                loadTechnicianDetails()
+              }
+              disabled={
+                isLoadingTechnician
+              }
               className="flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw
-                size={16}
+                size={
+                  16
+                }
                 className={
                   isLoadingTechnician
                     ? "animate-spin"
@@ -574,6 +1335,23 @@ export default function TechnicianProfile({ toggleSidebar }) {
           </div>
         )}
 
+        {saveMessage && (
+          <div
+            className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+              saveMessageType ===
+              "success"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                : "border-red-500/30 bg-red-500/10 text-red-300"
+            }`}
+          >
+            {
+              saveMessage
+            }
+          </div>
+        )}
+
+        {/* TITLE + ACTIONS */}
+
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-bold text-white">
@@ -581,131 +1359,338 @@ export default function TechnicianProfile({ toggleSidebar }) {
             </h1>
 
             <p className="mt-1 text-base text-slate-500 sm:text-xl">
-              Manage your professional credentials and
-              shift availability.
+              Manage your professional credentials and shift availability.
             </p>
           </div>
 
-          <button
-            type="button"
-            className="rounded-md bg-indigo-600 px-6 py-2 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-indigo-700"
-          >
-            Save Changes
-          </button>
+          {!isEditing ? (
+            <button
+              type="button"
+              onClick={
+                startEditing
+              }
+              disabled={
+                isLoadingTechnician ||
+                !technician
+              }
+              className="flex items-center justify-center gap-2 rounded-md bg-indigo-600 px-6 py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Pencil
+                size={
+                  16
+                }
+              />
+
+              EDIT PROFILE
+            </button>
+          ) : (
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={
+                  cancelEditing
+                }
+                disabled={
+                  isSaving
+                }
+                className="rounded-md border border-slate-600 px-6 py-3 text-sm font-bold uppercase tracking-widest text-slate-300 transition hover:bg-slate-800 disabled:opacity-50"
+              >
+                CANCEL
+              </button>
+
+              <button
+                type="button"
+                onClick={
+                  saveChanges
+                }
+                disabled={
+                  isSaving
+                }
+                className="flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-6 py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Save
+                  size={
+                    16
+                  }
+                />
+
+                {isSaving
+                  ? "SAVING..."
+                  : "SAVE CHANGES"}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* ==================================================
-            PROFILE AND SHIFT
-        =================================================== */}
+        {/* PROFILE + SHIFT */}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Profile Card */}
+          {/* PROFILE CARD */}
 
           <div className="rounded-xl border border-slate-800 bg-[#10121b] p-8 text-center">
             <div className="relative mx-auto mb-4 flex h-32 w-32 items-center justify-center">
-              <div className="absolute inset-0 animate-spin-slow rounded-full bg-gradient-to-tr from-indigo-500 via-emerald-400 to-indigo-500" />
+              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500 via-emerald-400 to-indigo-500" />
 
               <div className="absolute inset-1 rounded-full bg-[#10121b]" />
 
               <div className="relative z-10 h-28 w-28 overflow-hidden rounded-full bg-slate-800">
                 <img
-                  src={avatarImage}
+                  src={
+                    technicianPhoto
+                  }
                   alt={`${technicianName} profile`}
                   className="h-full w-full object-cover"
-                  onError={(event) => {
-                    event.currentTarget.style.display =
-                      "none";
+                  onError={(
+                    event
+                  ) => {
+                    event.currentTarget.src =
+                      avatarImage;
                   }}
                 />
-
-                <div className="absolute inset-0 -z-10 flex items-center justify-center text-2xl font-black text-indigo-300">
-                  {technicianInitials}
-                </div>
               </div>
             </div>
 
-            <h2 className="text-xl font-bold text-white">
-              {isLoadingTechnician
-                ? "Loading..."
-                : technicianName}
-            </h2>
+            {!isEditing ? (
+              <>
+                <h2 className="text-xl font-bold text-white">
+                  {isLoadingTechnician
+                    ? "Loading..."
+                    : technicianName}
+                </h2>
 
-            <p className="mb-6 mt-1 text-xs uppercase tracking-widest text-indigo-400">
-              {technicianRole}
-            </p>
+                <p className="mb-6 mt-1 text-xs uppercase tracking-widest text-indigo-400">
+                  {
+                    technicianRole
+                  }
+                </p>
+              </>
+            ) : (
+              <div className="mb-6">
+                <label className="mb-1 block text-left text-[9px] uppercase tracking-widest text-slate-500">
+                  Full Name
+                </label>
+
+                <input
+                  type="text"
+                  value={
+                    technician
+                      ?.fullName ||
+                    ""
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "fullName",
+                      event.target
+                        .value
+                    )
+                  }
+                  className="w-full rounded-lg border border-slate-700 bg-[#0a0d14] px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
+                />
+              </div>
+            )}
 
             <div className="space-y-3 text-left">
-              <div className="flex items-start gap-3 rounded-xl border border-slate-800 bg-[#0a0d14] p-3">
-                <Mail
-                  size={17}
-                  className="mt-0.5 shrink-0 text-blue-400"
-                />
+              {/* EMAIL */}
 
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase tracking-widest text-slate-600">
-                    Email
-                  </p>
+              <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-3">
+                <div className="flex items-start gap-3">
+                  <Mail
+                    size={
+                      17
+                    }
+                    className="mt-0.5 shrink-0 text-blue-400"
+                  />
 
-                  <p className="mt-1 break-all text-xs font-bold text-white">
-                    {technicianEmail}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] uppercase tracking-widest text-slate-600">
+                      Email
+                    </p>
+
+                    {isEditing ? (
+                      <input
+                        type="email"
+                        value={
+                          technician
+                            ?.email ||
+                          ""
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateField(
+                            "email",
+                            event.target
+                              .value
+                          )
+                        }
+                        className="mt-1 w-full rounded border border-slate-700 bg-[#111827] px-2 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                      />
+                    ) : (
+                      <p className="mt-1 break-all text-xs font-bold text-white">
+                        {
+                          technicianEmail
+                        }
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 rounded-xl border border-slate-800 bg-[#0a0d14] p-3">
-                <Phone
-                  size={17}
-                  className="mt-0.5 shrink-0 text-emerald-400"
-                />
+              {/* CONTACT */}
 
-                <div>
-                  <p className="text-[9px] uppercase tracking-widest text-slate-600">
-                    Contact Number
-                  </p>
+              <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-3">
+                <div className="flex items-start gap-3">
+                  <Phone
+                    size={
+                      17
+                    }
+                    className="mt-0.5 shrink-0 text-emerald-400"
+                  />
 
-                  <p className="mt-1 text-xs font-bold text-white">
-                    {technicianContact}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] uppercase tracking-widest text-slate-600">
+                      Contact Number
+                    </p>
+
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={
+                          technician
+                            ?.contactNumber ||
+                          ""
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateField(
+                            "contactNumber",
+                            event.target
+                              .value
+                          )
+                        }
+                        className="mt-1 w-full rounded border border-slate-700 bg-[#111827] px-2 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                      />
+                    ) : (
+                      <p className="mt-1 text-xs font-bold text-white">
+                        {
+                          technicianContact
+                        }
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 rounded-xl border border-slate-800 bg-[#0a0d14] p-3">
-                <CreditCard
-                  size={17}
-                  className="mt-0.5 shrink-0 text-amber-400"
-                />
+              {/* NIC */}
 
-                <div>
-                  <p className="text-[9px] uppercase tracking-widest text-slate-600">
-                    NIC
-                  </p>
+              <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-3">
+                <div className="flex items-start gap-3">
+                  <CreditCard
+                    size={
+                      17
+                    }
+                    className="mt-0.5 shrink-0 text-amber-400"
+                  />
 
-                  <p className="mt-1 text-xs font-bold text-white">
-                    {technicianNic}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] uppercase tracking-widest text-slate-600">
+                      NIC
+                    </p>
+
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={
+                          technician
+                            ?.nic ||
+                          ""
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateField(
+                            "nic",
+                            event.target
+                              .value
+                          )
+                        }
+                        className="mt-1 w-full rounded border border-slate-700 bg-[#111827] px-2 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                      />
+                    ) : (
+                      <p className="mt-1 text-xs font-bold text-white">
+                        {
+                          technicianNic
+                        }
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 rounded-xl border border-slate-800 bg-[#0a0d14] p-3">
-                <Briefcase
-                  size={17}
-                  className="mt-0.5 shrink-0 text-purple-400"
-                />
+              {/* EXPERIENCE */}
 
-                <div>
-                  <p className="text-[9px] uppercase tracking-widest text-slate-600">
-                    Experience
-                  </p>
+              <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-3">
+                <div className="flex items-start gap-3">
+                  <Briefcase
+                    size={
+                      17
+                    }
+                    className="mt-0.5 shrink-0 text-purple-400"
+                  />
 
-                  <p className="mt-1 text-xs font-bold text-white">
-                    {technicianExperience}
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] uppercase tracking-widest text-slate-600">
+                      Experience
+                    </p>
+
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        min="0"
+                        max="60"
+                        value={
+                          technician
+                            ?.experience ??
+                          technician
+                            ?.experienceYears ??
+                          ""
+                        }
+                        onChange={(
+                          event
+                        ) => {
+                          const value =
+                            event.target
+                              .value;
+
+                          updateField(
+                            "experience",
+                            value
+                          );
+
+                          updateField(
+                            "experienceYears",
+                            value
+                          );
+                        }}
+                        className="mt-1 w-full rounded border border-slate-700 bg-[#111827] px-2 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                      />
+                    ) : (
+                      <p className="mt-1 text-xs font-bold text-white">
+                        {
+                          technicianExperience
+                        }
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Shift Card */}
+          {/* SHIFT CARD */}
 
           <div className="space-y-6 lg:col-span-2">
             <div className="rounded-xl border border-slate-800 bg-[#10121b] p-8">
@@ -728,7 +1713,7 @@ export default function TechnicianProfile({ toggleSidebar }) {
                         : "bg-rose-500/10 text-rose-400"
                     }`}
                   >
-                    <div
+                    <span
                       className={`h-2 w-2 rounded-full ${
                         isOnShift
                           ? "bg-emerald-500"
@@ -743,14 +1728,17 @@ export default function TechnicianProfile({ toggleSidebar }) {
 
                   <button
                     type="button"
-                    onClick={openShiftPopup}
-                    disabled={isUpdatingShift}
+                    onClick={
+                      openShiftPopup
+                    }
+                    disabled={
+                      isUpdatingShift
+                    }
                     className={`h-6 w-12 rounded-full p-1 transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${
                       isOnShift
                         ? "bg-emerald-500"
                         : "bg-slate-700"
                     }`}
-                    aria-label="Change shift status"
                   >
                     <div
                       className={`h-4 w-4 rounded-full bg-white transition-transform ${
@@ -764,7 +1752,9 @@ export default function TechnicianProfile({ toggleSidebar }) {
               </div>
 
               <h2 className="mb-2 text-4xl font-black text-white">
-                {duration}
+                {
+                  duration
+                }
 
                 <span className="ml-2 text-sm font-normal text-slate-500">
                   Current Duration
@@ -782,129 +1772,188 @@ export default function TechnicianProfile({ toggleSidebar }) {
               </div>
 
               <p className="text-[10px] text-slate-500">
-                {isOnShift && shiftStartTime
+                {isOnShift &&
+                shiftStartTime
                   ? `Shift began at ${new Date(
                       shiftStartTime
                     ).toLocaleTimeString()}`
+                  : isOnShift
+                  ? "Shift is active."
                   : "Shift is currently inactive."}
               </p>
             </div>
           </div>
         </div>
 
-        {/* ==================================================
-            SKILLS AND SHIFT HISTORY
-        =================================================== */}
+        {/* SPECIALIZATION + SHIFT ACTIVITY */}
 
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Skills */}
-
           <div className="rounded-xl border border-slate-800 bg-[#10121b] p-6">
-            <h3 className="mb-4 text-sm font-bold text-white">
-              Skill Categories
-            </h3>
+            <div className="mb-4 flex items-center gap-2">
+              <UserCog
+                size={
+                  17
+                }
+                className="text-indigo-400"
+              />
 
-            {filteredSkills.length > 0 ? (
+              <h3 className="text-sm font-bold text-white">
+                Specializations
+              </h3>
+            </div>
+
+            {filteredSkills.length >
+            0 ? (
               filteredSkills.map(
-                ({ skill, originalIndex }) => (
+                ({
+                  skill,
+                  originalIndex,
+                }) => (
                   <div
                     key={`${skill}-${originalIndex}`}
-                    className="mb-2 flex justify-between rounded border border-slate-800 bg-[#0a0d14] p-3 text-[11px] text-slate-300"
+                    className="mb-2 flex items-center justify-between rounded border border-slate-800 bg-[#0a0d14] p-3 text-[11px] text-slate-300"
                   >
-                    <span>{skill}</span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        removeSkill(originalIndex)
+                    <span>
+                      {
+                        skill
                       }
-                      className="text-red-500 hover:text-red-300"
-                      aria-label={`Remove ${skill}`}
-                    >
-                      ×
-                    </button>
+                    </span>
+
+                    {isEditing && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeSkill(
+                            originalIndex
+                          )
+                        }
+                        className="text-red-500 transition hover:text-red-300"
+                      >
+                        <X
+                          size={
+                            14
+                          }
+                        />
+                      </button>
+                    )}
                   </div>
                 )
               )
             ) : (
               <p className="rounded border border-slate-800 bg-[#0a0d14] p-4 text-center text-[11px] text-slate-500">
-                No skills found.
+                No specializations found.
               </p>
             )}
 
-            <form
-              onSubmit={addSkill}
-              className="mt-4 flex gap-2"
-            >
-              <input
-                type="text"
-                value={newSkill}
-                onChange={(event) =>
-                  setNewSkill(event.target.value)
-                }
-                placeholder="Add new skill..."
-                className="flex-1 rounded border border-slate-800 bg-[#0a0d14] p-2 text-[10px] outline-none focus:border-indigo-500"
-              />
+            {isEditing && (
+              <>
+                <form
+                  onSubmit={
+                    addSkill
+                  }
+                  className="mt-4 flex gap-2"
+                >
+                  <input
+                    type="text"
+                    value={
+                      newSkill
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setNewSkill(
+                        event.target
+                          .value
+                      )
+                    }
+                    placeholder="Add specialization..."
+                    className="min-w-0 flex-1 rounded border border-slate-800 bg-[#0a0d14] p-2 text-[10px] outline-none focus:border-indigo-500"
+                  />
 
-              <button
-                type="submit"
-                className="rounded bg-indigo-600 p-2 text-white hover:bg-indigo-700"
-                aria-label="Add skill"
-              >
-                <Plus size={14} />
-              </button>
-            </form>
+                  <button
+                    type="submit"
+                    className="rounded bg-indigo-600 p-2 text-white transition hover:bg-indigo-700"
+                  >
+                    <Plus
+                      size={
+                        14
+                      }
+                    />
+                  </button>
+                </form>
+
+                <p className="mt-3 text-[9px] leading-4 text-slate-600">
+                  Save Changes after editing specializations.
+                </p>
+              </>
+            )}
           </div>
 
-          {/* Shift History */}
+          {/* SHIFT ACTIVITY */}
 
           <div className="rounded-xl border border-slate-800 bg-[#10121b] p-6 lg:col-span-2">
-            <h3 className="mb-4 text-sm font-bold text-white">
-              Recent Shifts
+            <h3 className="mb-1 text-sm font-bold text-white">
+              Shift Activity
             </h3>
 
+            <p className="mb-4 text-[9px] text-slate-600">
+              Shift changes made during the current login session.
+            </p>
+
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px] text-[10px] text-slate-400">
+              <table className="w-full min-w-[500px] text-[10px] text-slate-400">
                 <thead>
                   <tr className="border-b border-slate-800 uppercase">
                     <th className="pb-3 text-left">
-                      Date
+                      Date & Time
+                    </th>
+
+                    <th className="pb-3 text-left">
+                      Activity
                     </th>
 
                     <th className="pb-3 text-left">
                       Duration
                     </th>
-
-                    <th className="pb-3 text-left">
-                      Status
-                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {filteredShiftHistory.length > 0 ? (
-                    filteredShiftHistory.map(
-                      (row, index) => (
+                  {filteredShiftActivity.length >
+                  0 ? (
+                    filteredShiftActivity.map(
+                      (
+                        row
+                      ) => (
                         <tr
-                          key={`${row.date}-${index}`}
+                          key={
+                            row.id
+                          }
                           className="border-b border-slate-800/50"
                         >
                           <td className="py-3">
-                            {row.date}
-                          </td>
-
-                          <td className="py-3">
-                            {row.dur}
+                            {
+                              row.date
+                            }
                           </td>
 
                           <td
-                            className={`py-3 ${
-                              row.status === "PENDING"
-                                ? "text-amber-500"
-                                : "text-emerald-500"
+                            className={`py-3 font-bold ${
+                              row.action ===
+                              "SHIFT STARTED"
+                                ? "text-emerald-400"
+                                : "text-rose-400"
                             }`}
                           >
-                            {row.status}
+                            {
+                              row.action
+                            }
+                          </td>
+
+                          <td className="py-3">
+                            {
+                              row.duration
+                            }
                           </td>
                         </tr>
                       )
@@ -915,7 +1964,7 @@ export default function TechnicianProfile({ toggleSidebar }) {
                         colSpan="3"
                         className="py-10 text-center text-slate-500"
                       >
-                        No shift history found.
+                        No shift activity recorded in this session.
                       </td>
                     </tr>
                   )}
@@ -926,37 +1975,51 @@ export default function TechnicianProfile({ toggleSidebar }) {
         </div>
       </div>
 
-      {/* ==================================================
-          SHIFT CONFIRMATION POPUP
-      =================================================== */}
+      {/* SHIFT CONFIRMATION POPUP */}
 
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-2xl border border-slate-700 bg-[#10121b] p-6 text-center shadow-2xl">
             <button
               type="button"
-              onClick={() => setShowConfirm(false)}
-              className="absolute right-4 top-4 text-slate-400 hover:text-white"
-              aria-label="Close shift confirmation"
+              onClick={() =>
+                setShowConfirm(
+                  false
+                )
+              }
+              disabled={
+                isUpdatingShift
+              }
+              className="absolute right-4 top-4 text-slate-400 hover:text-white disabled:opacity-50"
             >
-              <X size={22} />
+              <X
+                size={
+                  22
+                }
+              />
             </button>
 
             <div
               className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${
-                nextStatus === "ON"
+                nextStatus ===
+                "ON"
                   ? "bg-emerald-500/10"
                   : "bg-rose-500/10"
               }`}
             >
-              {nextStatus === "ON" ? (
+              {nextStatus ===
+              "ON" ? (
                 <Power
-                  size={34}
+                  size={
+                    34
+                  }
                   className="text-emerald-400"
                 />
               ) : (
                 <PowerOff
-                  size={34}
+                  size={
+                    34
+                  }
                   className="text-rose-400"
                 />
               )}
@@ -970,12 +2033,15 @@ export default function TechnicianProfile({ toggleSidebar }) {
               Are you sure you want to turn your shift{" "}
               <span
                 className={`font-bold ${
-                  nextStatus === "ON"
+                  nextStatus ===
+                  "ON"
                     ? "text-emerald-400"
                     : "text-rose-400"
                 }`}
               >
-                {nextStatus}
+                {
+                  nextStatus
+                }
               </span>
               ?
             </p>
@@ -983,26 +2049,37 @@ export default function TechnicianProfile({ toggleSidebar }) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setShowConfirm(false)}
-                disabled={isUpdatingShift}
+                onClick={() =>
+                  setShowConfirm(
+                    false
+                  )
+                }
+                disabled={
+                  isUpdatingShift
+                }
                 className="w-1/2 rounded-lg bg-slate-700 py-3 font-bold text-white hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Cancel
+                CANCEL
               </button>
 
               <button
                 type="button"
-                onClick={confirmShiftChange}
-                disabled={isUpdatingShift}
+                onClick={
+                  confirmShiftChange
+                }
+                disabled={
+                  isUpdatingShift
+                }
                 className={`w-1/2 rounded-lg py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 ${
-                  nextStatus === "ON"
+                  nextStatus ===
+                  "ON"
                     ? "bg-emerald-600 hover:bg-emerald-700"
                     : "bg-rose-600 hover:bg-rose-700"
                 }`}
               >
                 {isUpdatingShift
-                  ? "Updating..."
-                  : `Yes, Turn ${nextStatus}`}
+                  ? "UPDATING..."
+                  : `YES, TURN ${nextStatus}`}
               </button>
             </div>
           </div>

@@ -121,6 +121,100 @@ const haversineDistanceKm = (from, to) => {
   return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
+
+const RoadRoute = ({
+  from,
+  to,
+  color,
+  weight = 5,
+  opacity = 0.9,
+  dashArray,
+}) => {
+  const [roadCoordinates, setRoadCoordinates] = useState([]);
+  const [routeUnavailable, setRouteUnavailable] = useState(false);
+
+  useEffect(() => {
+    if (
+      !Array.isArray(from) ||
+      !Array.isArray(to) ||
+      from.length < 2 ||
+      to.length < 2 ||
+      ![from[0], from[1], to[0], to[1]].every(Number.isFinite)
+    ) {
+      setRoadCoordinates([]);
+      setRouteUnavailable(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    const loadRoadRoute = async () => {
+      try {
+        setRouteUnavailable(false);
+
+        const [fromLatitude, fromLongitude] = from;
+        const [toLatitude, toLongitude] = to;
+
+        const routeUrl =
+          `https://router.project-osrm.org/route/v1/driving/` +
+          `${fromLongitude},${fromLatitude};${toLongitude},${toLatitude}` +
+          `?overview=full&geometries=geojson&steps=false`;
+
+        const response = await fetch(routeUrl, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Unable to load the road route.");
+        }
+
+        const result = await response.json();
+        const coordinates =
+          result?.routes?.[0]?.geometry?.coordinates;
+
+        if (!Array.isArray(coordinates) || coordinates.length < 2) {
+          throw new Error("No road route was returned.");
+        }
+
+        setRoadCoordinates(
+          coordinates.map(([longitude, latitude]) => [
+            latitude,
+            longitude,
+          ])
+        );
+      } catch (error) {
+        if (error.name === "AbortError") return;
+
+        console.error("OSRM road route error:", error);
+        setRoadCoordinates([from, to]);
+        setRouteUnavailable(true);
+      }
+    };
+
+    loadRoadRoute();
+
+    return () => controller.abort();
+  }, [from?.[0], from?.[1], to?.[0], to?.[1]]);
+
+  if (roadCoordinates.length < 2) {
+    return null;
+  }
+
+  return (
+    <Polyline
+      positions={roadCoordinates}
+      pathOptions={{
+        color,
+        weight,
+        opacity,
+        dashArray: routeUnavailable ? dashArray || "8 8" : undefined,
+        lineCap: "round",
+        lineJoin: "round",
+      }}
+    />
+  );
+};
+
 export default function MobilityRecovery({
   onNavigate,
   setActiveTab,
@@ -185,44 +279,51 @@ export default function MobilityRecovery({
 
   const selectedGarage = useMemo(() => {
     const id = finiteNumber(
+      savedRequest?.garageId,
       storedGarage?.id,
-      storedGarage?.garageId,
-      savedRequest?.garageId
+      storedGarage?.garageId
     );
 
     return {
       id,
       garageId: id,
+
       name:
+        savedRequest?.garageName ||
         storedGarage?.name ||
         storedGarage?.garageName ||
-        savedRequest?.garageName ||
         "Selected Garage",
+
       address:
-        storedGarage?.address ||
         savedRequest?.garageAddress ||
+        storedGarage?.address ||
         "",
+
       contact:
-        storedGarage?.contact ||
         savedRequest?.garageContact ||
+        storedGarage?.contact ||
         "",
+
       lat: finiteNumber(
+        savedRequest?.garageLatitude,
         storedGarage?.lat,
-        storedGarage?.latitude,
-        savedRequest?.garageLatitude
+        storedGarage?.latitude
       ),
+
       lng: finiteNumber(
+        savedRequest?.garageLongitude,
         storedGarage?.lng,
-        storedGarage?.longitude,
-        savedRequest?.garageLongitude
+        storedGarage?.longitude
       ),
+
       distance:
-        storedGarage?.distance ||
         savedRequest?.estimatedDistance ||
+        storedGarage?.distance ||
         "",
+
       time:
-        storedGarage?.time ||
         savedRequest?.estimatedTime ||
+        storedGarage?.time ||
         "",
     };
   }, [savedRequest, storedGarage]);
@@ -860,29 +961,27 @@ export default function MobilityRecovery({
       })}
 
       {garageLocation && (
-        <Polyline
-          positions={[customerLocation, garageLocation]}
-          pathOptions={{
-            color: "#22d3ee",
-            weight: 5,
-            dashArray: "10 8",
-          }}
+        <RoadRoute
+          from={customerLocation}
+          to={garageLocation}
+          color="#22d3ee"
+          weight={5}
+          dashArray="10 8"
         />
       )}
 
       {selectedTruck &&
         Number.isFinite(selectedTruck.latitude) &&
         Number.isFinite(selectedTruck.longitude) && (
-          <Polyline
-            positions={[
-              [selectedTruck.latitude, selectedTruck.longitude],
-              customerLocation,
+          <RoadRoute
+            from={[
+              selectedTruck.latitude,
+              selectedTruck.longitude,
             ]}
-            pathOptions={{
-              color: "#f43f5e",
-              weight: 4,
-              dashArray: "6 6",
-            }}
+            to={customerLocation}
+            color="#f43f5e"
+            weight={5}
+            dashArray="6 6"
           />
         )}
     </MapContainer>
@@ -1467,16 +1566,12 @@ export default function MobilityRecovery({
                           </Popup>
                         </CircleMarker>
 
-                        <Polyline
-                          positions={[
-                            notice.tracking.truckLocation,
-                            notice.tracking.customerLocation,
-                          ]}
-                          pathOptions={{
-                            color: "#22d3ee",
-                            weight: 5,
-                            dashArray: "10 8",
-                          }}
+                        <RoadRoute
+                          from={notice.tracking.truckLocation}
+                          to={notice.tracking.customerLocation}
+                          color="#22d3ee"
+                          weight={6}
+                          dashArray="10 8"
                         />
                       </MapContainer>
                     </div>

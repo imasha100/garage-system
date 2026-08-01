@@ -346,52 +346,6 @@ const AssistanceProfile = ({ openSidebar }) => {
 
   return (
     <div className="relative flex h-full min-h-screen flex-col overflow-hidden bg-[#050608] text-white">
-      {/* HEADER */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-blue-900/40 bg-black px-4 md:px-6">
-        <div className="flex flex-1 items-center gap-4">
-          <button
-            type="button"
-            onClick={openSidebar}
-            className="cursor-pointer text-slate-300 hover:text-white md:hidden"
-            aria-label="Open sidebar"
-          >
-            <Menu size={20} />
-          </button>
-
-          <div className="relative w-full max-w-md">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              size={16}
-            />
-
-            <input
-              type="text"
-              placeholder="Search system..."
-              className="w-full rounded-md border border-slate-800 bg-black py-2 pl-10 pr-4 text-xs text-white outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        <div className="ml-4 flex items-center gap-4 md:gap-6">
-          <span className="hidden items-center gap-2 text-xs text-slate-400 sm:flex">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
-            ONLINE
-          </span>
-
-          <button
-            type="button"
-            className="cursor-pointer text-slate-300 hover:text-white"
-            aria-label="Notifications"
-          >
-            <Bell size={16} />
-          </button>
-
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700">
-            <User size={14} />
-          </div>
-        </div>
-      </header>
-
       {/* PROFILE CONTENT */}
       <div className="flex flex-1 items-center justify-center overflow-y-auto p-4 md:p-6">
         <motion.div

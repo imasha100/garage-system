@@ -6,6 +6,7 @@ const {
   getPendingTowTruckRequests,
   getTowTruckHistory,
   getTowTruckRequestById,
+  getLatestTowTruckRequestByServiceRequestId,
   updateTowTruckRequestStatus,
 } = require("../controllers/towDispatchController");
 
@@ -43,7 +44,18 @@ router.get(
 );
 
 // ======================================================
-// GET SINGLE TOW TRUCK REQUEST
+// GET LATEST TOW REQUEST BY SERVICE REQUEST ID
+// Used when customer continues an existing request
+// GET /api/tow-dispatches/request/:requestId/latest
+// ======================================================
+
+router.get(
+  "/tow-dispatches/request/:requestId/latest",
+  getLatestTowTruckRequestByServiceRequestId
+);
+
+// ======================================================
+// GET SINGLE TOW TRUCK REQUEST BY DISPATCH ID
 // Customer checks latest tow truck request status
 // GET /api/tow-dispatches/:id
 // ======================================================

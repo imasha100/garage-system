@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+const API_BASE_URL = "http://localhost:5000/api";
+
 function StarRating({ value, onChange }) {
   const [hover, setHover] = useState(0);
 
@@ -69,8 +71,29 @@ export default function ServiceFeedback() {
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const getCompletedJobDetails = () => {
+    try {
+      const storedJob =
+        sessionStorage.getItem("latestCompletedJob");
+
+      if (!storedJob) {
+        return null;
+      }
+
+      return JSON.parse(storedJob);
+    } catch (error) {
+      console.error(
+        "Read completed job details error:",
+        error
+      );
+
+      return null;
+    }
+  };
+
+  const handleSubmit = async () => {
     if (rating === 0) {
       setError("Please select a star rating.");
       return;
@@ -81,34 +104,86 @@ export default function ServiceFeedback() {
       return;
     }
 
-    const newReview = {
-      id: Date.now(),
-      name: "Customer",
-      rating,
-      comment: notes,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      flag: rating <= 2,
-      flagMsg:
-        rating <= 2
-          ? "SYSTEM FLAG: LOW CUSTOMER SATISFACTION DETECTED"
-          : "",
-    };
+    const completedJob =
+      getCompletedJobDetails();
 
-    const oldReviews =
-      JSON.parse(localStorage.getItem("customerFeedbackReviews")) || [];
-
-    localStorage.setItem(
-      "customerFeedbackReviews",
-      JSON.stringify([newReview, ...oldReviews])
+    const customerId = Number(
+      completedJob?.customerId
     );
 
-    window.dispatchEvent(new Event("feedbackUpdated"));
+    const jobId = Number(
+      completedJob?.jobId
+    );
 
-    setSubmitted(true);
-    setError("");
+    if (
+      !Number.isInteger(customerId) ||
+      customerId <= 0
+    ) {
+      setError(
+        "Customer details could not be identified."
+      );
+      return;
+    }
+
+    if (
+      !Number.isInteger(jobId) ||
+      jobId <= 0
+    ) {
+      setError(
+        "Completed service job could not be identified."
+      );
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError("");
+
+      const response = await fetch(
+        `${API_BASE_URL}/feedback`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            customerId,
+            jobId,
+            rating,
+            comment: notes.trim(),
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (
+        !response.ok ||
+        result.success === false
+      ) {
+        throw new Error(
+          result.message ||
+            "Unable to submit feedback."
+        );
+      }
+
+      setSubmitted(true);
+      setError("");
+    } catch (error) {
+      console.error(
+        "Submit feedback error:",
+        error
+      );
+
+      setError(
+        error.message ||
+          "Unable to submit feedback."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
@@ -131,7 +206,13 @@ export default function ServiceFeedback() {
           WRENCH-TIME SPEED & DIAGNOSTICS ACCURACY RATING
         </p>
 
-        <StarRating value={rating} onChange={setRating} />
+        <StarRating
+          value={rating}
+          onChange={(value) => {
+            setRating(value);
+            setError("");
+          }}
+        />
 
         <div className="h-6" />
 
@@ -146,9 +227,16 @@ export default function ServiceFeedback() {
             setError("");
           }}
           rows={5}
+          maxLength={400}
           placeholder="Type your service experience..."
           className="w-full resize-none focus:outline-none bg-[#0d1117] text-[#8a9ab8] text-[0.73rem] p-[10px_12px] rounded-[3px] leading-[1.7] border border-[#1e2a40]"
         />
+
+        <div className="flex justify-between mt-1">
+          <span className="text-[10px] text-[#5a6a8a]">
+            {notes.length}/400
+          </span>
+        </div>
 
         {error && (
           <p className="text-xs mt-2 text-[#f87171] tracking-[0.05em]">
@@ -162,14 +250,21 @@ export default function ServiceFeedback() {
           <button
             type="button"
             onClick={handleSubmit}
-            className="font-bold tracking-[0.18em] uppercase bg-[#3b5bdb] text-white px-11 py-3 text-[0.95rem] rounded cursor-pointer hover:bg-[#4a6af0]"
+            disabled={isSubmitting}
+            className="font-bold tracking-[0.18em] uppercase bg-[#3b5bdb] text-white px-11 py-3 text-[0.95rem] rounded cursor-pointer hover:bg-[#4a6af0] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            SUBMIT
+            {isSubmitting
+              ? "SUBMITTING..."
+              : "SUBMIT"}
           </button>
         </div>
       </div>
 
-      {submitted && <SubmissionModal onClose={handleReset} />}
+      {submitted && (
+        <SubmissionModal
+          onClose={handleReset}
+        />
+      )}
     </div>
   );
 }

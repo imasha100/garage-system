@@ -1,19 +1,12 @@
-
 import React, { useEffect, useState } from "react";
-import {
-  Star,
-  Eye,
-  X,
-  Search,
-  Bell,
-  Menu,
-  User,
-} from "lucide-react";
+import { Star, Eye, X, Search } from "lucide-react";
 
-const ExperienceAudit = ({ openSidebar }) => {
+const ExperienceAudit = ({
+  searchQuery = "",
+  setSearchQuery = () => {},
+}) => {
   const [selectedReview, setSelectedReview] = useState(null);
   const [feedData, setFeedData] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const defaultReviews = [
     {
@@ -79,66 +72,6 @@ const ExperienceAudit = ({ openSidebar }) => {
 
   return (
     <div className="h-full min-h-0 w-full bg-[#050608] text-[#e4e9e7] font-sans overflow-hidden flex flex-col">
-      {/* HEADER */}
-      <header className="h-16 shrink-0 flex items-center justify-between px-4 md:px-6 bg-black border-b border-blue-900/40">
-        <div className="flex items-center gap-4 flex-1">
-          <button
-            type="button"
-            onClick={openSidebar}
-            className="md:hidden text-slate-300 hover:text-white cursor-pointer"
-            aria-label="Open sidebar"
-          >
-            <Menu size={20} />
-          </button>
-
-          <div className="relative w-full max-w-md">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-              size={16}
-            />
-
-            <input
-              type="text"
-              placeholder="Search customer or review..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black border border-slate-800 py-2 pl-10 pr-10 rounded-md text-xs text-white focus:outline-none focus:border-blue-500"
-            />
-
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"
-                aria-label="Clear search"
-              >
-                <X size={15} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 md:gap-6 ml-4">
-          <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-            ONLINE
-          </span>
-
-          <button
-            type="button"
-            className="text-slate-300 hover:text-white cursor-pointer"
-            aria-label="Notifications"
-          >
-            <Bell size={16} />
-          </button>
-
-          <div className="w-8 h-8 rounded-full border border-slate-700 flex items-center justify-center">
-            <User size={14} />
-          </div>
-        </div>
-      </header>
-
-      {/* EXPERIENCE AUDIT CONTENT */}
       <div className="flex-1 min-h-0 w-full overflow-y-auto bg-[#050608] text-[#e4e9e7] font-sans p-6 md:p-8">
         <main className="max-w-5xl mx-auto pb-10">
           <h2 className="flex items-center gap-3 text-2xl uppercase tracking-widest mb-10 text-[#52f0ac]">
@@ -156,10 +89,10 @@ const ExperienceAudit = ({ openSidebar }) => {
                       : "bg-[#0b0e14] border-[#1a1f26]"
                   }`}
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start gap-4">
                     <p className="font-bold text-xl">{data.name}</p>
 
-                    <span className="text-sm text-[#6e7681] bg-[#050608] px-3 py-1 rounded">
+                    <span className="text-sm text-[#6e7681] bg-[#050608] px-3 py-1 rounded shrink-0">
                       {data.time}
                     </span>
                   </div>
@@ -236,6 +169,7 @@ const ExperienceAudit = ({ openSidebar }) => {
                   type="button"
                   onClick={() => setSelectedReview(null)}
                   className="text-gray-400 hover:text-red-400 cursor-pointer"
+                  aria-label="Close review details"
                 >
                   <X size={22} />
                 </button>
@@ -295,4 +229,3 @@ const ExperienceAudit = ({ openSidebar }) => {
 };
 
 export default ExperienceAudit;
-

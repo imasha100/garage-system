@@ -13,17 +13,28 @@ const {
 // ========================================
 // Get Next Technician ID
 // ========================================
-router.get("/technicians/next-id", getNextTechnicianId);
+router.get(
+  "/technicians/next-id",
+  getNextTechnicianId
+);
 
 // ========================================
 // Register Technician
 // ========================================
-router.post("/technicians", registerTechnician);
+router.post(
+  "/technicians",
+  registerTechnician
+);
 
 // ========================================
-// Get All Technicians
+// Get Technicians By Garage
+// Example:
+// GET /api/technicians?garageId=1
 // ========================================
-router.get("/technicians", getAllTechnicians);
+router.get(
+  "/technicians",
+  getAllTechnicians
+);
 
 // ========================================
 // Update Technician Shift Status
@@ -37,11 +48,17 @@ router.put(
 // ========================================
 // Get Single Technician
 // ========================================
-router.get("/technicians/:id", getTechnicianById);
+router.get(
+  "/technicians/:id",
+  getTechnicianById
+);
 
 // ========================================
 // Update Technician
 // ========================================
-router.put("/technicians/:id", updateTechnician);
+router.put(
+  "/technicians/:id",
+  updateTechnician
+);
 
 module.exports = router;
