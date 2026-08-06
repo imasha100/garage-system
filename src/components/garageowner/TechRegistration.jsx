@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Menu,
   Save,
@@ -18,12 +18,143 @@ import {
   RefreshCw,
   AlertCircle,
   Copy,
+  Bell,
 } from "lucide-react";
+
+const API_BASE = "http://localhost:5000";
 
 export default function TechRegistration({
   toggleSidebar,
   onNavigate,
 }) {
+  // ======================================================
+  // OWNER PROFILE
+  // ======================================================
+
+  const [ownerData, setOwnerData] = useState(null);
+  const [ownerLoading, setOwnerLoading] = useState(true);
+  const [ownerError, setOwnerError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOwnerProfile = async () => {
+      try {
+        setOwnerLoading(true);
+        setOwnerError("");
+
+        const storedStaffUser =
+          sessionStorage.getItem("staffUser");
+
+        if (!storedStaffUser) {
+          throw new Error(
+            "Logged-in garage owner details were not found."
+          );
+        }
+
+        const staffUser =
+          JSON.parse(storedStaffUser);
+
+        const loginId = Number(
+          staffUser?.loginId ??
+            staffUser?.login_id
+        );
+
+        if (
+          !Number.isInteger(loginId) ||
+          loginId <= 0
+        ) {
+          throw new Error(
+            "A valid garage owner login ID was not found."
+          );
+        }
+
+        const response = await fetch(
+          `${API_BASE}/api/owners/profile/${loginId}`
+        );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to load garage owner profile."
+          );
+        }
+
+        if (isMounted) {
+          setOwnerData(
+            result.data || null
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Technician Registration owner loading error:",
+          error
+        );
+
+        if (isMounted) {
+          setOwnerError(
+            error.message ||
+              "Unable to load garage owner profile."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setOwnerLoading(false);
+        }
+      }
+    };
+
+    loadOwnerProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const ownerName =
+    ownerData?.owner?.fullName ??
+    ownerData?.owner?.full_name ??
+    (ownerLoading
+      ? "Loading Owner..."
+      : "Garage Owner");
+
+  const garageName =
+    ownerData?.garage?.garageName ??
+    ownerData?.garage?.garage_name ??
+    (ownerLoading
+      ? "Loading Garage..."
+      : "Garage");
+
+  const ownerInitials =
+    ownerName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) =>
+        part.charAt(0).toUpperCase()
+      )
+      .join("") || "GO";
+
+  const profilePhotoPath =
+    ownerData?.owner?.profilePhoto ??
+    ownerData?.owner?.profile_photo ??
+    "";
+
+  const ownerProfilePhoto =
+    profilePhotoPath
+      ? String(
+          profilePhotoPath
+        ).startsWith("http")
+        ? profilePhotoPath
+        : `${API_BASE}${profilePhotoPath}`
+      : null;
+
   const specializationOptions = [
     "Engine Repair",
     "Electrical Systems",
@@ -737,7 +868,7 @@ export default function TechRegistration({
   if (showRegistrations) {
     return (
       <div className="min-h-screen bg-[#07080f] font-sans text-white">
-        <div className="flex min-h-16 items-center justify-between gap-3 border-b border-white/10 bg-[#15151f] px-4 md:px-8">
+        <div className="min-h-16 border-b border-white/10 bg-[#15151f] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -759,19 +890,56 @@ export default function TechRegistration({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleBackToRegistration}
-            className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm font-bold text-gray-300 transition hover:border-emerald-500/40 hover:text-emerald-400 md:px-4"
-          >
-            <ArrowLeft size={18} />
-            <span className="hidden sm:inline">
-              Back to Registration
-            </span>
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-4">
+            <button
+              type="button"
+              onClick={handleBackToRegistration}
+              className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm font-bold text-gray-300 transition hover:border-emerald-500/40 hover:text-emerald-400 md:px-4"
+            >
+              <ArrowLeft size={18} />
+              <span className="hidden sm:inline">
+                Back to Registration
+              </span>
+            </button>
+
+            <Bell
+              size={18}
+              className="text-gray-300"
+            />
+
+            <div className="h-8 w-px bg-white/10" />
+
+            <div className="text-right">
+              <p className="text-xs font-bold tracking-widest">
+                {ownerName}
+              </p>
+
+              <p className="text-[10px] text-indigo-400 uppercase max-w-[240px] truncate">
+                {garageName}
+              </p>
+            </div>
+
+            <div className="w-10 h-10 rounded-xl border border-indigo-400 flex items-center justify-center overflow-hidden bg-[#0b0b12] text-xs">
+              {ownerProfilePhoto ? (
+                <img
+                  src={ownerProfilePhoto}
+                  alt={`${ownerName} profile`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                ownerInitials
+              )}
+            </div>
+          </div>
         </div>
 
         <main className="p-4 md:p-8">
+          {ownerError && (
+            <div className="mx-auto mb-6 max-w-6xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {ownerError}
+            </div>
+          )}
+
           <div className="mx-auto max-w-6xl">
             <div className="mb-6 rounded-2xl border border-white/10 bg-[#15151f] p-5 md:p-6">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -1366,29 +1534,68 @@ export default function TechRegistration({
 
   return (
     <div className="min-h-screen bg-[#07080f] font-sans text-white">
-      <div className="flex min-h-16 items-center gap-3 border-b border-white/10 bg-[#15151f] px-4 md:px-8">
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-white md:hidden"
-          aria-label="Open sidebar"
-        >
-          <Menu size={20} />
-        </button>
+      <div className="min-h-16 border-b border-white/10 bg-[#15151f] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-black/40 text-white md:hidden"
+            aria-label="Open sidebar"
+          >
+            <Menu size={20} />
+          </button>
 
-        <div>
-          <h1 className="text-lg font-black tracking-widest md:text-xl">
-            TECHNICIAN REGISTRATION
-          </h1>
+          <div>
+            <h1 className="text-lg font-black tracking-widest md:text-xl">
+              TECHNICIAN REGISTRATION
+            </h1>
 
-          <p className="text-[10px] uppercase tracking-widest text-gray-500">
-            Add workshop technicians
-          </p>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500">
+              Add workshop technicians
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-5">
+          <Bell
+            size={18}
+            className="text-gray-300"
+          />
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="text-right">
+            <p className="text-xs font-bold tracking-widest">
+              {ownerName}
+            </p>
+
+            <p className="text-[10px] text-indigo-400 uppercase max-w-[240px] truncate">
+              {garageName}
+            </p>
+          </div>
+
+          <div className="w-10 h-10 rounded-xl border border-indigo-400 flex items-center justify-center overflow-hidden bg-[#0b0b12] text-xs">
+            {ownerProfilePhoto ? (
+              <img
+                src={ownerProfilePhoto}
+                alt={`${ownerName} profile`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              ownerInitials
+            )}
+          </div>
         </div>
       </div>
 
-      <main className="flex justify-center p-4 md:p-8">
-        <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-[#15151f] p-6 shadow-2xl md:p-8">
+      <main className="p-4 md:p-8">
+        {ownerError && (
+          <div className="mx-auto mb-6 max-w-4xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {ownerError}
+          </div>
+        )}
+
+        <div className="mx-auto w-full max-w-4xl rounded-2xl border border-white/10 bg-[#15151f] p-6 shadow-2xl md:p-8">
           <div className="mb-8 flex items-center gap-3">
             <UserCog
               className="text-emerald-400"

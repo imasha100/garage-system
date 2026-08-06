@@ -503,6 +503,28 @@ export default function PerformanceAudit({
       .join("") || "GO";
 
   // ======================================================
+  // OWNER PROFILE PHOTO
+  // ======================================================
+
+  const profilePhotoPath =
+    ownerData?.owner
+      ?.profilePhoto ??
+    ownerData?.owner
+      ?.profile_photo ??
+    "";
+
+  const ownerProfilePhoto =
+    profilePhotoPath
+      ? String(
+          profilePhotoPath
+        ).startsWith(
+          "http"
+        )
+        ? profilePhotoPath
+        : `${API_BASE}${profilePhotoPath}`
+      : null;
+
+  // ======================================================
   // COLOR STYLE
   // ======================================================
 
@@ -547,12 +569,15 @@ export default function PerformanceAudit({
 
   return (
     <div className="min-h-screen bg-[#0b0b13] text-white font-sans">
+
       {/* ==================================================
           TOP BAR
-      =================================================== */}
+      ================================================== */}
 
-      <div className="min-h-16 border-b border-white/10 bg-[#191922] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
+      <div className="min-h-16 border-b border-white/10 bg-[#191922] flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
+
         <div className="flex items-center gap-3 w-full md:w-auto">
+
           <button
             type="button"
             onClick={
@@ -564,6 +589,7 @@ export default function PerformanceAudit({
           </button>
 
           <div className="w-full md:w-80 h-10 border border-white/20 rounded-xl flex items-center gap-3 px-4 bg-[#0b0b12]">
+
             <Search
               size={15}
               className="text-gray-500 shrink-0"
@@ -578,8 +604,7 @@ export default function PerformanceAudit({
                 event
               ) =>
                 setSearchText(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
               placeholder="Search technician..."
@@ -599,55 +624,76 @@ export default function PerformanceAudit({
                 CLEAR
               </button>
             )}
+
           </div>
+
         </div>
 
-        <div className="flex items-center justify-between md:justify-end gap-5">
+        {/* ==================================================
+            DYNAMIC OWNER HEADER
+        ================================================== */}
+
+        <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:justify-end md:gap-5">
+
           <Bell
             size={18}
-            className="text-gray-300"
+            className="shrink-0 text-gray-300"
           />
 
-          <div className="h-8 w-px bg-white/10" />
+          <div className="h-8 w-px shrink-0 bg-white/10" />
 
-          <div className="text-right">
-            <p className="text-xs font-bold tracking-widest">
+          <div className="min-w-0 flex-1 text-right md:flex-none">
+
+            <p className="truncate text-xs font-bold tracking-widest">
               {ownerName}
             </p>
 
-            <p className="text-[10px] text-indigo-400 uppercase max-w-[260px] truncate">
-              {
-                displayGarageName
-              }
+            <p className="max-w-full truncate text-[10px] uppercase text-indigo-400 md:max-w-[260px]">
+              {displayGarageName}
             </p>
+
           </div>
 
-          <div className="w-9 h-9 rounded-xl border border-indigo-400 flex items-center justify-center text-xs">
-            {
+          <div className="h-9 w-9 min-h-9 min-w-9 shrink-0 overflow-hidden rounded-xl border border-indigo-400 bg-[#0b0b12] text-xs flex items-center justify-center">
+
+            {ownerProfilePhoto ? (
+              <img
+                src={ownerProfilePhoto}
+                alt={`${ownerName} profile`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
               ownerInitials
-            }
+            )}
+
           </div>
+
         </div>
+
       </div>
 
       {/* ==================================================
           MAIN
-      =================================================== */}
+      ================================================== */}
 
       <main className="p-4 md:p-8">
+
         {/* ==================================================
             TITLE
-        =================================================== */}
+        ================================================== */}
 
         <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-5 mb-8">
+
           <div>
-            <h1 className="text-3xl md:text-5xl font-black leading-tight mb-3">
+
+            <h1 className="text-[2rem] sm:text-4xl md:text-5xl font-black leading-tight mb-3 break-words">
               Technician Precision &
               <br className="hidden md:block" />
               Operational Audit Trail
             </h1>
 
-            <p className="text-gray-400 text-sm md:text-base flex items-center gap-2">
+            <p className="text-gray-400 text-sm md:text-base flex items-start gap-2">
+
               <Info
                 size={15}
                 className="text-cyan-400"
@@ -656,13 +702,17 @@ export default function PerformanceAudit({
               Tracks individual time
               accuracy, approved extensions,
               and system efficiency indexes.
+
             </p>
 
             <p className="mt-3 text-[10px] text-gray-600 font-mono">
+
               {garageId
                 ? `GARAGE ID: ${garageId} • AUTO REFRESH: 5 SECONDS`
                 : "IDENTIFYING GARAGE..."}
+
             </p>
+
           </div>
 
           <button
@@ -676,8 +726,9 @@ export default function PerformanceAudit({
               loading ||
               refreshing
             }
-            className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-gray-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-gray-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
           >
+
             <RefreshCw
               size={14}
               className={
@@ -690,19 +741,20 @@ export default function PerformanceAudit({
             {refreshing
               ? "REFRESHING..."
               : "REFRESH"}
+
           </button>
+
         </div>
 
         {/* ==================================================
             ERROR
-        =================================================== */}
+        ================================================== */}
 
         {loadError && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-5">
+
             <p className="text-sm text-red-300">
-              {
-                loadError
-              }
+              {loadError}
             </p>
 
             <button
@@ -716,94 +768,104 @@ export default function PerformanceAudit({
             >
               TRY AGAIN
             </button>
+
           </div>
         )}
 
         {/* ==================================================
             SUMMARY CARDS
-        =================================================== */}
+        ================================================== */}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+
           <div className="rounded-xl border border-white/10 bg-[#181820] p-5">
+
             <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">
               Technicians
             </p>
 
             <p className="mt-3 text-3xl font-mono font-bold text-white">
-              {
-                summary.totalTechnicians
-              }
+              {summary.totalTechnicians}
             </p>
+
           </div>
 
           <div className="rounded-xl border border-white/10 bg-[#181820] p-5">
+
             <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">
               Completed Jobs
             </p>
 
             <p className="mt-3 text-3xl font-mono font-bold text-emerald-400">
-              {
-                summary.totalJobsDone
-              }
+              {summary.totalJobsDone}
             </p>
+
           </div>
 
           <div className="rounded-xl border border-white/10 bg-[#181820] p-5">
+
             <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">
               Extension Requests
             </p>
 
             <p className="mt-3 text-3xl font-mono font-bold text-amber-400">
-              {
-                summary.totalExtensionRequests
-              }
+              {summary.totalExtensionRequests}
             </p>
+
           </div>
 
           <div className="rounded-xl border border-white/10 bg-[#181820] p-5">
+
             <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">
               Avg. Efficiency
             </p>
 
             <p className="mt-3 text-3xl font-mono font-bold text-indigo-300">
-              {
-                summary.averageEfficiency
-              }
-              %
+              {summary.averageEfficiency}%
             </p>
+
           </div>
+
         </div>
 
         {/* ==================================================
             MAIN TABLE
-        =================================================== */}
+        ================================================== */}
 
         <div className="bg-[#181820] border border-white/10 rounded-lg overflow-hidden mb-10">
+
           <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
+
             <div className="flex items-center gap-3">
+
               <p className="text-[11px] text-cyan-400 font-bold tracking-[0.25em]">
                 LIVE EFFICIENCY METRICS
               </p>
 
               <div className="flex items-center gap-2 text-[9px] text-emerald-400">
+
                 <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
 
                 REAL TIME
+
               </div>
+
             </div>
 
             <p className="text-[10px] text-gray-600">
-              {
-                auditData.length
-              }{" "}
-              TECHNICIANS
+              {auditData.length} TECHNICIANS
             </p>
+
           </div>
 
           <div className="overflow-x-auto">
+
             <table className="w-[950px] md:w-full text-left">
+
               <thead className="text-gray-400 text-[11px] tracking-widest">
+
                 <tr className="border-b border-white/10">
+
                   <th className="px-8 py-5"></th>
 
                   <th className="px-4 py-5">
@@ -829,32 +891,41 @@ export default function PerformanceAudit({
                   <th className="px-4 py-5">
                     Performance
                   </th>
+
                 </tr>
+
               </thead>
 
               <tbody>
+
                 {loading ? (
+
                   <tr>
+
                     <td
                       colSpan="7"
                       className="py-14 text-center text-gray-500 text-xs tracking-widest"
                     >
                       LOADING PERFORMANCE DATA...
                     </td>
+
                   </tr>
+
                 ) : filteredTechnicians.length >
                   0 ? (
+
                   filteredTechnicians.map(
                     (item) => (
+
                       <tr
                         key={
                           item.technicianId
                         }
                         className="border-b border-white/10 hover:bg-white/[0.03] transition"
                       >
-                        {/* ICON */}
 
                         <td className="px-8 py-5">
+
                           <div
                             className={`w-8 h-8 border rounded flex items-center justify-center ${
                               colorStyle[
@@ -863,55 +934,39 @@ export default function PerformanceAudit({
                             }`}
                           >
                             <User
-                              size={
-                                14
-                              }
+                              size={14}
                             />
                           </div>
+
                         </td>
 
-                        {/* NAME */}
-
                         <td className="px-4 py-5">
+
                           <p className="text-sm text-white">
-                            {
-                              item.name
-                            }
+                            {item.name}
                           </p>
 
                           <p className="mt-1 text-[9px] text-gray-600 font-mono">
-                            TECH-
-                            {
-                              item.technicianId
-                            }
+                            TECH-{item.technicianId}
                           </p>
 
                           <p className="mt-1 max-w-[180px] truncate text-[9px] text-gray-500">
-                            {
-                              item.specialization
-                            }
+                            {item.specialization}
                           </p>
-                        </td>
 
-                        {/* JOBS */}
+                        </td>
 
                         <td className="px-4 py-5 font-mono text-sm">
-                          {
-                            item.jobsDone
-                          }
+                          {item.jobsDone}
                         </td>
-
-                        {/* EXTENSIONS */}
 
                         <td className="px-4 py-5">
-                          <span className="bg-white/5 px-3 py-1 rounded text-sm font-mono">
-                            {
-                              item.extRequests
-                            }
-                          </span>
-                        </td>
 
-                        {/* AVG ERROR */}
+                          <span className="bg-white/5 px-3 py-1 rounded text-sm font-mono">
+                            {item.extRequests}
+                          </span>
+
+                        </td>
 
                         <td
                           className={`px-4 py-5 font-mono text-sm ${
@@ -924,23 +979,19 @@ export default function PerformanceAudit({
                               : "text-emerald-400"
                           }`}
                         >
-                          {
-                            item.avgError
-                          }
+                          {item.avgError}
                         </td>
 
-                        {/* EFFICIENCY */}
-
                         <td className="px-4 py-5">
+
                           <div className="flex flex-col gap-2">
+
                             <span className="font-mono text-sm">
-                              {
-                                item.efficiency
-                              }
-                              %
+                              {item.efficiency}%
                             </span>
 
                             <div className="w-28 h-1 bg-gray-700 rounded overflow-hidden">
+
                               <div
                                 className={`h-1 rounded transition-all duration-500 ${
                                   colorStyle[
@@ -951,13 +1002,15 @@ export default function PerformanceAudit({
                                   width: `${item.efficiency}%`,
                                 }}
                               />
+
                             </div>
+
                           </div>
+
                         </td>
 
-                        {/* PERFORMANCE */}
-
                         <td className="px-4 py-5">
+
                           <span
                             className={`inline-flex rounded-full border px-3 py-1 text-[9px] font-bold tracking-wider ${
                               item.performanceLevel ===
@@ -975,36 +1028,49 @@ export default function PerformanceAudit({
                                 : "border-gray-500/30 bg-gray-500/10 text-gray-500"
                             }`}
                           >
-                            {
-                              item.performanceLevel
-                            }
+                            {item.performanceLevel}
                           </span>
+
                         </td>
+
                       </tr>
+
                     )
                   )
+
                 ) : (
+
                   <tr>
+
                     <td
                       colSpan="7"
                       className="py-14 text-center text-gray-500 text-xs tracking-widest"
                     >
+
                       {searchText
                         ? "NO MATCHING TECHNICIAN FOUND"
                         : "NO AUDIT DATA AVAILABLE"}
+
                     </td>
+
                   </tr>
+
                 )}
+
               </tbody>
+
             </table>
+
           </div>
+
         </div>
 
         {/* ==================================================
             NOTE
-        =================================================== */}
+        ================================================== */}
 
         <div className="rounded-lg border border-white/10 bg-white/[0.02] p-4">
+
           <p className="text-[10px] leading-5 text-gray-500">
             Efficiency Index is calculated
             from completed repair jobs,
@@ -1017,8 +1083,11 @@ export default function PerformanceAudit({
             indicates that the job was
             completed earlier.
           </p>
+
         </div>
+
       </main>
+
     </div>
   );
 }

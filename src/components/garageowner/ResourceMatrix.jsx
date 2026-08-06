@@ -17,7 +17,8 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE =
+  "http://localhost:5000";
 
 export default function ResourceMatrix({
   toggleSidebar,
@@ -81,7 +82,6 @@ export default function ResourceMatrix({
 
   // ======================================================
   // FIND GARAGE ID
-  // Supports several possible backend/session shapes
   // ======================================================
 
   const resolveGarageId = (
@@ -118,9 +118,7 @@ export default function ResourceMatrix({
         ?.garage_garage_id,
     ];
 
-    for (
-      const value of possibleValues
-    ) {
+    for (const value of possibleValues) {
       const numericValue =
         Number(value);
 
@@ -182,7 +180,7 @@ export default function ResourceMatrix({
             .join(", ");
         }
       } catch {
-        // Normal comma separated string
+        // Normal string
       }
 
       return text
@@ -329,21 +327,6 @@ export default function ResourceMatrix({
             ownerResult
           );
 
-        console.log(
-          "Resolved garage ID:",
-          numericGarageId
-        );
-
-        console.log(
-          "staffUser:",
-          staffUser
-        );
-
-        console.log(
-          "ownerResult:",
-          ownerResult
-        );
-
         if (
           !numericGarageId
         ) {
@@ -360,17 +343,9 @@ export default function ResourceMatrix({
         // TECHNICIANS
         // ================================================
 
-        const technicianUrl =
-          `${API_BASE}/api/technicians?garageId=${numericGarageId}`;
-
-        console.log(
-          "Technician API:",
-          technicianUrl
-        );
-
         const technicianResponse =
           await fetch(
-            technicianUrl
+            `${API_BASE}/api/technicians?garageId=${numericGarageId}`
           );
 
         const technicianResult =
@@ -730,7 +705,7 @@ export default function ResourceMatrix({
     ).length;
 
   // ======================================================
-  // REAL TIME EXTENSION DATA
+  // REAL-TIME EXTENSION DATA
   // ======================================================
 
   const extensionVehicles =
@@ -818,6 +793,28 @@ export default function ResourceMatrix({
       .join("") || "GO";
 
   // ======================================================
+  // OWNER PROFILE PHOTO
+  // ======================================================
+
+  const profilePhotoPath =
+    ownerData?.owner
+      ?.profilePhoto ??
+    ownerData?.owner
+      ?.profile_photo ??
+    "";
+
+  const ownerProfilePhoto =
+    profilePhotoPath
+      ? String(
+          profilePhotoPath
+        ).startsWith(
+          "http"
+        )
+        ? profilePhotoPath
+        : `${API_BASE}${profilePhotoPath}`
+      : null;
+
+  // ======================================================
   // SCROLL
   // ======================================================
 
@@ -866,12 +863,15 @@ export default function ResourceMatrix({
 
   return (
     <div className="min-h-screen bg-[#0b0b13] text-white font-sans">
+
       {/* ==================================================
           TOP BAR
-      =================================================== */}
+      ================================================== */}
 
       <div className="min-h-16 border-b border-white/10 bg-[#191922] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
+
         <div className="flex items-center gap-3 w-full md:w-auto">
+
           <button
             type="button"
             onClick={
@@ -883,6 +883,7 @@ export default function ResourceMatrix({
           </button>
 
           <div className="w-full md:w-80 h-10 border border-white/20 rounded-xl flex items-center gap-3 px-4 bg-[#0b0b12]">
+
             <Search
               size={15}
               className="text-gray-500"
@@ -917,10 +918,17 @@ export default function ResourceMatrix({
                 CLEAR
               </button>
             )}
+
           </div>
+
         </div>
 
+        {/* ==================================================
+            DYNAMIC OWNER HEADER
+        ================================================== */}
+
         <div className="flex items-center gap-5">
+
           <Bell
             size={18}
             className="text-gray-300"
@@ -929,6 +937,7 @@ export default function ResourceMatrix({
           <div className="h-8 w-px bg-white/10" />
 
           <div className="text-right">
+
             <p className="text-xs font-bold tracking-widest">
               {ownerName}
             </p>
@@ -936,21 +945,39 @@ export default function ResourceMatrix({
             <p className="text-[10px] text-indigo-400 uppercase max-w-[240px] truncate">
               {garageName}
             </p>
+
           </div>
 
-          <div className="w-9 h-9 rounded-xl border border-cyan-400 flex items-center justify-center text-xs">
-            {ownerInitials}
+          <div className="w-9 h-9 rounded-xl border border-cyan-400 flex items-center justify-center text-xs overflow-hidden bg-[#0b0b12]">
+
+            {ownerProfilePhoto ? (
+              <img
+                src={
+                  ownerProfilePhoto
+                }
+                alt={`${ownerName} profile`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              ownerInitials
+            )}
+
           </div>
+
         </div>
+
       </div>
 
       {/* ==================================================
           MAIN
-      =================================================== */}
+      ================================================== */}
 
       <main className="p-4 md:p-8">
+
         <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-5 mb-10">
+
           <div>
+
             <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-3">
               RESOURCE & LABOR MATRIX
             </h1>
@@ -962,10 +989,13 @@ export default function ResourceMatrix({
             </p>
 
             <p className="mt-2 text-[10px] text-gray-600 font-mono">
+
               {garageId
                 ? `GARAGE ID: ${garageId} • AUTO REFRESH: 5 SECONDS`
                 : "IDENTIFYING GARAGE..."}
+
             </p>
+
           </div>
 
           <button
@@ -981,6 +1011,7 @@ export default function ResourceMatrix({
             }
             className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-gray-300 hover:bg-white/10 disabled:opacity-50"
           >
+
             <RefreshCw
               size={14}
               className={
@@ -993,13 +1024,18 @@ export default function ResourceMatrix({
             {refreshing
               ? "REFRESHING..."
               : "REFRESH"}
+
           </button>
+
         </div>
 
-        {/* ERROR */}
+        {/* ==================================================
+            ERROR
+        ================================================== */}
 
         {loadError && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-5">
+
             <p className="text-sm font-bold text-red-300">
               {loadError}
             </p>
@@ -1015,14 +1051,16 @@ export default function ResourceMatrix({
             >
               TRY AGAIN
             </button>
+
           </div>
         )}
 
         {/* ==================================================
             SUMMARY
-        =================================================== */}
+        ================================================== */}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-10">
+
           <SummaryCard
             title="Registered Technicians"
             value={
@@ -1065,23 +1103,29 @@ export default function ResourceMatrix({
               />
             }
           />
+
         </div>
 
         {/* ==================================================
             TECHNICIANS
-        =================================================== */}
+        ================================================== */}
 
         <section className="mb-10">
+
           <div className="flex items-center justify-between gap-4 mb-2">
+
             <h2 className="text-base text-gray-200">
-              Technician Availability &
-              Real-time Workload Mapping
+              Technician Availability & Real-time Workload Mapping
             </h2>
 
             <div className="flex items-center gap-2 text-[10px] text-emerald-400">
+
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+
               LIVE DATA
+
             </div>
+
           </div>
 
           <p className="text-sm text-gray-400 mb-5">
@@ -1098,12 +1142,19 @@ export default function ResourceMatrix({
             }
             className="flex gap-4 overflow-x-auto pb-5"
           >
+
             {loading ? (
-              <EmptyBox text="Loading technicians..." />
+
+              <EmptyBox
+                text="Loading technicians..."
+              />
+
             ) : filteredTechnicians.length >
               0 ? (
+
               filteredTechnicians.map(
                 (tech) => (
+
                   <div
                     key={
                       tech.id
@@ -1118,8 +1169,11 @@ export default function ResourceMatrix({
                         : "border-white/10"
                     }`}
                   >
+
                     <div className="flex justify-between gap-4 mb-5">
+
                       <div>
+
                         <h3 className="font-mono font-bold">
                           {tech.name.toUpperCase()}
                         </h3>
@@ -1127,6 +1181,7 @@ export default function ResourceMatrix({
                         <p className="mt-1 text-[10px] text-gray-500">
                           TECH-{tech.id}
                         </p>
+
                       </div>
 
                       <span
@@ -1136,6 +1191,7 @@ export default function ResourceMatrix({
                       >
                         {tech.status}
                       </span>
+
                     </div>
 
                     <Info
@@ -1169,11 +1225,13 @@ export default function ResourceMatrix({
                     />
 
                     <div className="mb-4">
+
                       <p className="text-[10px] uppercase text-gray-500">
                         Active Vehicle
                       </p>
 
                       <div className="mt-2 flex items-center gap-2">
+
                         <Car
                           size={14}
                           className={
@@ -1194,11 +1252,15 @@ export default function ResourceMatrix({
                             tech.vehicle
                           }
                         </span>
+
                       </div>
+
                     </div>
 
                     {tech.activeJob && (
+
                       <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+
                         <Info
                           label="Job Status"
                           value={
@@ -1228,38 +1290,44 @@ export default function ResourceMatrix({
 
                         {tech.extensionMinutes >
                           0 && (
+
                           <div className="mt-3 border-t border-white/10 pt-3">
+
                             <div className="flex items-center gap-2 text-amber-400">
+
                               <AlertTriangle
-                                size={
-                                  14
-                                }
+                                size={14}
                               />
 
                               <span className="text-xs font-bold">
-                                +
-                                {
-                                  tech.extensionMinutes
-                                }{" "}
-                                mins
+                                +{tech.extensionMinutes} mins
                               </span>
+
                             </div>
 
                             {tech.extensionReason && (
+
                               <p className="mt-2 text-[10px] text-gray-500">
-                                {
-                                  tech.extensionReason
-                                }
+                                {tech.extensionReason}
                               </p>
+
                             )}
+
                           </div>
+
                         )}
+
                       </div>
+
                     )}
+
                   </div>
+
                 )
               )
+
             ) : (
+
               <EmptyBox
                 text={
                   searchText
@@ -1267,18 +1335,21 @@ export default function ResourceMatrix({
                     : "No technicians are registered for this garage."
                 }
               />
+
             )}
+
           </div>
+
         </section>
 
         {/* ==================================================
             EXTENSIONS
-        =================================================== */}
+        ================================================== */}
 
         <section className="mb-20">
+
           <h2 className="text-base text-gray-200 mb-2">
-            Critical Time Extensions &
-            Vehicle Workload Alerts
+            Critical Time Extensions & Vehicle Workload Alerts
           </h2>
 
           <p className="text-sm text-gray-400 mb-5">
@@ -1287,10 +1358,15 @@ export default function ResourceMatrix({
           </p>
 
           <div className="overflow-hidden rounded-xl border border-white/10 bg-[#191923]">
+
             <div className="overflow-x-auto">
+
               <table className="w-[950px] md:w-full text-left">
+
                 <thead className="bg-white/5 text-xs text-gray-400">
+
                   <tr>
+
                     <th className="px-7 py-5">
                       Vehicle ID
                     </th>
@@ -1310,20 +1386,26 @@ export default function ResourceMatrix({
                     <th className="px-7 py-5">
                       Reason
                     </th>
+
                   </tr>
+
                 </thead>
 
                 <tbody>
+
                   {extensionVehicles.length >
                   0 ? (
+
                     extensionVehicles.map(
                       (item) => (
+
                         <tr
                           key={
                             item.id
                           }
                           className="border-t border-white/5 text-sm"
                         >
+
                           <td className="px-7 py-5 font-mono text-cyan-300">
                             {
                               item.vehicle
@@ -1337,11 +1419,7 @@ export default function ResourceMatrix({
                           </td>
 
                           <td className="px-7 py-5 font-mono text-amber-400">
-                            +
-                            {
-                              item.minutes
-                            }{" "}
-                            Mins
+                            +{item.minutes} Mins
                           </td>
 
                           <td className="px-7 py-5 font-mono text-gray-300">
@@ -1355,25 +1433,39 @@ export default function ResourceMatrix({
                               item.reason
                             }
                           </td>
+
                         </tr>
+
                       )
                     )
+
                   ) : (
+
                     <tr>
+
                       <td
                         colSpan="5"
                         className="px-8 py-12 text-center text-xs tracking-widest text-gray-500"
                       >
                         NO ACTIVE TIME EXTENSIONS
                       </td>
+
                     </tr>
+
                   )}
+
                 </tbody>
+
               </table>
+
             </div>
+
           </div>
+
         </section>
+
       </main>
+
     </div>
   );
 }
@@ -1390,12 +1482,15 @@ function SummaryCard({
 }) {
   return (
     <div className="rounded-xl border border-white/10 bg-[#181820] p-6">
+
       <div className="mb-6 flex justify-between gap-3">
+
         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-400">
           {title}
         </p>
 
         {icon}
+
       </div>
 
       <h2
@@ -1403,6 +1498,7 @@ function SummaryCard({
       >
         {value}
       </h2>
+
     </div>
   );
 }
@@ -1414,6 +1510,7 @@ function Info({
 }) {
   return (
     <div className="mb-4">
+
       <p className="text-[10px] uppercase text-gray-500">
         {label}
       </p>
@@ -1423,6 +1520,7 @@ function Info({
       >
         {value}
       </p>
+
     </div>
   );
 }

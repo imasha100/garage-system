@@ -554,7 +554,9 @@ const customerLocation =
             <TrackMyTowTruck onNavigate={onNavigate} />
           )}
 
-          {activeTab === "progress" && <LiveProgress />}
+          {activeTab === "progress" && (
+            <LiveProgress setActiveTab={setActiveTab} />
+          )}
           {activeTab === "invoice" && <InvoiceLedger />}
           {activeTab === "audit" && <ExperienceAudit />}
         </div>

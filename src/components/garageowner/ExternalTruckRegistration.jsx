@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Menu,
   Truck,
@@ -11,6 +11,7 @@ import {
   Navigation,
   AlertCircle,
   CheckCircle2,
+  Bell,
 } from "lucide-react";
 import {
   MapContainer,
@@ -21,6 +22,8 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+
+const API_BASE = "http://localhost:5000";
 
 // Fix the default Leaflet marker icon in Vite/React projects.
 delete L.Icon.Default.prototype._getIconUrl;
@@ -68,6 +71,139 @@ export default function ExternalTruckRegistration({
   toggleSidebar,
   onNavigate,
 }) {
+  // ======================================================
+  // LOGGED-IN GARAGE OWNER PROFILE
+  // ======================================================
+
+  const [ownerData, setOwnerData] = useState(null);
+  const [ownerLoading, setOwnerLoading] = useState(true);
+  const [ownerError, setOwnerError] = useState("");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState({
+    type: "",
+    text: "",
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOwnerProfile = async () => {
+      try {
+        setOwnerLoading(true);
+        setOwnerError("");
+
+        const storedStaffUser =
+          sessionStorage.getItem("staffUser");
+
+        if (!storedStaffUser) {
+          throw new Error(
+            "Logged-in garage owner details were not found."
+          );
+        }
+
+        const staffUser = JSON.parse(storedStaffUser);
+
+        const loginId = Number(
+          staffUser?.loginId ??
+            staffUser?.login_id
+        );
+
+        if (
+          !Number.isInteger(loginId) ||
+          loginId <= 0
+        ) {
+          throw new Error(
+            "A valid garage owner login ID was not found."
+          );
+        }
+
+        const response = await fetch(
+          `${API_BASE}/api/owners/profile/${loginId}`
+        );
+
+        const result = await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to load garage owner profile."
+          );
+        }
+
+        if (isMounted) {
+          setOwnerData(result.data || null);
+        }
+      } catch (error) {
+        console.error(
+          "External Truck Registration owner loading error:",
+          error
+        );
+
+        if (isMounted) {
+          setOwnerError(
+            error.message ||
+              "Unable to load garage owner profile."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setOwnerLoading(false);
+        }
+      }
+    };
+
+    loadOwnerProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const ownerName =
+    ownerData?.owner?.fullName ??
+    ownerData?.owner?.full_name ??
+    (ownerLoading
+      ? "Loading Owner..."
+      : "Garage Owner");
+
+  const garageName =
+    ownerData?.garage?.garageName ??
+    ownerData?.garage?.garage_name ??
+    (ownerLoading
+      ? "Loading Garage..."
+      : "Garage");
+
+  const garageId = Number(
+    ownerData?.garage?.garageId ??
+      ownerData?.garage?.garage_id
+  );
+
+  const ownerInitials =
+    ownerName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) =>
+        part.charAt(0).toUpperCase()
+      )
+      .join("") || "GO";
+
+  const profilePhotoPath =
+    ownerData?.owner?.profilePhoto ??
+    ownerData?.owner?.profile_photo ??
+    "";
+
+  const ownerProfilePhoto =
+    profilePhotoPath
+      ? String(profilePhotoPath).startsWith("http")
+        ? profilePhotoPath
+        : `${API_BASE}${profilePhotoPath}`
+      : null;
+
   const generateTruckId = () =>
     `EXT-TRUCK-${Date.now().toString().slice(-6)}`;
 
@@ -81,6 +217,7 @@ export default function ExternalTruckRegistration({
     truckModel: "",
     truckType: "",
     capacity: "",
+    registrationDate: "",
 
     // Driver Information
     driverId: generateDriverId(),
@@ -234,8 +371,13 @@ export default function ExternalTruckRegistration({
     );
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+
+    setSubmitMessage({
+      type: "",
+      text: "",
+    });
 
     if (!formData.latitude || !formData.longitude) {
       setLocationMessage({
@@ -246,25 +388,128 @@ export default function ExternalTruckRegistration({
       return;
     }
 
-    const existingExternalTrucks =
-      JSON.parse(localStorage.getItem("externalTowTrucks")) || [];
+    if (
+      !Number.isInteger(garageId) ||
+      garageId <= 0
+    ) {
+      setSubmitMessage({
+        type: "error",
+        text:
+          "The logged-in garage could not be identified. Please sign in again.",
+      });
+      return;
+    }
 
-    const updatedExternalTrucks = [
-      ...existingExternalTrucks,
-      formData,
-    ];
+    try {
+      setIsSubmitting(true);
 
-    localStorage.setItem(
-      "externalTowTrucks",
-      JSON.stringify(updatedExternalTrucks)
-    );
+      const response = await fetch(
+        `${API_BASE}/api/external-truck-requests`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            truckNumber:
+              formData.plateNumber
+                .trim()
+                .toUpperCase(),
 
-    console.log("External Tow Truck:", formData);
+            truckType:
+              formData.truckType,
 
-    alert("External tow truck and driver registered successfully!");
+            capacity:
+              formData.capacity,
 
-    setFormData(getInitialFormData());
-    setLocationMessage({ type: "", text: "" });
+            truckModel:
+              formData.truckModel.trim(),
+
+            registrationDate:
+              formData.registrationDate,
+
+            latitude:
+              Number(formData.latitude),
+
+            longitude:
+              Number(formData.longitude),
+
+            driverFullName:
+              formData.driverName.trim(),
+
+            driverNic:
+              formData.driverNic
+                .trim()
+                .toUpperCase(),
+
+            driverEmail:
+              formData.driverEmail
+                .trim()
+                .toLowerCase(),
+
+            driverContactNumber:
+              formData.contactNumber.trim(),
+
+            licenceNumber:
+              formData.licenseNumber
+                .trim()
+                .toUpperCase(),
+
+            licenceExpiryDate:
+              formData.licenseExpireDate,
+
+            experienceYears:
+              Number(
+                formData.driverExperience
+              ),
+
+            garageId,
+          }),
+        }
+      );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        result.success === false
+      ) {
+        throw new Error(
+          result.message ||
+            "Unable to submit external tow truck registration request."
+        );
+      }
+
+      setSubmitMessage({
+        type: "success",
+        text:
+          "External tow truck registration request submitted successfully. Waiting for garage approval.",
+      });
+
+      setFormData(
+        getInitialFormData()
+      );
+
+      setLocationMessage({
+        type: "",
+        text: "",
+      });
+    } catch (error) {
+      console.error(
+        "External tow truck registration submit error:",
+        error
+      );
+
+      setSubmitMessage({
+        type: "error",
+        text:
+          error.message ||
+          "Unable to submit external tow truck registration request.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleBack = () => {
@@ -284,7 +529,7 @@ export default function ExternalTruckRegistration({
   return (
     <div className="min-h-screen bg-[#07080f] text-white font-sans">
       {/* Header */}
-      <header className="min-h-16 border-b border-white/10 bg-[#15151f] flex items-center justify-between px-4 md:px-8">
+      <header className="min-h-16 border-b border-white/10 bg-[#15151f] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -306,13 +551,58 @@ export default function ExternalTruckRegistration({
           </div>
         </div>
 
-        <div className="w-10 h-10 rounded-xl border border-purple-500/30 bg-purple-500/10 flex items-center justify-center">
-          <Truck className="text-purple-400" size={24} />
+        <div className="flex items-center gap-5">
+          <Bell
+            size={18}
+            className="text-gray-300"
+          />
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="text-right">
+            <p className="text-xs font-bold tracking-widest">
+              {ownerName}
+            </p>
+
+            <p className="max-w-[240px] truncate text-[10px] uppercase text-indigo-400">
+              {garageName}
+            </p>
+          </div>
+
+          <div className="w-10 h-10 rounded-xl border border-purple-500/30 bg-purple-500/10 flex items-center justify-center overflow-hidden text-xs">
+            {ownerProfilePhoto ? (
+              <img
+                src={ownerProfilePhoto}
+                alt={`${ownerName} profile`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              ownerInitials
+            )}
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="p-4 md:p-8">
+        {ownerError && (
+          <div className="mx-auto mb-6 max-w-5xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {ownerError}
+          </div>
+        )}
+
+        {submitMessage.text && (
+          <div
+            className={`mx-auto mb-6 max-w-5xl rounded-xl border px-4 py-3 text-sm ${
+              submitMessage.type === "success"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                : "border-red-500/30 bg-red-500/10 text-red-300"
+            }`}
+          >
+            {submitMessage.text}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleBack}
@@ -468,6 +758,26 @@ export default function ExternalTruckRegistration({
                     min="0.1"
                     step="0.1"
                     className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label
+                    htmlFor="registrationDate"
+                    className="block text-xs font-bold text-gray-400 mb-2"
+                  >
+                    TRUCK REGISTRATION DATE
+                  </label>
+
+                  <input
+                    id="registrationDate"
+                    type="date"
+                    name="registrationDate"
+                    value={formData.registrationDate}
+                    onChange={handleChange}
+                    required
+                    max={new Date().toISOString().slice(0, 10)}
+                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-purple-500 [color-scheme:dark]"
                   />
                 </div>
               </div>
@@ -843,11 +1153,23 @@ export default function ExternalTruckRegistration({
             <div className="flex justify-center pt-2">
               <button
                 type="submit"
-                disabled={isFindingLocation || isFindingAddress}
+                disabled={isFindingLocation || isFindingAddress || isSubmitting}
                 className="w-full md:w-auto flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl px-8 py-3 transition disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Save size={18} />
-                REGISTER EXTERNAL TRUCK & DRIVER
+                {isSubmitting ? (
+                  <>
+                    <LoaderCircle
+                      size={18}
+                      className="animate-spin"
+                    />
+                    SUBMITTING REQUEST...
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} />
+                    SUBMIT REGISTRATION REQUEST
+                  </>
+                )}
               </button>
             </div>
           </form>
