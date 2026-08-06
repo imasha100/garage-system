@@ -8,6 +8,8 @@ const {
   completeServiceJob,
   getGarageLiveDashboard,
   getGaragePerformanceAudit,
+  getCustomerLiveProgress,
+  getCompletedJobsForBilling,
 } = require("../controllers/serviceJobController");
 
 // ======================================================
@@ -48,6 +50,26 @@ router.get(
 router.get(
   "/service-jobs/garage/:garageId/performance-audit",
   getGaragePerformanceAudit
+);
+
+// ======================================================
+// COMPLETED JOBS FOR ASSISTANCE BILLING
+// GET /api/service-jobs/garage/:garageId/completed-for-billing
+// ======================================================
+
+router.get(
+  "/service-jobs/garage/:garageId/completed-for-billing",
+  getCompletedJobsForBilling
+);
+
+// ======================================================
+// CUSTOMER LIVE PROGRESS
+// GET /api/service-jobs/customer/:contactNumber/:vehicleNumber/live-progress
+// ======================================================
+
+router.get(
+  "/service-jobs/customer/:contactNumber/:vehicleNumber/live-progress",
+  getCustomerLiveProgress
 );
 
 // ======================================================

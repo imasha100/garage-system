@@ -13,10 +13,13 @@ import {
   UserRound,
   X,
   XCircle,
+  Bell,
 } from "lucide-react";
 
+const API_BASE = "http://localhost:5000";
+
 const API_URL =
-  "http://localhost:5000/api/external-truck-requests";
+  `${API_BASE}/api/external-truck-requests`;
 
 const formatDate = (value) => {
   if (!value) return "N/A";
@@ -151,6 +154,137 @@ export default function ExternalTruckRequests({
   toggleSidebar,
   onNavigate,
 }) {
+  // ======================================================
+  // LOGGED-IN GARAGE OWNER PROFILE
+  // ======================================================
+
+  const [ownerData, setOwnerData] = useState(null);
+  const [ownerLoading, setOwnerLoading] = useState(true);
+  const [ownerError, setOwnerError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOwnerProfile = async () => {
+      try {
+        setOwnerLoading(true);
+        setOwnerError("");
+
+        const storedStaffUser =
+          sessionStorage.getItem("staffUser");
+
+        if (!storedStaffUser) {
+          throw new Error(
+            "Logged-in garage owner details were not found."
+          );
+        }
+
+        const staffUser =
+          JSON.parse(storedStaffUser);
+
+        const loginId = Number(
+          staffUser?.loginId ??
+            staffUser?.login_id
+        );
+
+        if (
+          !Number.isInteger(loginId) ||
+          loginId <= 0
+        ) {
+          throw new Error(
+            "A valid garage owner login ID was not found."
+          );
+        }
+
+        const response = await fetch(
+          `${API_BASE}/api/owners/profile/${loginId}`
+        );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to load garage owner profile."
+          );
+        }
+
+        if (isMounted) {
+          setOwnerData(
+            result.data || null
+          );
+        }
+      } catch (error) {
+        console.error(
+          "External Truck Requests owner loading error:",
+          error
+        );
+
+        if (isMounted) {
+          setOwnerError(
+            error.message ||
+              "Unable to load garage owner profile."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setOwnerLoading(false);
+        }
+      }
+    };
+
+    loadOwnerProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const ownerName =
+    ownerData?.owner?.fullName ??
+    ownerData?.owner?.full_name ??
+    (ownerLoading
+      ? "Loading Owner..."
+      : "Garage Owner");
+
+  const garageName =
+    ownerData?.garage?.garageName ??
+    ownerData?.garage?.garage_name ??
+    (ownerLoading
+      ? "Loading Garage..."
+      : "Garage");
+
+  const ownerGarageId = Number(
+    ownerData?.garage?.garageId ??
+      ownerData?.garage?.garage_id
+  );
+
+  const ownerInitials =
+    ownerName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) =>
+        part.charAt(0).toUpperCase()
+      )
+      .join("") || "GO";
+
+  const profilePhotoPath =
+    ownerData?.owner?.profilePhoto ??
+    ownerData?.owner?.profile_photo ??
+    "";
+
+  const ownerProfilePhoto =
+    profilePhotoPath
+      ? String(profilePhotoPath).startsWith("http")
+        ? profilePhotoPath
+        : `${API_BASE}${profilePhotoPath}`
+      : null;
+
   const [requests, setRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -187,6 +321,13 @@ export default function ExternalTruckRequests({
 
   const getLoggedInGarageId = () => {
     try {
+      if (
+        Number.isInteger(ownerGarageId) &&
+        ownerGarageId > 0
+      ) {
+        return ownerGarageId;
+      }
+
       const storedStaffUser =
         sessionStorage.getItem("staffUser");
 
@@ -194,8 +335,15 @@ export default function ExternalTruckRequests({
         return null;
       }
 
-      const staffUser = JSON.parse(storedStaffUser);
-      const garageId = Number(staffUser?.garageId);
+      const staffUser =
+        JSON.parse(storedStaffUser);
+
+      const garageId = Number(
+        staffUser?.garageId ??
+          staffUser?.garage_id ??
+          staffUser?.garageGarageId ??
+          staffUser?.garage_garage_id
+      );
 
       return Number.isInteger(garageId) &&
         garageId > 0
@@ -289,18 +437,18 @@ export default function ExternalTruckRequests({
         normalizeRequest(data.request)
       );
     } catch (error) {
+      console.error(
+        "Load external request details error:",
+        error
+      );
+
       setErrorModal({
-  open: true,
-  title:
-    actionType === "release"
-      ? "Truck Release Failed"
-      : actionType === "approve"
-      ? "Approval Failed"
-      : "Rejection Failed",
-  message:
-    error.message ||
-    `Unable to ${actionType} this request.`,
-});
+        open: true,
+        title: "Unable to Load Request",
+        message:
+          error.message ||
+          "Unable to load external truck request details.",
+      });
     } finally {
       setIsLoadingDetails(false);
     }
@@ -423,10 +571,18 @@ message:
         error
       );
 
-      window.alert(
-        error.message ||
-          `Unable to ${actionType} this request.`
-      );
+      setErrorModal({
+        open: true,
+        title:
+          actionType === "release"
+            ? "Truck Release Failed"
+            : actionType === "approve"
+            ? "Approval Failed"
+            : "Rejection Failed",
+        message:
+          error.message ||
+          `Unable to ${actionType} this request.`,
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -515,7 +671,7 @@ message:
 
   return (
     <div className="min-h-screen bg-[#07080f] text-white">
-      <header className="flex min-h-16 items-center justify-between gap-3 border-b border-white/10 bg-[#15151f] px-4 md:px-8">
+      <header className="min-h-16 border-b border-white/10 bg-[#15151f] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -537,15 +693,45 @@ message:
           </div>
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10">
-          <Truck
-            size={22}
-            className="text-purple-400"
+        <div className="flex items-center gap-5">
+          <Bell
+            size={18}
+            className="text-gray-300"
           />
+
+          <div className="h-8 w-px bg-white/10" />
+
+          <div className="text-right">
+            <p className="text-xs font-bold tracking-widest">
+              {ownerName}
+            </p>
+
+            <p className="max-w-[240px] truncate text-[10px] uppercase text-indigo-400">
+              {garageName}
+            </p>
+          </div>
+
+          <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-purple-500/30 bg-purple-500/10 text-xs">
+            {ownerProfilePhoto ? (
+              <img
+                src={ownerProfilePhoto}
+                alt={`${ownerName} profile`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              ownerInitials
+            )}
+          </div>
         </div>
       </header>
 
       <main className="p-4 md:p-8">
+        {ownerError && (
+          <div className="mx-auto mb-6 max-w-7xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {ownerError}
+          </div>
+        )}
+
         <div className="mx-auto max-w-7xl">
           <button
             type="button"

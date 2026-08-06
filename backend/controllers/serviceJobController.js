@@ -1442,10 +1442,14 @@ const getGarageLiveDashboard = async (req, res) => {
     // VALIDATE GARAGE ID
     // ==================================================
 
-    if (!Number.isInteger(garageId) || garageId <= 0) {
+    if (
+      !Number.isInteger(garageId) ||
+      garageId <= 0
+    ) {
       return res.status(400).json({
         success: false,
-        message: "A valid garage ID is required.",
+        message:
+          "A valid garage ID is required.",
       });
     }
 
@@ -1455,14 +1459,13 @@ const getGarageLiveDashboard = async (req, res) => {
 
     const [garageRows] = await db.query(
       `
-        SELECT
-          garage_id,
-          garage_name,
-          capacity
-          
-        FROM garage
-        WHERE garage_id = ?
-        LIMIT 1
+      SELECT
+        garage_id,
+        garage_name,
+        capacity
+      FROM garage
+      WHERE garage_id = ?
+      LIMIT 1
       `,
       [garageId]
     );
@@ -1488,132 +1491,150 @@ const getGarageLiveDashboard = async (req, res) => {
 
     const [rows] = await db.query(
       `
+      SELECT
+        sj.job_id,
+        sj.job_type,
+        sj.start_date,
+        sj.start_time,
+        sj.end_date,
+        sj.end_time,
+        sj.job_status,
+        sj.estimated_completion_time,
+        sj.actual_completion_time,
+        sj.remarks,
+
+        sj.service_request_request_id,
+        sj.technician_technician_id,
+        sj.garage_garage_id,
+        sj.assistance_assistance_id,
+
+        sr.request_id,
+        sr.ticket_number,
+        sr.request_status,
+
+        COALESCE(
+          v.vehicle_number,
+          sr.vehicle_number,
+          ''
+        ) AS vehicle_number,
+
+        COALESCE(
+          v.vehicle_type,
+          sr.vehicle_type,
+          ''
+        ) AS vehicle_type,
+
+        COALESCE(
+          v.vehicle_model,
+          ''
+        ) AS vehicle_model,
+
+        COALESCE(
+          c.full_name,
+          sr.customer_name,
+          'Customer'
+        ) AS customer_name,
+
+        COALESCE(
+          c.contact_number,
+          sr.contact_number,
+          ''
+        ) AS customer_contact,
+
+        COALESCE(
+          t.full_name,
+          'Not Assigned'
+        ) AS technician_name,
+
+        COALESCE(
+          t.specialization,
+          ''
+        ) AS technician_specialization,
+
+        COALESCE(
+          extension_data.total_extension_minutes,
+          0
+        ) AS total_extension_minutes,
+
+        extension_data.latest_extension_reason,
+
+        extension_data.latest_extension_datetime,
+
+        CASE
+          WHEN
+            sj.estimated_completion_time IS NOT NULL
+            AND COALESCE(
+              extension_data.total_extension_minutes,
+              0
+            ) > 0
+          THEN DATE_SUB(
+            sj.estimated_completion_time,
+            INTERVAL
+              extension_data.total_extension_minutes
+            MINUTE
+          )
+
+          ELSE sj.estimated_completion_time
+        END AS original_estimated_completion_time,
+
+        CASE
+          WHEN
+            sj.start_date IS NOT NULL
+            AND sj.start_time IS NOT NULL
+            AND sj.estimated_completion_time IS NOT NULL
+          THEN TIMESTAMPDIFF(
+            MINUTE,
+            TIMESTAMP(
+              sj.start_date,
+              sj.start_time
+            ),
+            sj.estimated_completion_time
+          )
+
+          ELSE 0
+        END AS workload_minutes
+
+      FROM service_job sj
+
+      INNER JOIN service_request sr
+        ON sr.request_id =
+           sj.service_request_request_id
+
+      LEFT JOIN customer c
+        ON c.customer_id =
+           sr.customer_customer_id
+
+      LEFT JOIN vehicle v
+        ON v.vehicle_id =
+           sr.vehicle_vehicle_id
+
+      LEFT JOIN technician t
+        ON t.technician_id =
+           sj.technician_technician_id
+
+      LEFT JOIN (
         SELECT
-          sj.job_id,
-          sj.job_type,
-          sj.start_date,
-          sj.start_time,
-          sj.end_date,
-          sj.end_time,
-          sj.job_status,
-          sj.estimated_completion_time,
-          sj.actual_completion_time,
-          sj.remarks,
+          ter.service_job_job_id,
 
-          sj.service_request_request_id,
-          sj.technician_technician_id,
-          sj.garage_garage_id,
-          sj.assistance_assistance_id,
+          SUM(
+            CASE
+              WHEN UPPER(
+                COALESCE(
+                  ter.approval_status,
+                  ''
+                )
+              ) = 'APPROVED'
+              THEN COALESCE(
+                ter.approval_extra_time,
+                0
+              )
 
-          sr.request_id,
-          sr.ticket_number,
-          sr.request_status,
-
-          COALESCE(
-            v.vehicle_number,
-            sr.vehicle_number,
-            ''
-          ) AS vehicle_number,
-
-          COALESCE(
-            v.vehicle_type,
-            sr.vehicle_type,
-            ''
-          ) AS vehicle_type,
-
-          COALESCE(
-            v.vehicle_model,
-            ''
-          ) AS vehicle_model,
-
-          COALESCE(
-            c.full_name,
-            sr.customer_name,
-            'Customer'
-          ) AS customer_name,
-
-          COALESCE(
-            c.contact_number,
-            sr.contact_number,
-            ''
-          ) AS customer_contact,
-
-          COALESCE(
-            t.full_name,
-            'Not Assigned'
-          ) AS technician_name,
-
-          COALESCE(
-            t.specialization,
-            ''
-          ) AS technician_specialization,
-
-          COALESCE(
-            extension_data.total_extension_minutes,
-            0
+              ELSE 0
+            END
           ) AS total_extension_minutes,
 
-          extension_data.latest_extension_reason,
-
-          extension_data.latest_extension_datetime,
-
-          CASE
-            WHEN
-              sj.estimated_completion_time IS NOT NULL
-              AND COALESCE(
-                extension_data.total_extension_minutes,
-                0
-              ) > 0
-            THEN DATE_SUB(
-              sj.estimated_completion_time,
-              INTERVAL
-                extension_data.total_extension_minutes
-              MINUTE
-            )
-
-            ELSE sj.estimated_completion_time
-          END AS original_estimated_completion_time,
-
-          CASE
-            WHEN
-              sj.start_date IS NOT NULL
-              AND sj.start_time IS NOT NULL
-              AND sj.estimated_completion_time IS NOT NULL
-            THEN TIMESTAMPDIFF(
-              MINUTE,
-              TIMESTAMP(
-                sj.start_date,
-                sj.start_time
-              ),
-              sj.estimated_completion_time
-            )
-
-            ELSE 0
-          END AS workload_minutes
-
-        FROM service_job sj
-
-        INNER JOIN service_request sr
-          ON sr.request_id =
-             sj.service_request_request_id
-
-        LEFT JOIN customer c
-          ON c.customer_id =
-             sr.customer_customer_id
-
-        LEFT JOIN vehicle v
-          ON v.vehicle_id =
-             sr.vehicle_vehicle_id
-
-        LEFT JOIN technician t
-          ON t.technician_id =
-             sj.technician_technician_id
-
-        LEFT JOIN (
-          SELECT
-            ter.service_job_job_id,
-
-            SUM(
+          SUBSTRING_INDEX(
+            GROUP_CONCAT(
               CASE
                 WHEN UPPER(
                   COALESCE(
@@ -1621,85 +1642,67 @@ const getGarageLiveDashboard = async (req, res) => {
                     ''
                   )
                 ) = 'APPROVED'
-                THEN COALESCE(
-                  ter.approval_extra_time,
-                  0
-                )
-
-                ELSE 0
-              END
-            ) AS total_extension_minutes,
-
-            SUBSTRING_INDEX(
-              GROUP_CONCAT(
-                CASE
-                  WHEN UPPER(
-                    COALESCE(
-                      ter.approval_status,
-                      ''
-                    )
-                  ) = 'APPROVED'
-                  THEN ter.reason
-
-                  ELSE NULL
-                END
-                ORDER BY
-                  ter.extension_request_id DESC
-                SEPARATOR '|||'
-              ),
-              '|||',
-              1
-            ) AS latest_extension_reason,
-
-            MAX(
-              CASE
-                WHEN UPPER(
-                  COALESCE(
-                    ter.approval_status,
-                    ''
-                  )
-                ) = 'APPROVED'
-                THEN ter.reviewed_date_time
+                THEN ter.reason
 
                 ELSE NULL
               END
-            ) AS latest_extension_datetime
+              ORDER BY
+                ter.extension_request_id DESC
+              SEPARATOR '|||'
+            ),
+            '|||',
+            1
+          ) AS latest_extension_reason,
 
-          FROM time_extension_request ter
+          MAX(
+            CASE
+              WHEN UPPER(
+                COALESCE(
+                  ter.approval_status,
+                  ''
+                )
+              ) = 'APPROVED'
+              THEN ter.reviewed_date_time
 
-          GROUP BY
-            ter.service_job_job_id
+              ELSE NULL
+            END
+          ) AS latest_extension_datetime
 
-        ) extension_data
+        FROM time_extension_request ter
 
-          ON extension_data.service_job_job_id =
-             sj.job_id
+        GROUP BY
+          ter.service_job_job_id
 
-        WHERE
-          sj.garage_garage_id = ?
+      ) extension_data
 
-          AND UPPER(
-            COALESCE(
-              sj.job_status,
-              ''
-            )
-          ) IN (
-            'ASSIGNED',
-            'IN_PROGRESS'
+        ON extension_data.service_job_job_id =
+           sj.job_id
+
+      WHERE
+        sj.garage_garage_id = ?
+
+        AND UPPER(
+          COALESCE(
+            sj.job_status,
+            ''
           )
+        ) IN (
+          'ASSIGNED',
+          'IN_PROGRESS'
+        )
 
-        ORDER BY
-          CASE
-            WHEN UPPER(sj.job_status) = 'IN_PROGRESS'
-            THEN 1
+      ORDER BY
+        CASE
+          WHEN UPPER(sj.job_status) = 'IN_PROGRESS'
+          THEN 1
 
-            WHEN UPPER(sj.job_status) = 'ASSIGNED'
-            THEN 2
+          WHEN UPPER(sj.job_status) = 'ASSIGNED'
+          THEN 2
 
-            ELSE 3
-          END,
+          ELSE 3
+        END,
 
-          sj.job_id DESC
+        sj.job_id DESC
       `,
       [garageId]
     );
@@ -1710,28 +1713,37 @@ const getGarageLiveDashboard = async (req, res) => {
 
     const jobs = rows.map((row) => {
       const totalExtensionMinutes =
-        Number(row.total_extension_minutes) || 0;
+        Number(
+          row.total_extension_minutes
+        ) || 0;
 
       const workloadMinutes =
         Math.max(
           0,
-          Number(row.workload_minutes) || 0
+          Number(
+            row.workload_minutes
+          ) || 0
         );
 
       let displayStatus =
-        String(row.job_status || "").toUpperCase();
+        String(
+          row.job_status || ""
+        ).toUpperCase();
 
       if (
         displayStatus === "IN_PROGRESS" &&
         totalExtensionMinutes > 0
       ) {
-        displayStatus = "TIME EXTENDED";
+        displayStatus =
+          "TIME EXTENDED";
       }
 
       return {
-        jobId: row.job_id,
+        jobId:
+          row.job_id,
 
-        requestId: row.request_id,
+        requestId:
+          row.request_id,
 
         ticketNumber:
           row.ticket_number || "",
@@ -1746,7 +1758,8 @@ const getGarageLiveDashboard = async (req, res) => {
           row.vehicle_model || "",
 
         customerName:
-          row.customer_name || "Customer",
+          row.customer_name ||
+          "Customer",
 
         customerContact:
           row.customer_contact || "",
@@ -1755,13 +1768,16 @@ const getGarageLiveDashboard = async (req, res) => {
           row.technician_technician_id,
 
         technicianName:
-          row.technician_name || "Not Assigned",
+          row.technician_name ||
+          "Not Assigned",
 
         technicianSpecialization:
-          row.technician_specialization || "",
+          row.technician_specialization ||
+          "",
 
         jobType:
-          row.job_type || "GENERAL SERVICE",
+          row.job_type ||
+          "GENERAL SERVICE",
 
         jobStatus:
           row.job_status || "",
@@ -1787,21 +1803,25 @@ const getGarageLiveDashboard = async (req, res) => {
           row.remarks || "",
 
         assistanceId:
-          row.assistance_assistance_id ?? null,
+          row.assistance_assistance_id ??
+          null,
 
         garageId:
           row.garage_garage_id,
 
         timeExtended:
-          totalExtensionMinutes > 0,
+          totalExtensionMinutes >
+          0,
 
         totalExtensionMinutes,
 
         latestExtensionReason:
-          row.latest_extension_reason || "",
+          row.latest_extension_reason ||
+          "",
 
         latestExtensionDateTime:
-          row.latest_extension_datetime || null,
+          row.latest_extension_datetime ||
+          null,
 
         workloadMinutes,
       };
@@ -1811,31 +1831,41 @@ const getGarageLiveDashboard = async (req, res) => {
     // DASHBOARD SUMMARY
     // ==================================================
 
-    const activeJobs = jobs.filter(
-      (job) =>
-        String(job.jobStatus).toUpperCase() ===
-        "IN_PROGRESS"
-    );
+    const activeJobs =
+      jobs.filter(
+        (job) =>
+          String(
+            job.jobStatus
+          ).toUpperCase() ===
+          "IN_PROGRESS"
+      );
 
-    const assignedJobs = jobs.filter(
-      (job) =>
-        String(job.jobStatus).toUpperCase() ===
-        "ASSIGNED"
-    );
+    const assignedJobs =
+      jobs.filter(
+        (job) =>
+          String(
+            job.jobStatus
+          ).toUpperCase() ===
+          "ASSIGNED"
+      );
 
     const globalWorkloadMinutes =
       activeJobs.reduce(
         (total, job) =>
-          total + job.workloadMinutes,
+          total +
+          job.workloadMinutes,
         0
       );
 
-    // Garage capacity from database
     const databaseCapacity =
-      Number(garage.capacity);
+      Number(
+        garage.capacity
+      );
 
     const totalBays =
-      Number.isFinite(databaseCapacity) &&
+      Number.isFinite(
+        databaseCapacity
+      ) &&
       databaseCapacity > 0
         ? databaseCapacity
         : 6;
@@ -1848,7 +1878,10 @@ const getGarageLiveDashboard = async (req, res) => {
         ? Math.min(
             100,
             Math.round(
-              (activeVehicles / totalBays) * 100
+              (
+                activeVehicles /
+                totalBays
+              ) * 100
             )
           )
         : 0;
@@ -1865,12 +1898,11 @@ const getGarageLiveDashboard = async (req, res) => {
           garage.garage_id,
 
         garageName:
-          garage.garage_name || "",
+          garage.garage_name ||
+          "",
 
         capacity:
           totalBays,
-
-        
       },
 
       summary: {
@@ -1889,7 +1921,8 @@ const getGarageLiveDashboard = async (req, res) => {
         occupancyPercentage,
       },
 
-      vehicles: jobs,
+      vehicles:
+        jobs,
     });
   } catch (error) {
     console.error(
@@ -2664,6 +2697,186 @@ const getCustomerLiveProgress = async (req, res) => {
 };
 
 // ======================================================
+// GET COMPLETED JOBS FOR ASSISTANCE BILLING
+// ONLY COMPLETED + NOT YET BILLED JOBS
+//
+// GET /api/service-jobs/garage/:garageId/completed-for-billing
+// ======================================================
+
+const getCompletedJobsForBilling = async (req, res) => {
+  try {
+    const garageId = Number(
+      req.params.garageId
+    );
+
+    // ==================================================
+    // VALIDATE GARAGE ID
+    // ==================================================
+
+    if (
+      !Number.isInteger(garageId) ||
+      garageId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid garage ID is required.",
+      });
+    }
+
+    // ==================================================
+    // GET COMPLETED JOBS THAT DO NOT HAVE AN INVOICE
+    // ==================================================
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        sj.job_id,
+        sj.job_status,
+        sj.end_date,
+        sj.end_time,
+
+        sr.request_id,
+        sr.ticket_number,
+        sr.customer_name,
+        sr.contact_number,
+        sr.vehicle_number,
+        sr.vehicle_type,
+
+        sr.customer_customer_id AS customer_id,
+        sr.vehicle_vehicle_id AS vehicle_id,
+
+        sj.garage_garage_id AS garage_id
+
+      FROM service_job sj
+
+      INNER JOIN service_request sr
+        ON sr.request_id =
+           sj.service_request_request_id
+
+      LEFT JOIN invoice i
+        ON i.service_job_job_id =
+           sj.job_id
+
+      WHERE
+        sj.garage_garage_id = ?
+
+        AND UPPER(
+          TRIM(
+            COALESCE(
+              sj.job_status,
+              ''
+            )
+          )
+        ) = 'COMPLETED'
+
+        AND i.invoice_id IS NULL
+
+      ORDER BY
+        sj.end_date DESC,
+        sj.end_time DESC,
+        sj.job_id DESC
+      `,
+      [garageId]
+    );
+
+    // ==================================================
+    // FORMAT RESPONSE
+    // ==================================================
+
+    const jobs = rows.map((row) => ({
+      jobId:
+        row.job_id,
+
+      requestId:
+        row.request_id,
+
+      ticketNumber:
+        row.ticket_number ||
+        `JOB-${row.job_id}`,
+
+      customerId:
+        row.customer_id || null,
+
+      customerName:
+        row.customer_name ||
+        "Unknown Customer",
+
+      contactNumber:
+        row.contact_number || "",
+
+      vehicleId:
+        row.vehicle_id || null,
+
+      vehicleNumber:
+        row.vehicle_number || "",
+
+      vehicleType:
+        row.vehicle_type || "",
+
+      garageId:
+        row.garage_id,
+
+      jobStatus:
+        row.job_status,
+
+      completedDate:
+        row.end_date,
+
+      completedTime:
+        row.end_time,
+    }));
+
+    // ==================================================
+    // SUCCESS RESPONSE
+    // ==================================================
+
+    return res.status(200).json({
+      success: true,
+      garageId,
+      count: jobs.length,
+      jobs,
+    });
+  } catch (error) {
+    console.error(
+      "========== GET COMPLETED JOBS FOR BILLING ERROR =========="
+    );
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
+    console.error(
+      "SQL Message:",
+      error.sqlMessage
+    );
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
+    console.error(
+      "=========================================================="
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        error.sqlMessage ||
+        "Unable to load completed jobs for billing.",
+    });
+  }
+};
+
+// ======================================================
 // EXPORTS
 // ======================================================
 
@@ -2674,4 +2887,6 @@ module.exports = {
   completeServiceJob,
   getGarageLiveDashboard,
   getGaragePerformanceAudit,
+  getCustomerLiveProgress,
+  getCompletedJobsForBilling,
 };

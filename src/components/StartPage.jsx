@@ -208,6 +208,7 @@ export default function StartPage({ onNavigate }) {
   });
   const [messageSent, setMessageSent] = useState(false);
   const [truckRequestOpen, setTruckRequestOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState(null);
   const [truckRequestSent, setTruckRequestSent] = useState(false);
   const [truckRequestError, setTruckRequestError] = useState("");
   const [truckRequestErrorTitle, setTruckRequestErrorTitle] = useState("");
@@ -237,6 +238,35 @@ export default function StartPage({ onNavigate }) {
     experienceYears: "",
     garageId: "",
   });
+
+  // ======================================================
+  // PREVENT BROWSER BACK FROM LEAVING START PAGE
+  // ======================================================
+  useEffect(() => {
+    const currentUrl = window.location.href;
+
+    window.history.replaceState(
+      { startPage: true },
+      "",
+      currentUrl
+    );
+
+    window.history.pushState(
+      { startPage: true },
+      "",
+      currentUrl
+    );
+
+    const handleBrowserBack = () => {
+      window.history.forward();
+    };
+
+    window.addEventListener("popstate", handleBrowserBack);
+
+    return () => {
+      window.removeEventListener("popstate", handleBrowserBack);
+    };
+  }, []);
 
   const handleContactChange = (event) => {
     const { name, value } = event.target;
@@ -575,6 +605,8 @@ export default function StartPage({ onNavigate }) {
       title: "Emergency Tow Dispatch",
       description:
         "Request the nearest available tow truck and receive coordinated roadside support during a breakdown.",
+      details:
+        "When a vehicle is non-driveable, SwiftGarage AI helps coordinate an available tow truck for roadside recovery. The customer can follow tow progress and receive service updates until the vehicle reaches the selected garage.",
       image: towServiceImage,
     },
     {
@@ -582,6 +614,8 @@ export default function StartPage({ onNavigate }) {
       title: "Nearby Garage Search",
       description:
         "Discover suitable garages around your live location and compare available service options instantly.",
+      details:
+        "The platform uses the customer's location to identify nearby registered garages. Customers can review garage information and select a suitable service location based on availability and their vehicle support needs.",
       image: garageServiceImage,
     },
     {
@@ -589,13 +623,17 @@ export default function StartPage({ onNavigate }) {
       title: "Live Service Tracking",
       description:
         "Follow technician arrival, tow movement and service progress through real-time status updates.",
+      details:
+        "Customers can monitor important stages of an active roadside request, including tow truck movement, technician assignment and service progress. This keeps the customer informed throughout the recovery and repair journey.",
       image: trackingServiceImage,
     },
-    {
+        {
       icon: BrainCircuit,
-      title: "AI Recommendations",
+      title: "AI-Powered Workload Monitoring",
       description:
-        "Receive intelligent garage and service suggestions based on location, urgency and vehicle requirements.",
+        "Uses CCTV-based vehicle detection to monitor garage workload and display real-time availability on the map.",
+      details:
+        "The AI system analyzes CCTV feeds to detect the number of vehicles currently inside each garage. Based on the detected vehicle count and garage capacity, the system calculates the real-time workload and displays it on the customer map, helping customers identify less busy garages.",
       image: aiServiceImage,
     },
     {
@@ -603,6 +641,8 @@ export default function StartPage({ onNavigate }) {
       title: "Vehicle Recovery",
       description:
         "Access professional assistance for both driveable and non-driveable vehicle recovery situations.",
+      details:
+        "The system supports both driveable and non-driveable vehicle situations. Customers can continue with guided recovery when the vehicle is driveable or request emergency towing when roadside transport is required.",
       image: recoveryServiceImage,
     },
     {
@@ -610,6 +650,8 @@ export default function StartPage({ onNavigate }) {
       title: "Digital Service Management",
       description:
         "Manage requests, invoices, payments, service history and customer feedback through one platform.",
+      details:
+        "Service activities are managed digitally from request creation to completion. The platform supports service progress, communication, invoicing, payments, service history and customer feedback in one connected workflow.",
       image: managementServiceImage,
     },
   ];
@@ -632,13 +674,13 @@ export default function StartPage({ onNavigate }) {
       label: "Location updates",
     },
     {
-      icon: BrainCircuit,
-      title: "Smart Recommendations",
-      description:
-        "AI-powered matching identifies the most suitable service provider for each situation.",
-      stat: "AI",
-      label: "Decision support",
-    },
+  icon: BrainCircuit,
+  title: "AI-Powered Workload Insights",
+  description:
+    "CCTV-based vehicle detection monitors garage workload and provides real-time availability insights on the map.",
+  stat: "AI",
+  label: "Workload monitoring",
+},
     {
       icon: ShieldCheck,
       title: "Secure Platform",
@@ -1131,7 +1173,21 @@ export default function StartPage({ onNavigate }) {
             {services.map((service) => {
               const Icon = service.icon;
               return (
-                <motion.article key={service.title} variants={cardReveal} whileHover={{ y: -10 }} className="group overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/70 shadow-[0_18px_55px_rgba(0,0,0,0.22)] transition hover:border-teal-400/35 hover:shadow-[0_24px_70px_rgba(0,0,0,0.36)]">
+                <motion.article
+                  key={service.title}
+                  variants={cardReveal}
+                  whileHover={{ y: -10 }}
+                  onClick={() => setSelectedService(service)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedService(service);
+                    }
+                  }}
+                  className="group cursor-pointer overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/70 shadow-[0_18px_55px_rgba(0,0,0,0.22)] transition hover:border-teal-400/35 hover:shadow-[0_24px_70px_rgba(0,0,0,0.36)] focus:outline-none focus:ring-2 focus:ring-teal-400/50"
+                >
                   <div className="relative h-52 overflow-hidden">
                     <img src={service.image} alt={service.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/15 to-transparent" />
@@ -1145,6 +1201,9 @@ export default function StartPage({ onNavigate }) {
                       <ArrowUpRight className="h-5 w-5 shrink-0 text-slate-600 transition-all group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-teal-300" />
                     </div>
                     <p className="mt-3 text-sm leading-7 text-slate-400">{service.description}</p>
+                    <p className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-teal-300/80">
+                      Click to learn more
+                    </p>
                   </div>
                 </motion.article>
               );
@@ -1305,20 +1364,125 @@ export default function StartPage({ onNavigate }) {
 
         <footer className="border-t border-white/10 py-8">
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
-            <div className="flex items-center gap-2">
-              <Wrench className="h-6 w-6 text-teal-400" />
-              <span className="font-black tracking-wide">SwiftGarage <span className="text-teal-400">AI</span></span>
+            <div className="flex flex-col items-center gap-4 md:items-start">
+              <div className="flex items-center gap-2">
+                <Wrench className="h-6 w-6 text-teal-400" />
+                <span className="font-black tracking-wide">
+                  SwiftGarage <span className="text-teal-400">AI</span>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3" aria-label="Social media">
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
+                  title="Facebook"
+                >
+                  <span className="text-lg font-black leading-none">f</span>
+                </div>
+
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
+                  title="Instagram"
+                >
+                  <span className="text-lg font-black leading-none">◎</span>
+                </div>
+
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
+                  title="LinkedIn"
+                >
+                  <span className="text-sm font-black leading-none">in</span>
+                </div>
+              </div>
             </div>
+
             <nav aria-label="Footer navigation" className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm">
               <a href="#top" className="text-slate-400 transition hover:text-teal-300">Home</a>
               {navLinks.map(([label, id]) => (
                 <a key={id} href={`#${id}`} className="text-slate-400 transition hover:text-teal-300">{label}</a>
               ))}
             </nav>
+
             <p className="text-center text-sm text-slate-500">© 2026 SwiftGarage AI. All Rights Reserved.</p>
           </div>
         </footer>
       </section>
+
+      {/* SERVICE DETAILS POPUP */}
+      <AnimatePresence>
+        {selectedService && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+            onMouseDown={() => setSelectedService(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.96 }}
+              transition={{ duration: 0.22 }}
+              onMouseDown={(event) => event.stopPropagation()}
+              className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#080d14] shadow-[0_35px_110px_rgba(0,0,0,0.7)]"
+            >
+              <div className="relative h-56 overflow-hidden sm:h-72">
+                <img
+                  src={selectedService.image}
+                  alt={selectedService.title}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080d14] via-[#080d14]/45 to-transparent" />
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedService(null)}
+                  className="absolute right-4 top-4 rounded-xl border border-white/15 bg-slate-950/75 p-2.5 text-slate-200 backdrop-blur-xl transition hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-300"
+                  aria-label="Close service details"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+
+                <div className="absolute bottom-5 left-5 right-5 flex items-end gap-4 sm:bottom-6 sm:left-7 sm:right-7">
+                  <div className="rounded-2xl border border-teal-400/20 bg-teal-400/10 p-3 text-teal-300 backdrop-blur-xl">
+                    {React.createElement(selectedService.icon, { className: "h-7 w-7" })}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-300">
+                      SwiftGarage AI Service
+                    </p>
+                    <h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">
+                      {selectedService.title}
+                    </h2>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 sm:p-8">
+                <p className="text-base leading-8 text-slate-300 sm:text-lg">
+                  {selectedService.details}
+                </p>
+
+                <div className="mt-6 rounded-2xl border border-teal-400/15 bg-teal-400/[0.05] p-4">
+                  <p className="text-sm leading-7 text-slate-400">
+                    {selectedService.description}
+                  </p>
+                </div>
+
+                <div className="mt-7 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedService(null)}
+                    className="rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-6 py-3 font-black text-slate-950 transition hover:-translate-y-0.5"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {truckRequestOpen && (

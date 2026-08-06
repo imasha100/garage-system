@@ -9,6 +9,7 @@ import {
   LogOut,
   X,
   Settings2,
+  PackageSearch,
 } from "lucide-react";
 
 export default function GarageOwnerSidebar({
@@ -18,13 +19,38 @@ export default function GarageOwnerSidebar({
   closeSidebar,
 }) {
   const menuItems = [
-    { icon: LayoutDashboard, label: "Live Dashboard" },
-    { icon: Boxes, label: "Resource Matrix" },
-    { icon: BarChart3, label: "Performance Audit" },
-    { icon: ShieldCheck, label: "Service Quality" },
-    { icon: DollarSign, label: "Profit Loss" },
-    { icon: Settings2, label: "Registration" },
-    { icon: User, label: "Owner Profile" },
+    {
+      icon: LayoutDashboard,
+      label: "Live Dashboard",
+    },
+    {
+      icon: Boxes,
+      label: "Resource Matrix",
+    },
+    {
+      icon: BarChart3,
+      label: "Performance Audit",
+    },
+    {
+      icon: ShieldCheck,
+      label: "Service Quality",
+    },
+    {
+      icon: DollarSign,
+      label: "Profit Loss",
+    },
+    {
+      icon: PackageSearch,
+      label: "Stock Management",
+    },
+    {
+      icon: Settings2,
+      label: "Registration",
+    },
+    {
+      icon: User,
+      label: "Owner Profile",
+    },
   ];
 
   const handleMenuClick = (label) => {
@@ -41,6 +67,7 @@ export default function GarageOwnerSidebar({
 
   return (
     <>
+      {/* Mobile Overlay */}
       {isOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40"
@@ -48,14 +75,20 @@ export default function GarageOwnerSidebar({
         />
       )}
 
+      {/* Sidebar */}
       <aside
         className={`fixed md:relative top-0 left-0 z-50
         w-[82%] max-w-[280px] md:w-72
         h-screen bg-black border-r border-[#1a1a1a]
         flex flex-col overflow-hidden
         transition-transform duration-300 ease-in-out
-        ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        ${
+          isOpen
+            ? "translate-x-0"
+            : "-translate-x-full md:translate-x-0"
+        }`}
       >
+        {/* Header */}
         <div className="p-4 md:p-6 border-b border-[#1a1a1a] shrink-0">
           <div className="flex justify-between items-center">
             <h1 className="text-white font-black text-lg md:text-xl tracking-widest">
@@ -72,6 +105,7 @@ export default function GarageOwnerSidebar({
           </div>
         </div>
 
+        {/* Menu */}
         <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
           <nav className="space-y-3 md:space-y-4">
             {menuItems.map((item) => {
@@ -81,7 +115,9 @@ export default function GarageOwnerSidebar({
                 <button
                   type="button"
                   key={item.label}
-                  onClick={() => handleMenuClick(item.label)}
+                  onClick={() =>
+                    handleMenuClick(item.label)
+                  }
                   className={`w-full flex items-center gap-3 md:gap-4
                   px-4 md:px-5 py-3 md:py-4
                   text-[11px] md:text-xs font-bold tracking-widest border
@@ -92,7 +128,11 @@ export default function GarageOwnerSidebar({
                       : "border-[#1a1a1a] text-gray-500 hover:text-gray-300 hover:border-[#333]"
                   }`}
                 >
-                  <Icon size={18} className="shrink-0" />
+                  <Icon
+                    size={18}
+                    className="shrink-0"
+                  />
+
                   <span className="truncate">
                     {item.label.toUpperCase()}
                   </span>
@@ -102,6 +142,7 @@ export default function GarageOwnerSidebar({
           </nav>
         </div>
 
+        {/* Logout */}
         <div className="p-4 md:p-6 border-t border-[#1a1a1a] shrink-0 bg-black">
           <button
             type="button"
@@ -113,6 +154,7 @@ export default function GarageOwnerSidebar({
             hover:bg-red-500/10 transition-all duration-300"
           >
             <LogOut size={18} />
+
             LOG OUT
           </button>
         </div>

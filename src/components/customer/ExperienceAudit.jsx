@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -27,12 +27,50 @@ function StarRating({ value, onChange }) {
   );
 }
 
-function SubmissionModal({ onClose }) {
+// ======================================================
+// DISPLAY SELECTED RATING
+// ======================================================
+
+function RatingDisplay({ rating }) {
+  const numericRating = Number(rating) || 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
-      <div className="relative z-10 flex flex-col items-center text-center px-10 py-12 rounded-lg bg-[rgba(5,15,20,0.9)] border border-[#00e676]/30 max-w-[420px] w-[90%]">
-        <div className="flex items-center justify-center rounded-full mb-6 w-[52px] h-[52px] border-2 border-[#00e676] bg-[#00e676]/10">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+    <div className="flex justify-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span
+          key={star}
+          className={`text-2xl ${
+            star <= numericRating
+              ? "text-[#f5a623]"
+              : "text-[#3a3f5c]"
+          }`}
+        >
+          ★
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ======================================================
+// SUBMISSION MODAL
+// ======================================================
+
+function SubmissionModal({
+  onClose,
+  feedbackData,
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
+      <div className="relative z-10 w-full max-w-[480px] rounded-xl border border-[#00e676]/30 bg-[rgba(5,15,20,0.96)] px-8 py-9 text-center shadow-2xl">
+        {/* SUCCESS ICON */}
+        <div className="mx-auto mb-5 flex h-[56px] w-[56px] items-center justify-center rounded-full border-2 border-[#00e676] bg-[#00e676]/10">
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
             <path
               d="M5 13l4 4L19 7"
               stroke="#00e676"
@@ -43,155 +81,509 @@ function SubmissionModal({ onClose }) {
           </svg>
         </div>
 
-        <h2 className="font-bold tracking-[0.12em] mb-4 text-[1.75rem] text-[#00e5a0]">
+        <h2 className="mb-3 text-[1.65rem] font-bold tracking-[0.12em] text-[#00e5a0]">
           SUBMISSION COMPLETE
         </h2>
 
-        <p className="text-[0.7rem] text-[#c8d8d0] tracking-[0.13em] mb-1 uppercase">
+        <p className="mb-1 text-[0.7rem] uppercase tracking-[0.13em] text-[#c8d8d0]">
           THANK YOU FOR VISITING OUR GARAGE
         </p>
 
-        <p className="text-[0.7rem] text-[#c8d8d0] tracking-[0.13em] mb-8 uppercase">
-          YOUR REVIEW WAS SENT TO ASSISTANCE AUDIT
+        <p className="mb-6 text-[0.7rem] uppercase tracking-[0.13em] text-[#c8d8d0]">
+          YOUR REVIEW WAS SENT SUCCESSFULLY
         </p>
 
+        {/* ==================================================
+            SERVICE SUMMARY
+        =================================================== */}
+
+        <div className="mb-6 rounded-lg border border-[#1e3740] bg-[#071117] p-5 text-left">
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-3">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-[#627784]">
+                Vehicle
+              </span>
+
+              <span className="text-right text-sm font-bold text-white">
+                {feedbackData?.vehicleNumber ||
+                  "N/A"}
+              </span>
+            </div>
+
+            <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-3">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-[#627784]">
+                Garage
+              </span>
+
+              <span className="max-w-[250px] text-right text-sm font-bold text-[#b6c8cf]">
+                {feedbackData?.garageName ||
+                  "Garage"}
+              </span>
+            </div>
+
+            <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-3">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-[#627784]">
+                Technician
+              </span>
+
+              <span className="text-right text-sm font-bold text-[#00e5a0]">
+                {feedbackData?.technicianName ||
+                  "Not Assigned"}
+              </span>
+            </div>
+
+            <div className="border-b border-white/5 pb-3">
+              <p className="mb-2 text-center text-[10px] uppercase tracking-[0.16em] text-[#627784]">
+                Your Rating
+              </p>
+
+              <RatingDisplay
+                rating={feedbackData?.rating}
+              />
+            </div>
+
+            <div>
+              <p className="mb-2 text-[10px] uppercase tracking-[0.16em] text-[#627784]">
+                Your Feedback
+              </p>
+
+              <p className="rounded border border-white/5 bg-black/20 p-3 text-xs leading-5 text-[#aabdc5]">
+                "
+                {feedbackData?.comment ||
+                  "No comment provided."}
+                "
+              </p>
+            </div>
+          </div>
+        </div>
+
         <button
+          type="button"
           onClick={onClose}
-          className="font-bold tracking-[0.12em] uppercase text-[0.75rem] px-7 py-2.5 border-2 border-[#00e676] text-[#00e676] rounded hover:bg-[#00e676]/10"
+          className="rounded border-2 border-[#00e676] px-8 py-2.5 text-[0.75rem] font-bold uppercase tracking-[0.12em] text-[#00e676] transition hover:bg-[#00e676]/10"
         >
-          RETURN TO DASHBOARD
+          CLOSE
         </button>
       </div>
     </div>
   );
 }
 
+// ======================================================
+// MAIN COMPONENT
+// ======================================================
+
 export default function ServiceFeedback() {
-  const [rating, setRating] = useState(4);
-  const [notes, setNotes] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rating, setRating] =
+    useState(4);
 
-  const getCompletedJobDetails = () => {
-    try {
-      const storedJob =
-        sessionStorage.getItem("latestCompletedJob");
+  const [notes, setNotes] =
+    useState("");
 
-      if (!storedJob) {
+  const [submitted, setSubmitted] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const [
+    submittedFeedback,
+    setSubmittedFeedback,
+  ] = useState(null);
+
+  const [serviceDetails, setServiceDetails] = useState({
+    vehicleNumber: "",
+    technicianName: "",
+  });
+
+  const [isLoadingServiceDetails, setIsLoadingServiceDetails] =
+    useState(true);
+
+  // ======================================================
+  // GET COMPLETED JOB DETAILS
+  // ======================================================
+
+  const getCompletedJobDetails =
+    async () => {
+      try {
+        // ================================================
+        // 1. TRY CACHED COMPLETED JOB
+        // ================================================
+
+        const storedJob =
+          sessionStorage.getItem(
+            "latestCompletedJob"
+          );
+
+        if (storedJob) {
+          const parsedJob =
+            JSON.parse(storedJob);
+
+          const storedJobId =
+            Number(
+              parsedJob?.jobId
+            );
+
+          if (
+            Number.isInteger(
+              storedJobId
+            ) &&
+            storedJobId > 0
+          ) {
+            return parsedJob;
+          }
+        }
+
+        // ================================================
+        // 2. FALLBACK TO LATEST SERVICE REQUEST
+        // ================================================
+
+        const storedRequest =
+          sessionStorage.getItem(
+            "latestServiceRequest"
+          );
+
+        if (!storedRequest) {
+          return null;
+        }
+
+        const request =
+          JSON.parse(
+            storedRequest
+          );
+
+        const contactNumber =
+          request.contactNumber ??
+          request.contact_number ??
+          request.customerContact ??
+          request.customer_contact ??
+          "";
+
+        const vehicleNumber =
+          request.vehicleNumber ??
+          request.vehicle_number ??
+          request.vehicleNum ??
+          request.vehicle_num ??
+          "";
+
+        if (
+          !contactNumber ||
+          !vehicleNumber
+        ) {
+          return null;
+        }
+
+        // ================================================
+        // 3. GET ACTUAL JOB FROM BACKEND
+        // ================================================
+
+        const response =
+          await fetch(
+            `${API_BASE_URL}/service-jobs/customer/${encodeURIComponent(
+              contactNumber
+            )}/${encodeURIComponent(
+              vehicleNumber
+            )}/live-progress`
+          );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false ||
+          !result.job
+        ) {
+          console.error(
+            "Unable to load completed job:",
+            result
+          );
+
+          return null;
+        }
+
+        // ================================================
+        // 4. CHECK COMPLETED STATUS
+        // ================================================
+
+        const jobStatus =
+          String(
+            result.job.jobStatus ||
+              ""
+          )
+            .trim()
+            .toUpperCase();
+
+        if (
+          jobStatus !==
+          "COMPLETED"
+        ) {
+          return null;
+        }
+
+        // ================================================
+        // 5. CACHE JOB
+        // ================================================
+
+        sessionStorage.setItem(
+          "latestCompletedJob",
+          JSON.stringify(
+            result.job
+          )
+        );
+
+        return result.job;
+      } catch (error) {
+        console.error(
+          "Get completed job details error:",
+          error
+        );
+
         return null;
       }
+    };
 
-      return JSON.parse(storedJob);
-    } catch (error) {
-      console.error(
-        "Read completed job details error:",
-        error
-      );
+  // ======================================================
+  // LOAD VEHICLE + TECHNICIAN DETAILS
+  // ======================================================
 
-      return null;
-    }
-  };
+  useEffect(() => {
+    let isMounted = true;
 
-  const handleSubmit = async () => {
-    if (rating === 0) {
-      setError("Please select a star rating.");
-      return;
-    }
+    const loadServiceDetails = async () => {
+      setIsLoadingServiceDetails(true);
 
-    if (!notes.trim()) {
-      setError("Please type your review.");
-      return;
-    }
+      try {
+        const completedJob = await getCompletedJobDetails();
 
-    const completedJob =
-      getCompletedJobDetails();
-
-    const customerId = Number(
-      completedJob?.customerId
-    );
-
-    const jobId = Number(
-      completedJob?.jobId
-    );
-
-    if (
-      !Number.isInteger(customerId) ||
-      customerId <= 0
-    ) {
-      setError(
-        "Customer details could not be identified."
-      );
-      return;
-    }
-
-    if (
-      !Number.isInteger(jobId) ||
-      jobId <= 0
-    ) {
-      setError(
-        "Completed service job could not be identified."
-      );
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setError("");
-
-      const response = await fetch(
-        `${API_BASE_URL}/feedback`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            customerId,
-            jobId,
-            rating,
-            comment: notes.trim(),
-          }),
+        if (!isMounted) {
+          return;
         }
-      );
 
-      const result = await response.json();
+        if (!completedJob) {
+          setServiceDetails({
+            vehicleNumber: "",
+            technicianName: "",
+          });
+          return;
+        }
 
-      if (
-        !response.ok ||
-        result.success === false
-      ) {
-        throw new Error(
-          result.message ||
-            "Unable to submit feedback."
+        setServiceDetails({
+          vehicleNumber:
+            completedJob?.vehicleNumber ||
+            completedJob?.vehicle_number ||
+            "N/A",
+
+          technicianName:
+            completedJob?.technicianName ||
+            completedJob?.technician_name ||
+            "Not Assigned",
+        });
+      } catch (error) {
+        console.error(
+          "Load feedback service details error:",
+          error
         );
+      } finally {
+        if (isMounted) {
+          setIsLoadingServiceDetails(false);
+        }
+      }
+    };
+
+    loadServiceDetails();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // ======================================================
+  // SUBMIT FEEDBACK
+  // ======================================================
+
+  const handleSubmit =
+    async () => {
+      if (rating === 0) {
+        setError(
+          "Please select a star rating."
+        );
+
+        return;
       }
 
-      setSubmitted(true);
+      if (!notes.trim()) {
+        setError(
+          "Please type your review."
+        );
+
+        return;
+      }
+
+      // ================================================
+      // GET JOB
+      // ================================================
+
+      const completedJob =
+        await getCompletedJobDetails();
+
+      if (!completedJob) {
+        setError(
+          "Completed service details could not be identified."
+        );
+
+        return;
+      }
+
+      const jobId =
+        Number(
+          completedJob?.jobId
+        );
+
+      if (
+        !Number.isInteger(
+          jobId
+        ) ||
+        jobId <= 0
+      ) {
+        setError(
+          "Completed service job could not be identified."
+        );
+
+        return;
+      }
+
+      try {
+        setIsSubmitting(true);
+        setError("");
+
+        // ================================================
+        // POST FEEDBACK
+        // ================================================
+
+        const response =
+          await fetch(
+            `${API_BASE_URL}/feedback`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                jobId,
+                rating,
+                comment:
+                  notes.trim(),
+              }),
+            }
+          );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to submit feedback."
+          );
+        }
+
+        // ================================================
+        // CREATE SUCCESS MODAL DATA
+        // ================================================
+
+        const feedbackSummary = {
+          feedbackId:
+            result.feedback
+              ?.feedbackId,
+
+          jobId,
+
+          rating,
+
+          comment:
+            notes.trim(),
+
+          vehicleNumber:
+            result.feedback
+              ?.vehicleNumber ||
+            completedJob
+              ?.vehicleNumber ||
+            "N/A",
+
+          garageName:
+            result.feedback
+              ?.garageName ||
+            completedJob
+              ?.garageName ||
+            "Garage",
+
+          technicianName:
+            result.feedback
+              ?.technicianName ||
+            completedJob
+              ?.technicianName ||
+            "Not Assigned",
+        };
+
+        // ================================================
+        // SAVE LATEST FEEDBACK
+        // ================================================
+
+        sessionStorage.setItem(
+          "latestSubmittedFeedback",
+          JSON.stringify(
+            feedbackSummary
+          )
+        );
+
+        setSubmittedFeedback(
+          feedbackSummary
+        );
+
+        setSubmitted(true);
+
+        setError("");
+      } catch (error) {
+        console.error(
+          "Submit feedback error:",
+          error
+        );
+
+        setError(
+          error.message ||
+            "Unable to submit feedback."
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+  // ======================================================
+  // CLOSE MODAL
+  // ======================================================
+
+  const handleClose =
+    () => {
+      setSubmitted(false);
+      setSubmittedFeedback(null);
+      setRating(4);
+      setNotes("");
       setError("");
-    } catch (error) {
-      console.error(
-        "Submit feedback error:",
-        error
-      );
+    };
 
-      setError(
-        error.message ||
-          "Unable to submit feedback."
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleReset = () => {
-    setSubmitted(false);
-    setRating(4);
-    setNotes("");
-    setError("");
-  };
+  // ======================================================
+  // UI
+  // ======================================================
 
   return (
     <div className="h-full w-full flex flex-col items-center justify-center py-10 px-4 bg-[#0a0c14]">
@@ -202,6 +594,32 @@ export default function ServiceFeedback() {
       </h1>
 
       <div className="w-full max-w-[520px] bg-[#111827] border-[1.5px] border-[#2a3560] rounded-[6px] p-[32px_36px_28px]">
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-md border border-[#263451] bg-[#0d1117] px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-[#5a6a8a]">
+              Vehicle
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-white">
+              {isLoadingServiceDetails
+                ? "Loading..."
+                : serviceDetails.vehicleNumber || "N/A"}
+            </p>
+          </div>
+
+          <div className="rounded-md border border-[#263451] bg-[#0d1117] px-4 py-3">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-[#5a6a8a]">
+              Service Technician
+            </p>
+
+            <p className="mt-1 text-sm font-bold text-[#00e5a0]">
+              {isLoadingServiceDetails
+                ? "Loading..."
+                : serviceDetails.technicianName || "Not Assigned"}
+            </p>
+          </div>
+        </div>
+
         <p className="text-center tracking-[0.15em] uppercase mb-1 text-[0.9rem] text-[#7a8aaa]">
           WRENCH-TIME SPEED & DIAGNOSTICS ACCURACY RATING
         </p>
@@ -222,8 +640,11 @@ export default function ServiceFeedback() {
 
         <textarea
           value={notes}
-          onChange={(e) => {
-            setNotes(e.target.value);
+          onChange={(event) => {
+            setNotes(
+              event.target.value
+            );
+
             setError("");
           }}
           rows={5}
@@ -249,8 +670,12 @@ export default function ServiceFeedback() {
         <div className="flex justify-center">
           <button
             type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
+            onClick={
+              handleSubmit
+            }
+            disabled={
+              isSubmitting
+            }
             className="font-bold tracking-[0.18em] uppercase bg-[#3b5bdb] text-white px-11 py-3 text-[0.95rem] rounded cursor-pointer hover:bg-[#4a6af0] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting
@@ -262,7 +687,12 @@ export default function ServiceFeedback() {
 
       {submitted && (
         <SubmissionModal
-          onClose={handleReset}
+          onClose={
+            handleClose
+          }
+          feedbackData={
+            submittedFeedback
+          }
         />
       )}
     </div>

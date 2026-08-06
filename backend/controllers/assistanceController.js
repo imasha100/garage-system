@@ -1,4 +1,6 @@
 const db = require("../config/db");
+const fs = require("fs");
+const path = require("path");
 
 // ======================================================
 // HELPER FUNCTIONS
@@ -9,39 +11,67 @@ const formatAssistanceId = (assistanceId) =>
 
 const formatAssistance = (assistance) => ({
   assistanceId: assistance.assistance_id,
-  formattedAssistanceId: formatAssistanceId(
-    assistance.assistance_id
-  ),
-  fullName: assistance.full_name,
-  email: assistance.email,
-  contactNumber: assistance.contact_number,
-  nic: assistance.nic,
-  shiftStatus: assistance.shift_status,
-  role: assistance.role,
-  garageId: assistance.garage_garage_id,
+
+  formattedAssistanceId:
+    formatAssistanceId(
+      assistance.assistance_id
+    ),
+
+  fullName:
+    assistance.full_name,
+
+  email:
+    assistance.email,
+
+  contactNumber:
+    assistance.contact_number,
+
+  nic:
+    assistance.nic,
+
+  profilePhoto:
+    assistance.profile_photo || null,
+
+  shiftStatus:
+    assistance.shift_status,
+
+  role:
+    assistance.role,
+
+  loginId:
+    assistance.login_login_id || null,
+
+  garageId:
+    assistance.garage_garage_id,
 });
+
+// ======================================================
+// GENERATE TEMP PASSWORD
+// ======================================================
 
 const generateTemporaryPassword = () => {
   const randomNumber =
-    Math.floor(100000 + Math.random() * 900000);
+    Math.floor(
+      100000 +
+        Math.random() * 900000
+    );
 
   return `Assist@${randomNumber}`;
 };
 
 // ======================================================
 // REGISTER ASSISTANCE OFFICER
+//
+// POST /api/assistances
 // ======================================================
 
-const registerAssistance = async (req, res) => {
+const registerAssistance = async (
+  req,
+  res
+) => {
   let connection;
 
   try {
-    console.log(
-      "========== REGISTER ASSISTANCE API CALLED =========="
-    );
-
-    console.log("Request Body:", req.body);
-
     const {
       fullName,
       email,
@@ -49,6 +79,10 @@ const registerAssistance = async (req, res) => {
       nic,
       garageId,
     } = req.body;
+
+    // ==================================================
+    // REQUIRED FIELDS
+    // ==================================================
 
     if (
       !fullName?.trim() ||
@@ -61,6 +95,7 @@ const registerAssistance = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Please fill in all required fields.",
       });
@@ -70,16 +105,24 @@ const registerAssistance = async (req, res) => {
       fullName.trim();
 
     const cleanEmail =
-      email.trim().toLowerCase();
+      email
+        .trim()
+        .toLowerCase();
 
     const cleanContactNumber =
       contactNumber.trim();
 
     const cleanNic =
-      nic.trim().toUpperCase();
+      nic
+        .trim()
+        .toUpperCase();
 
     const numericGarageId =
       Number(garageId);
+
+    // ==================================================
+    // VALIDATION
+    // ==================================================
 
     const fullNameRegex =
       /^[A-Za-z][A-Za-z\s.'-]{1,79}$/;
@@ -93,74 +136,116 @@ const registerAssistance = async (req, res) => {
     const nicRegex =
       /^(\d{9}[VX]|\d{12})$/;
 
-    if (!fullNameRegex.test(cleanFullName)) {
+    if (
+      !fullNameRegex.test(
+        cleanFullName
+      )
+    ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Please enter a valid full name.",
       });
     }
 
-    if (!emailRegex.test(cleanEmail)) {
+    if (
+      !emailRegex.test(
+        cleanEmail
+      )
+    ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Please enter a valid email address.",
       });
     }
 
-    if (!contactRegex.test(cleanContactNumber)) {
+    if (
+      !contactRegex.test(
+        cleanContactNumber
+      )
+    ) {
       return res.status(400).json({
         success: false,
+
         message:
           "Contact number must contain exactly 10 digits and start with 0.",
       });
     }
 
-    if (!nicRegex.test(cleanNic)) {
+    if (
+      !nicRegex.test(
+        cleanNic
+      )
+    ) {
       return res.status(400).json({
         success: false,
+
         message:
           "NIC must contain 9 digits followed by V/X or exactly 12 digits.",
       });
     }
 
     if (
-      !Number.isInteger(numericGarageId) ||
+      !Number.isInteger(
+        numericGarageId
+      ) ||
       numericGarageId <= 0
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "A valid garage ID is required.",
       });
     }
+
+    // ==================================================
+    // START TRANSACTION
+    // ==================================================
 
     connection =
       await db.getConnection();
 
     await connection.beginTransaction();
 
+    // ==================================================
+    // CHECK GARAGE
+    // ==================================================
+
     const [garageRows] =
       await connection.query(
         `
-        SELECT garage_id
+        SELECT
+          garage_id
+
         FROM garage
+
         WHERE garage_id = ?
+
         LIMIT 1
         `,
         [numericGarageId]
       );
 
-    if (garageRows.length === 0) {
+    if (
+      garageRows.length === 0
+    ) {
       await connection.rollback();
 
       return res.status(404).json({
         success: false,
+
         message:
           "The selected garage does not exist.",
       });
     }
+
+    // ==================================================
+    // CHECK DUPLICATE ASSISTANCE
+    // ==================================================
 
     const [duplicateRows] =
       await connection.query(
@@ -170,10 +255,14 @@ const registerAssistance = async (req, res) => {
           email,
           contact_number,
           nic
+
         FROM assistance
-        WHERE email = ?
-           OR contact_number = ?
-           OR nic = ?
+
+        WHERE
+          email = ?
+          OR contact_number = ?
+          OR nic = ?
+
         LIMIT 1
         `,
         [
@@ -183,7 +272,9 @@ const registerAssistance = async (req, res) => {
         ]
       );
 
-    if (duplicateRows.length > 0) {
+    if (
+      duplicateRows.length > 0
+    ) {
       await connection.rollback();
 
       const duplicate =
@@ -193,19 +284,25 @@ const registerAssistance = async (req, res) => {
         "details";
 
       if (
-        String(duplicate.email).toLowerCase() ===
+        String(
+          duplicate.email
+        ).toLowerCase() ===
         cleanEmail
       ) {
         duplicateField =
           "email address";
       } else if (
-        String(duplicate.contact_number) ===
+        String(
+          duplicate.contact_number
+        ) ===
         cleanContactNumber
       ) {
         duplicateField =
           "contact number";
       } else if (
-        String(duplicate.nic).toUpperCase() ===
+        String(
+          duplicate.nic
+        ).toUpperCase() ===
         cleanNic
       ) {
         duplicateField =
@@ -214,33 +311,48 @@ const registerAssistance = async (req, res) => {
 
       return res.status(409).json({
         success: false,
+
         message:
           `An assistance officer already exists with this ${duplicateField}.`,
       });
     }
 
+    // ==================================================
+    // CHECK LOGIN USERNAME
+    // ==================================================
+
     const [existingLoginRows] =
       await connection.query(
         `
-        SELECT login_id
+        SELECT
+          login_id
+
         FROM login
+
         WHERE user_name = ?
+
         LIMIT 1
         `,
         [cleanNic]
       );
 
     if (
-      existingLoginRows.length > 0
+      existingLoginRows.length >
+      0
     ) {
       await connection.rollback();
 
       return res.status(409).json({
         success: false,
+
         message:
           "This NIC number is already used as a system username.",
       });
     }
+
+    // ==================================================
+    // CREATE LOGIN
+    // ==================================================
 
     const role =
       "assistance";
@@ -271,6 +383,10 @@ const registerAssistance = async (req, res) => {
     const loginId =
       loginResult.insertId;
 
+    // ==================================================
+    // CREATE ASSISTANCE OFFICER
+    // ==================================================
+
     const [assistanceResult] =
       await connection.query(
         `
@@ -279,18 +395,30 @@ const registerAssistance = async (req, res) => {
           email,
           contact_number,
           nic,
+          profile_photo,
           shift_status,
           role,
           login_login_id,
           garage_garage_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?,
+          ?
+        )
         `,
         [
           cleanFullName,
           cleanEmail,
           cleanContactNumber,
           cleanNic,
+          null,
           "OFF",
           role,
           loginId,
@@ -301,50 +429,55 @@ const registerAssistance = async (req, res) => {
     const assistanceId =
       assistanceResult.insertId;
 
-    const formattedAssistanceId =
-      formatAssistanceId(
-        assistanceId
-      );
-
     await connection.commit();
 
-    console.log(
-      "Assistance officer registered successfully:",
-      {
-        assistanceId,
-        formattedAssistanceId,
-        loginId,
-        username,
-        garageId:
-          numericGarageId,
-      }
-    );
+    // ==================================================
+    // SUCCESS
+    // ==================================================
 
     return res.status(201).json({
       success: true,
+
       message:
         "Assistance officer registered successfully.",
 
       assistance: {
         assistanceId,
-        formattedAssistanceId,
+
+        formattedAssistanceId:
+          formatAssistanceId(
+            assistanceId
+          ),
+
         fullName:
           cleanFullName,
+
         email:
           cleanEmail,
+
         contactNumber:
           cleanContactNumber,
+
         nic:
           cleanNic,
+
+        profilePhoto:
+          null,
+
         shiftStatus:
           "OFF",
+
         role,
+
+        loginId,
+
         garageId:
           numericGarageId,
       },
 
       loginDetails: {
         username,
+
         temporaryPassword,
       },
     });
@@ -394,6 +527,7 @@ const registerAssistance = async (req, res) => {
     ) {
       return res.status(409).json({
         success: false,
+
         message:
           "Username, email, contact number or NIC already exists.",
       });
@@ -405,6 +539,7 @@ const registerAssistance = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "The assistance officer could not be linked to the selected garage.",
       });
@@ -412,8 +547,10 @@ const registerAssistance = async (req, res) => {
 
     return res.status(500).json({
       success: false,
+
       message:
         error.sqlMessage ||
+        error.message ||
         "Unable to register assistance officer.",
     });
   } finally {
@@ -425,6 +562,9 @@ const registerAssistance = async (req, res) => {
 
 // ======================================================
 // GET ALL ASSISTANCE OFFICERS
+//
+// GET /api/assistances
+// GET /api/assistances?garageId=1
 // ======================================================
 
 const getAllAssistances = async (
@@ -442,9 +582,12 @@ const getAllAssistances = async (
         email,
         contact_number,
         nic,
+        profile_photo,
         shift_status,
         role,
+        login_login_id,
         garage_garage_id
+
       FROM assistance
     `;
 
@@ -466,13 +609,12 @@ const getAllAssistances = async (
         ) ||
         numericGarageId <= 0
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "A valid garage ID is required.",
-          });
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "A valid garage ID is required.",
+        });
       }
 
       sql += `
@@ -494,25 +636,17 @@ const getAllAssistances = async (
         queryValues
       );
 
-    const assistances =
-      rows.map(
-        formatAssistance
-      );
+    return res.status(200).json({
+      success: true,
 
-    return res
-      .status(200)
-      .json({
-        success: true,
-        assistances,
-      });
+      assistances:
+        rows.map(
+          formatAssistance
+        ),
+    });
   } catch (error) {
     console.error(
       "========== GET ASSISTANCES ERROR =========="
-    );
-
-    console.error(
-      "Code:",
-      error.code
     );
 
     console.error(
@@ -525,27 +659,20 @@ const getAllAssistances = async (
       error.sqlMessage
     );
 
-    console.error(
-      "SQL:",
-      error.sql
-    );
+    return res.status(500).json({
+      success: false,
 
-    console.error(
-      "==========================================="
-    );
-
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message:
-          error.sqlMessage ||
-          "Unable to fetch assistance officers.",
-      });
+      message:
+        error.sqlMessage ||
+        "Unable to fetch assistance officers.",
+    });
   }
 };
+
 // ======================================================
 // GET SINGLE ASSISTANCE OFFICER
+//
+// GET /api/assistances/:id
 // ======================================================
 
 const getAssistanceById = async (
@@ -562,13 +689,12 @@ const getAssistanceById = async (
       ) ||
       assistanceId <= 0
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "A valid assistance ID is required.",
-        });
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "A valid assistance ID is required.",
+      });
     }
 
     const [rows] =
@@ -580,43 +706,43 @@ const getAssistanceById = async (
           email,
           contact_number,
           nic,
+          profile_photo,
           shift_status,
           role,
+          login_login_id,
           garage_garage_id
+
         FROM assistance
+
         WHERE assistance_id = ?
+
         LIMIT 1
         `,
         [assistanceId]
       );
 
-    if (rows.length === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message:
-            "Assistance officer not found.",
-        });
+    if (
+      rows.length === 0
+    ) {
+      return res.status(404).json({
+        success: false,
+
+        message:
+          "Assistance officer not found.",
+      });
     }
 
-    return res
-      .status(200)
-      .json({
-        success: true,
-        assistance:
-          formatAssistance(
-            rows[0]
-          ),
-      });
+    return res.status(200).json({
+      success: true,
+
+      assistance:
+        formatAssistance(
+          rows[0]
+        ),
+    });
   } catch (error) {
     console.error(
       "========== GET ASSISTANCE ERROR =========="
-    );
-
-    console.error(
-      "Code:",
-      error.code
     );
 
     console.error(
@@ -629,28 +755,182 @@ const getAssistanceById = async (
       error.sqlMessage
     );
 
-    console.error(
-      "SQL:",
-      error.sql
-    );
+    return res.status(500).json({
+      success: false,
 
-    console.error(
-      "=========================================="
-    );
-
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message:
-          error.sqlMessage ||
-          "Unable to fetch assistance officer details.",
-      });
+      message:
+        error.sqlMessage ||
+        "Unable to fetch assistance officer details.",
+    });
   }
 };
 
 // ======================================================
+// GET LOGGED-IN ASSISTANCE PROFILE
+//
+// GET /api/assistances/profile/:loginId
+// ======================================================
+
+const getAssistanceProfileByLoginId =
+  async (req, res) => {
+    try {
+      const loginId =
+        Number(
+          req.params.loginId
+        );
+
+      if (
+        !Number.isInteger(
+          loginId
+        ) ||
+        loginId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "A valid login ID is required.",
+        });
+      }
+
+      const [rows] =
+        await db.query(
+          `
+          SELECT
+            a.assistance_id,
+            a.full_name,
+            a.email,
+            a.contact_number,
+            a.nic,
+            a.profile_photo,
+            a.shift_status,
+            a.role,
+            a.login_login_id,
+            a.garage_garage_id,
+
+            g.garage_id,
+            g.garage_name
+
+          FROM assistance a
+
+          INNER JOIN garage g
+            ON g.garage_id =
+               a.garage_garage_id
+
+          WHERE
+            a.login_login_id = ?
+
+          LIMIT 1
+          `,
+          [loginId]
+        );
+
+      if (
+        rows.length === 0
+      ) {
+        return res.status(404).json({
+          success: false,
+
+          message:
+            "Assistance officer profile was not found.",
+        });
+      }
+
+      const assistance =
+        rows[0];
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          "Assistance officer profile loaded successfully.",
+
+        assistance: {
+          assistanceId:
+            assistance.assistance_id,
+
+          formattedAssistanceId:
+            formatAssistanceId(
+              assistance.assistance_id
+            ),
+
+          fullName:
+            assistance.full_name,
+
+          email:
+            assistance.email,
+
+          contactNumber:
+            assistance.contact_number,
+
+          nic:
+            assistance.nic,
+
+          profilePhoto:
+            assistance.profile_photo ||
+            null,
+
+          shiftStatus:
+            assistance.shift_status,
+
+          role:
+            assistance.role,
+
+          loginId:
+            assistance.login_login_id,
+
+          garageId:
+            assistance.garage_garage_id,
+
+          garageName:
+            assistance.garage_name ||
+            "",
+        },
+      });
+    } catch (error) {
+      console.error(
+        "========== ASSISTANCE PROFILE ERROR =========="
+      );
+
+      console.error(
+        "Code:",
+        error.code
+      );
+
+      console.error(
+        "Message:",
+        error.message
+      );
+
+      console.error(
+        "SQL Message:",
+        error.sqlMessage
+      );
+
+      console.error(
+        "SQL:",
+        error.sql
+      );
+
+      console.error(
+        "=============================================="
+      );
+
+      return res.status(500).json({
+        success: false,
+
+        message:
+          error.sqlMessage ||
+          error.message ||
+          "Unable to load the assistance officer profile.",
+      });
+    }
+  };
+
+// ======================================================
 // UPDATE ASSISTANCE OFFICER
+//
+// PUT /api/assistances/:id
 // ======================================================
 
 const updateAssistance = async (
@@ -670,6 +950,10 @@ const updateAssistance = async (
       nic,
     } = req.body;
 
+    // ==================================================
+    // VALIDATE
+    // ==================================================
+
     if (
       !Number.isInteger(
         assistanceId
@@ -680,13 +964,12 @@ const updateAssistance = async (
       !contactNumber?.trim() ||
       !nic?.trim()
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "Please fill in all required fields.",
-        });
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Please fill in all required fields.",
+      });
     }
 
     const cleanFullName =
@@ -722,13 +1005,12 @@ const updateAssistance = async (
         cleanFullName
       )
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "Please enter a valid full name.",
-        });
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Please enter a valid full name.",
+      });
     }
 
     if (
@@ -736,13 +1018,12 @@ const updateAssistance = async (
         cleanEmail
       )
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "Please enter a valid email address.",
-        });
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Please enter a valid email address.",
+      });
     }
 
     if (
@@ -750,13 +1031,12 @@ const updateAssistance = async (
         cleanContactNumber
       )
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "Contact number must contain exactly 10 digits and start with 0.",
-        });
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Contact number must contain exactly 10 digits and start with 0.",
+      });
     }
 
     if (
@@ -764,19 +1044,26 @@ const updateAssistance = async (
         cleanNic
       )
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "NIC must contain 9 digits followed by V/X or exactly 12 digits.",
-        });
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "NIC must contain 9 digits followed by V/X or exactly 12 digits.",
+      });
     }
+
+    // ==================================================
+    // TRANSACTION
+    // ==================================================
 
     connection =
       await db.getConnection();
 
     await connection.beginTransaction();
+
+    // ==================================================
+    // EXISTING ASSISTANCE
+    // ==================================================
 
     const [existingRows] =
       await connection.query(
@@ -784,9 +1071,15 @@ const updateAssistance = async (
         SELECT
           assistance_id,
           login_login_id,
-          garage_garage_id
+          garage_garage_id,
+          profile_photo,
+          shift_status,
+          role
+
         FROM assistance
+
         WHERE assistance_id = ?
+
         LIMIT 1
         `,
         [assistanceId]
@@ -797,13 +1090,12 @@ const updateAssistance = async (
     ) {
       await connection.rollback();
 
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message:
-            "Assistance officer not found.",
-        });
+      return res.status(404).json({
+        success: false,
+
+        message:
+          "Assistance officer not found.",
+      });
     }
 
     const existingAssistance =
@@ -813,6 +1105,10 @@ const updateAssistance = async (
       existingAssistance
         .login_login_id;
 
+    // ==================================================
+    // DUPLICATE ASSISTANCE DETAILS
+    // ==================================================
+
     const [duplicateRows] =
       await connection.query(
         `
@@ -821,13 +1117,18 @@ const updateAssistance = async (
           email,
           contact_number,
           nic
+
         FROM assistance
-        WHERE assistance_id <> ?
+
+        WHERE
+          assistance_id <> ?
+
           AND (
             email = ?
             OR contact_number = ?
             OR nic = ?
           )
+
         LIMIT 1
         `,
         [
@@ -875,22 +1176,30 @@ const updateAssistance = async (
           "NIC number";
       }
 
-      return res
-        .status(409)
-        .json({
-          success: false,
-          message:
-            `Another assistance officer already uses this ${duplicateField}.`,
-        });
+      return res.status(409).json({
+        success: false,
+
+        message:
+          `Another assistance officer already uses this ${duplicateField}.`,
+      });
     }
+
+    // ==================================================
+    // DUPLICATE LOGIN USERNAME
+    // ==================================================
 
     const [duplicateLoginRows] =
       await connection.query(
         `
-        SELECT login_id
+        SELECT
+          login_id
+
         FROM login
-        WHERE user_name = ?
+
+        WHERE
+          user_name = ?
           AND login_id <> ?
+
         LIMIT 1
         `,
         [
@@ -905,23 +1214,28 @@ const updateAssistance = async (
     ) {
       await connection.rollback();
 
-      return res
-        .status(409)
-        .json({
-          success: false,
-          message:
-            "This NIC number is already used as another system username.",
-        });
+      return res.status(409).json({
+        success: false,
+
+        message:
+          "This NIC number is already used as another system username.",
+      });
     }
+
+    // ==================================================
+    // UPDATE ASSISTANCE
+    // ==================================================
 
     await connection.query(
       `
       UPDATE assistance
+
       SET
         full_name = ?,
         email = ?,
         contact_number = ?,
         nic = ?
+
       WHERE assistance_id = ?
       `,
       [
@@ -933,11 +1247,19 @@ const updateAssistance = async (
       ]
     );
 
+    // ==================================================
+    // UPDATE LOGIN USERNAME
+    // ==================================================
+
     await connection.query(
       `
       UPDATE login
-      SET user_name = ?
-      WHERE login_id = ?
+
+      SET
+        user_name = ?
+
+      WHERE
+        login_id = ?
       `,
       [
         cleanNic,
@@ -947,42 +1269,60 @@ const updateAssistance = async (
 
     await connection.commit();
 
-    return res
-      .status(200)
-      .json({
-        success: true,
-        message:
-          "Assistance officer details updated successfully.",
+    // ==================================================
+    // SUCCESS
+    // ==================================================
 
-        assistance: {
-          assistanceId,
-          formattedAssistanceId:
-            formatAssistanceId(
-              assistanceId
-            ),
-          fullName:
-            cleanFullName,
-          email:
-            cleanEmail,
-          contactNumber:
-            cleanContactNumber,
-          nic:
-            cleanNic,
-          shiftStatus:
-            existingAssistance
-              .shift_status,
-          garageId:
-            existingAssistance
-              .garage_garage_id,
-        },
-      });
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Assistance officer details updated successfully.",
+
+      assistance: {
+        assistanceId,
+
+        formattedAssistanceId:
+          formatAssistanceId(
+            assistanceId
+          ),
+
+        fullName:
+          cleanFullName,
+
+        email:
+          cleanEmail,
+
+        contactNumber:
+          cleanContactNumber,
+
+        nic:
+          cleanNic,
+
+        profilePhoto:
+          existingAssistance
+            .profile_photo ||
+          null,
+
+        shiftStatus:
+          existingAssistance
+            .shift_status,
+
+        role:
+          existingAssistance.role,
+
+        loginId,
+
+        garageId:
+          existingAssistance
+            .garage_garage_id,
+      },
+    });
   } catch (error) {
     if (connection) {
       try {
         await connection.rollback();
-      } catch (
-        rollbackError
-      ) {
+      } catch (rollbackError) {
         console.error(
           "Assistance update rollback failed:",
           rollbackError
@@ -1022,31 +1362,33 @@ const updateAssistance = async (
       error.code ===
       "ER_DUP_ENTRY"
     ) {
-      return res
-        .status(409)
-        .json({
-          success: false,
-          message:
-            "This username, email, contact number or NIC is already used.",
-        });
+      return res.status(409).json({
+        success: false,
+
+        message:
+          "This username, email, contact number or NIC is already used.",
+      });
     }
 
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message:
-          error.sqlMessage ||
-          "Unable to update assistance officer.",
-      });
+    return res.status(500).json({
+      success: false,
+
+      message:
+        error.sqlMessage ||
+        error.message ||
+        "Unable to update assistance officer.",
+    });
   } finally {
     if (connection) {
       connection.release();
     }
   }
 };
+
 // ======================================================
 // UPDATE ASSISTANCE SHIFT STATUS
+//
+// PUT /api/assistances/:id/shift
 // ======================================================
 
 const updateAssistanceShiftStatus =
@@ -1057,11 +1399,15 @@ const updateAssistanceShiftStatus =
 
       const normalizedShiftStatus =
         String(
-          req.body?.shiftStatus ||
-            ""
+          req.body
+            ?.shiftStatus || ""
         )
           .trim()
           .toUpperCase();
+
+      // ==================================================
+      // VALIDATE
+      // ==================================================
 
       if (
         !Number.isInteger(
@@ -1069,13 +1415,12 @@ const updateAssistanceShiftStatus =
         ) ||
         assistanceId <= 0
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "A valid assistance ID is required.",
-          });
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "A valid assistance ID is required.",
+        });
       }
 
       if (
@@ -1084,14 +1429,17 @@ const updateAssistanceShiftStatus =
         normalizedShiftStatus !==
           "OFF"
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message:
-              "Shift status must be ON or OFF.",
-          });
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Shift status must be ON or OFF.",
+        });
       }
+
+      // ==================================================
+      // GET ASSISTANCE
+      // ==================================================
 
       const [existingRows] =
         await db.query(
@@ -1102,34 +1450,45 @@ const updateAssistanceShiftStatus =
             email,
             contact_number,
             nic,
+            profile_photo,
             shift_status,
             role,
+            login_login_id,
             garage_garage_id
+
           FROM assistance
+
           WHERE assistance_id = ?
+
           LIMIT 1
           `,
           [assistanceId]
         );
 
       if (
-        existingRows.length ===
-        0
+        existingRows.length === 0
       ) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message:
-              "Assistance officer not found.",
-          });
+        return res.status(404).json({
+          success: false,
+
+          message:
+            "Assistance officer not found.",
+        });
       }
+
+      // ==================================================
+      // UPDATE SHIFT
+      // ==================================================
 
       await db.query(
         `
         UPDATE assistance
-        SET shift_status = ?
-        WHERE assistance_id = ?
+
+        SET
+          shift_status = ?
+
+        WHERE
+          assistance_id = ?
         `,
         [
           normalizedShiftStatus,
@@ -1139,21 +1498,22 @@ const updateAssistanceShiftStatus =
 
       const updatedAssistance = {
         ...existingRows[0],
+
         shift_status:
           normalizedShiftStatus,
       };
 
-      return res
-        .status(200)
-        .json({
-          success: true,
-          message:
-            "Shift status updated successfully.",
-          assistance:
-            formatAssistance(
-              updatedAssistance
-            ),
-        });
+      return res.status(200).json({
+        success: true,
+
+        message:
+          "Shift status updated successfully.",
+
+        assistance:
+          formatAssistance(
+            updatedAssistance
+          ),
+      });
     } catch (error) {
       console.error(
         "========== UPDATE ASSISTANCE SHIFT ERROR =========="
@@ -1183,25 +1543,279 @@ const updateAssistanceShiftStatus =
         "==================================================="
       );
 
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message:
-            error.sqlMessage ||
-            "Unable to update assistance shift status.",
-        });
+      return res.status(500).json({
+        success: false,
+
+        message:
+          error.sqlMessage ||
+          "Unable to update assistance shift status.",
+      });
     }
   };
 
 // ======================================================
-// EXPORT CONTROLLER FUNCTIONS
+// UPLOAD ASSISTANCE PROFILE PHOTO
+//
+// PUT /api/assistances/:id/photo
+//
+// multipart/form-data
+// field name = profilePhoto
+// ======================================================
+
+const uploadAssistanceProfilePhoto =
+  async (req, res) => {
+    try {
+      const assistanceId =
+        Number(req.params.id);
+
+      // ==================================================
+      // VALIDATE ID
+      // ==================================================
+
+      if (
+        !Number.isInteger(
+          assistanceId
+        ) ||
+        assistanceId <= 0
+      ) {
+        if (
+          req.file?.path &&
+          fs.existsSync(
+            req.file.path
+          )
+        ) {
+          fs.unlinkSync(
+            req.file.path
+          );
+        }
+
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "A valid assistance ID is required.",
+        });
+      }
+
+      // ==================================================
+      // VALIDATE FILE
+      // ==================================================
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Please select a profile photo.",
+        });
+      }
+
+      // ==================================================
+      // GET CURRENT ASSISTANCE
+      // ==================================================
+
+      const [rows] =
+        await db.query(
+          `
+          SELECT
+            assistance_id,
+            profile_photo
+
+          FROM assistance
+
+          WHERE assistance_id = ?
+
+          LIMIT 1
+          `,
+          [assistanceId]
+        );
+
+      if (
+        rows.length === 0
+      ) {
+        if (
+          req.file.path &&
+          fs.existsSync(
+            req.file.path
+          )
+        ) {
+          fs.unlinkSync(
+            req.file.path
+          );
+        }
+
+        return res.status(404).json({
+          success: false,
+
+          message:
+            "Assistance officer was not found.",
+        });
+      }
+
+      const currentAssistance =
+        rows[0];
+
+      // ==================================================
+      // PUBLIC PHOTO PATH
+      // ==================================================
+
+      const profilePhotoPath =
+        `/uploads/assistance-profiles/${req.file.filename}`;
+
+      // ==================================================
+      // SAVE TO DATABASE
+      // ==================================================
+
+      await db.query(
+        `
+        UPDATE assistance
+
+        SET
+          profile_photo = ?
+
+        WHERE
+          assistance_id = ?
+        `,
+        [
+          profilePhotoPath,
+          assistanceId,
+        ]
+      );
+
+      // ==================================================
+      // DELETE OLD PHOTO
+      // ==================================================
+
+      const oldPhoto =
+        currentAssistance
+          .profile_photo;
+
+      if (
+        oldPhoto &&
+        oldPhoto.startsWith(
+          "/uploads/assistance-profiles/"
+        )
+      ) {
+        const oldPhotoPath =
+          path.join(
+            __dirname,
+            "..",
+            oldPhoto.replace(
+              /^\/+/,
+              ""
+            )
+          );
+
+        if (
+          fs.existsSync(
+            oldPhotoPath
+          )
+        ) {
+          try {
+            fs.unlinkSync(
+              oldPhotoPath
+            );
+          } catch (deleteError) {
+            console.warn(
+              "Unable to delete old assistance profile photo:",
+              deleteError.message
+            );
+          }
+        }
+      }
+
+      // ==================================================
+      // SUCCESS
+      // ==================================================
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          "Profile photo uploaded successfully.",
+
+        profilePhoto:
+          profilePhotoPath,
+
+        assistance: {
+          assistanceId,
+
+          profilePhoto:
+            profilePhotoPath,
+        },
+      });
+    } catch (error) {
+      // ==================================================
+      // REMOVE FAILED NEW FILE
+      // ==================================================
+
+      if (
+        req.file?.path &&
+        fs.existsSync(
+          req.file.path
+        )
+      ) {
+        try {
+          fs.unlinkSync(
+            req.file.path
+          );
+        } catch (deleteError) {
+          console.warn(
+            "Unable to remove failed assistance profile photo:",
+            deleteError.message
+          );
+        }
+      }
+
+      console.error(
+        "========== ASSISTANCE PHOTO UPLOAD ERROR =========="
+      );
+
+      console.error(
+        "Code:",
+        error.code
+      );
+
+      console.error(
+        "Message:",
+        error.message
+      );
+
+      console.error(
+        "SQL Message:",
+        error.sqlMessage
+      );
+
+      console.error(
+        "SQL:",
+        error.sql
+      );
+
+      console.error(
+        "==================================================="
+      );
+
+      return res.status(500).json({
+        success: false,
+
+        message:
+          error.sqlMessage ||
+          error.message ||
+          "Unable to upload the profile photo.",
+      });
+    }
+  };
+
+// ======================================================
+// EXPORTS
 // ======================================================
 
 module.exports = {
   registerAssistance,
   getAllAssistances,
   getAssistanceById,
+  getAssistanceProfileByLoginId,
   updateAssistance,
   updateAssistanceShiftStatus,
+  uploadAssistanceProfilePhoto,
 };

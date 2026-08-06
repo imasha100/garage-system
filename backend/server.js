@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 require("dotenv").config();
 
 const db = require("./config/db");
@@ -80,11 +81,43 @@ const feedbackRoutes = require(
 );
 
 // ==============================
+// Stock Routes
+// ==============================
+
+const stockRoutes = require(
+  "./routes/stockRoutes"
+);
+
+// ==============================
+// Invoice / Billing Routes
+// ==============================
+
+const invoiceRoutes = require(
+  "./routes/invoiceRoutes"
+);
+
+// ==============================
+// Profit / Loss Routes
+// ==============================
+
+const profitLossRoutes = require(
+  "./routes/profitLossRoutes"
+);
+
+// ==============================
 // Time Extension Routes
 // ==============================
 
 const timeExtensionRoutes = require(
   "./routes/timeExtensionRoutes"
+);
+
+// ==============================
+// Notification Routes
+// ==============================
+
+const notificationRoutes = require(
+  "./routes/notificationRoutes"
 );
 
 // ==============================
@@ -122,6 +155,20 @@ const app = express();
 app.use(cors());
 
 app.use(express.json());
+
+// ==============================
+// STATIC UPLOADS
+// ==============================
+
+app.use(
+  "/uploads",
+  express.static(
+    path.join(
+      __dirname,
+      "uploads"
+    )
+  )
+);
 
 // ==============================
 // API Routes
@@ -181,25 +228,37 @@ app.use(
   timeExtensionRoutes
 );
 
+// ==============================
 // Tow Dispatch
+// ==============================
+
 app.use(
   "/api",
   towDispatchRoutes
 );
 
+// ==============================
 // Vehicle Types
+// ==============================
+
 app.use(
   "/api",
   vehicleTypeRoutes
 );
 
+// ==============================
 // Garage
+// ==============================
+
 app.use(
   "/api/garages",
   garageRoutes
 );
 
+// ==============================
 // Garage Owner
+// ==============================
+
 app.use(
   "/api/owners",
   ownerRoutes
@@ -221,6 +280,42 @@ app.use(
 app.use(
   "/api",
   feedbackRoutes
+);
+
+// ==============================
+// Stock Management
+// ==============================
+
+app.use(
+  "/api",
+  stockRoutes
+);
+
+// ==============================
+// Invoice / Billing
+// ==============================
+
+app.use(
+  "/api",
+  invoiceRoutes
+);
+
+// ==============================
+// Profit / Loss
+// ==============================
+
+app.use(
+  "/api",
+  profitLossRoutes
+);
+
+// ==============================
+// Notifications
+// ==============================
+
+app.use(
+  "/api",
+  notificationRoutes
 );
 
 // ==============================

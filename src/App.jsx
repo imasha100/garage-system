@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import StartPage from "./components/StartPage";
 import StaffLogin from "./components/StaffLogin";
@@ -23,6 +23,7 @@ import ResourceMatrix from "./components/garageOwner/ResourceMatrix";
 import PerformanceAudit from "./components/garageOwner/PerformanceAudit";
 import ServiceQuality from "./components/garageOwner/ServiceQuality";
 import ProfitLoss from "./components/garageOwner/ProfitLoss";
+import StockManagement from "./components/garageOwner/StockManagement";
 import OwnerProfile from "./components/garageOwner/OwnerProfile";
 import RegistrationCenter from "./components/garageOwner/RegistrationCenter";
 import TechRegistration from "./components/garageOwner/TechRegistration";
@@ -33,36 +34,122 @@ import ExternalTruckRequests from "./components/garageOwner/ExternalTruckRequest
 
 function App() {
   const [currentPage, setCurrentPage] = useState("start");
-  const [selectedGarage, setSelectedGarage] = useState(null);
-  const [resourceRequests, setResourceRequests] = useState([]);
 
-  const [technicianSidebarOpen, setTechnicianSidebarOpen] =
-    useState(false);
+  // ======================================================
+  // BROWSER HISTORY MANAGEMENT
+  // ======================================================
 
-  const [ownerSidebarOpen, setOwnerSidebarOpen] =
-    useState(false);
+  useEffect(() => {
+    // Ensure the current entry belongs to this application.
+    window.history.replaceState(
+      { page: "start", swiftGarage: true },
+      "",
+      window.location.href
+    );
+
+    const handlePopState = (event) => {
+      const state = event.state;
+
+      if (
+        state?.swiftGarage &&
+        state?.page
+      ) {
+        setCurrentPage(state.page);
+        return;
+      }
+
+      // If the browser tries to leave the app history,
+      // restore the Start Page as the active app screen.
+      window.history.pushState(
+        { page: "start", swiftGarage: true },
+        "",
+        window.location.href
+      );
+
+      setCurrentPage("start");
+    };
+
+    window.addEventListener(
+      "popstate",
+      handlePopState
+    );
+
+    return () => {
+      window.removeEventListener(
+        "popstate",
+        handlePopState
+      );
+    };
+  }, []);
+
+  const [selectedGarage, setSelectedGarage] =
+    useState(null);
+
+  const [resourceRequests, setResourceRequests] =
+    useState([]);
+
+  const [
+    technicianSidebarOpen,
+    setTechnicianSidebarOpen,
+  ] = useState(false);
+
+  const [
+    ownerSidebarOpen,
+    setOwnerSidebarOpen,
+  ] = useState(false);
+
+  // ======================================================
+  // MAIN NAVIGATION
+  // ======================================================
 
   const handleNavigate = (page) => {
-    if (page === "logout" || page === "start") {
+    if (
+      page === "logout" ||
+      page === "start"
+    ) {
       localStorage.clear();
       sessionStorage.clear();
 
       setSelectedGarage(null);
       setResourceRequests([]);
+
       setTechnicianSidebarOpen(false);
       setOwnerSidebarOpen(false);
+
       setCurrentPage("start");
+
+      window.history.pushState(
+        {
+          page: "start",
+          swiftGarage: true,
+        },
+        "",
+        window.location.href
+      );
 
       return;
     }
 
     setCurrentPage(page);
 
+    window.history.pushState(
+      {
+        page,
+        swiftGarage: true,
+      },
+      "",
+      window.location.href
+    );
+
     if (window.innerWidth < 768) {
       setTechnicianSidebarOpen(false);
       setOwnerSidebarOpen(false);
     }
   };
+
+  // ======================================================
+  // TECHNICIAN SIDEBAR
+  // ======================================================
 
   const openTechnicianSidebar = () =>
     setTechnicianSidebarOpen(true);
@@ -72,8 +159,13 @@ function App() {
 
   const toggleTechnicianSidebar = () =>
     setTechnicianSidebarOpen(
-      (previousState) => !previousState
+      (previousState) =>
+        !previousState
     );
+
+  // ======================================================
+  // GARAGE OWNER SIDEBAR
+  // ======================================================
 
   const openOwnerSidebar = () =>
     setOwnerSidebarOpen(true);
@@ -83,10 +175,17 @@ function App() {
 
   const toggleOwnerSidebar = () =>
     setOwnerSidebarOpen(
-      (previousState) => !previousState
+      (previousState) =>
+        !previousState
     );
 
-  const TechnicianLayout = ({ children }) => (
+  // ======================================================
+  // TECHNICIAN LAYOUT
+  // ======================================================
+
+  const TechnicianLayout = ({
+    children,
+  }) => (
     <div className="flex h-screen w-full overflow-hidden bg-[#0a0d14]">
       <TechnicianSidebar
         activeItem={currentPage}
@@ -101,7 +200,13 @@ function App() {
     </div>
   );
 
-  const GarageOwnerLayout = ({ children }) => (
+  // ======================================================
+  // GARAGE OWNER LAYOUT
+  // ======================================================
+
+  const GarageOwnerLayout = ({
+    children,
+  }) => (
     <div className="flex h-screen w-full overflow-hidden bg-[#07080f]">
       <GarageOwnerSidebar
         activeItem={currentPage}
@@ -117,7 +222,15 @@ function App() {
     </div>
   );
 
+  // ======================================================
+  // PAGE SWITCH
+  // ======================================================
+
   switch (currentPage) {
+    // ====================================================
+    // START
+    // ====================================================
+
     case "start":
       return (
         <StartPage
@@ -125,13 +238,56 @@ function App() {
         />
       );
 
+    // ====================================================
+    // CUSTOMER
+    // ====================================================
+
     case "customer-login":
       return (
         <CustomerLogin
           onNavigate={handleNavigate}
-          setSelectedGarage={setSelectedGarage}
+          setSelectedGarage={
+            setSelectedGarage
+          }
         />
       );
+
+    case "garage-map":
+      return (
+        <GarageMap
+          onNavigate={handleNavigate}
+          selectedGarage={
+            selectedGarage
+          }
+          setSelectedGarage={
+            setSelectedGarage
+          }
+          setResourceRequests={
+            setResourceRequests
+          }
+        />
+      );
+
+    case "navigation-hub":
+      return (
+        <NavigationHub
+          onNavigate={handleNavigate}
+          selectedGarage={
+            selectedGarage
+          }
+        />
+      );
+
+    case "track-my-tow-truck":
+      return (
+        <TrackMyTowTruck
+          onNavigate={handleNavigate}
+        />
+      );
+
+    // ====================================================
+    // STAFF LOGIN
+    // ====================================================
 
     case "staff-login":
       return (
@@ -147,37 +303,20 @@ function App() {
         />
       );
 
-    case "garage-map":
-      return (
-        <GarageMap
-          onNavigate={handleNavigate}
-          selectedGarage={selectedGarage}
-          setSelectedGarage={setSelectedGarage}
-          setResourceRequests={setResourceRequests}
-        />
-      );
-
-    case "navigation-hub":
-      return (
-        <NavigationHub
-          onNavigate={handleNavigate}
-          selectedGarage={selectedGarage}
-        />
-      );
-
-    case "track-my-tow-truck":
-      return (
-        <TrackMyTowTruck
-          onNavigate={handleNavigate}
-        />
-      );
+    // ====================================================
+    // TECHNICIAN
+    // ====================================================
 
     case "technician-dashboard":
       return (
         <TechnicianLayout>
           <TechnicianDashboard
-            onNavigate={handleNavigate}
-            toggleSidebar={toggleTechnicianSidebar}
+            onNavigate={
+              handleNavigate
+            }
+            toggleSidebar={
+              toggleTechnicianSidebar
+            }
           />
         </TechnicianLayout>
       );
@@ -186,8 +325,12 @@ function App() {
       return (
         <TechnicianLayout>
           <VehicleIntake
-            onNavigate={handleNavigate}
-            toggleSidebar={openTechnicianSidebar}
+            onNavigate={
+              handleNavigate
+            }
+            toggleSidebar={
+              openTechnicianSidebar
+            }
           />
         </TechnicianLayout>
       );
@@ -196,8 +339,12 @@ function App() {
       return (
         <TechnicianLayout>
           <TechnicianProfile
-            onNavigate={handleNavigate}
-            toggleSidebar={openTechnicianSidebar}
+            onNavigate={
+              handleNavigate
+            }
+            toggleSidebar={
+              openTechnicianSidebar
+            }
           />
         </TechnicianLayout>
       );
@@ -206,139 +353,267 @@ function App() {
       return (
         <TechnicianLayout>
           <TaskHistory
-            onNavigate={handleNavigate}
-            toggleSidebar={openTechnicianSidebar}
+            onNavigate={
+              handleNavigate
+            }
+            toggleSidebar={
+              openTechnicianSidebar
+            }
           />
         </TechnicianLayout>
       );
+
+    // ====================================================
+    // ASSISTANCE
+    // ====================================================
 
     case "assistance-dashboard":
       return (
         <AssistanceDashboard
           onNavigate={handleNavigate}
-          resourceRequests={resourceRequests}
+          resourceRequests={
+            resourceRequests
+          }
         />
       );
+
+    // ====================================================
+    // GARAGE OWNER - LIVE DASHBOARD
+    // ====================================================
 
     case "Live Dashboard":
       return (
         <GarageOwnerLayout>
           <LiveDashboard
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // GARAGE OWNER - RESOURCE MATRIX
+    // ====================================================
 
     case "Resource Matrix":
       return (
         <GarageOwnerLayout>
           <ResourceMatrix
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // GARAGE OWNER - PERFORMANCE AUDIT
+    // ====================================================
 
     case "Performance Audit":
       return (
         <GarageOwnerLayout>
           <PerformanceAudit
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // GARAGE OWNER - SERVICE QUALITY
+    // ====================================================
 
     case "Service Quality":
       return (
         <GarageOwnerLayout>
           <ServiceQuality
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // GARAGE OWNER - PROFIT LOSS
+    // ====================================================
 
     case "Profit Loss":
       return (
         <GarageOwnerLayout>
           <ProfitLoss
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // GARAGE OWNER - STOCK MANAGEMENT
+    // ====================================================
+
+    case "Stock Management":
+      return (
+        <GarageOwnerLayout>
+          <StockManagement
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
+          />
+        </GarageOwnerLayout>
+      );
+
+    // ====================================================
+    // GARAGE OWNER - REGISTRATION CENTER
+    // ====================================================
 
     case "Registration":
       return (
         <GarageOwnerLayout>
           <RegistrationCenter
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // TECHNICIAN REGISTRATION
+    // ====================================================
 
     case "technician-registration":
       return (
         <GarageOwnerLayout>
           <TechRegistration
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // TOW TRUCK REGISTRATION
+    // ====================================================
 
     case "truck-registration":
       return (
         <GarageOwnerLayout>
           <TruckRegistration
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // ASSISTANCE REGISTRATION
+    // ====================================================
 
     case "assistance-registration":
       return (
         <GarageOwnerLayout>
           <AssistRegistration
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // EXTERNAL TRUCK REGISTRATION
+    // ====================================================
 
     case "external-truck-registration":
       return (
         <GarageOwnerLayout>
           <ExternalTruckRegistration
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // EXTERNAL TRUCK REQUESTS
+    // ====================================================
 
     case "external-truck-requests":
       return (
         <GarageOwnerLayout>
           <ExternalTruckRequests
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // GARAGE OWNER PROFILE
+    // ====================================================
 
     case "Owner Profile":
       return (
         <GarageOwnerLayout>
           <OwnerProfile
-            toggleSidebar={openOwnerSidebar}
-            onNavigate={handleNavigate}
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
           />
         </GarageOwnerLayout>
       );
+
+    // ====================================================
+    // DEFAULT
+    // ====================================================
 
     default:
       return (

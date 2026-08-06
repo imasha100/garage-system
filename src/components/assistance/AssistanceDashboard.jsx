@@ -32,7 +32,8 @@ import garageImg from "../../assets/GarageCapacityimg.jpg";
 import carQueueImg from "../../assets/PendingVehicles.png";
 import techImg from "../../assets/Tech.jpg";
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_ORIGIN = "http://localhost:5000";
+const API_BASE_URL = `${API_ORIGIN}/api`;
 
 // ======================================================
 // HELPER FUNCTIONS
@@ -136,6 +137,11 @@ export default function AssistanceDashboard({
   ] = useState("Assistance Officer");
 
   const [
+    officerProfilePhoto,
+    setOfficerProfilePhoto,
+  ] = useState(null);
+
+  const [
     assistanceId,
     setAssistanceId,
   ] = useState(null);
@@ -216,6 +222,28 @@ export default function AssistanceDashboard({
   };
 
   // ====================================================
+  // BUILD ASSISTANCE PROFILE PHOTO URL
+  // ====================================================
+
+  const buildProfilePhotoUrl = (photoPath) => {
+    if (!photoPath) {
+      return null;
+    }
+
+    const normalizedPath = String(photoPath).trim();
+
+    if (!normalizedPath) {
+      return null;
+    }
+
+    if (normalizedPath.startsWith("http")) {
+      return normalizedPath;
+    }
+
+    return `${API_ORIGIN}${normalizedPath}`;
+  };
+
+  // ====================================================
   // GET LOGGED-IN ASSISTANCE OFFICER
   // ====================================================
 
@@ -252,10 +280,24 @@ export default function AssistanceDashboard({
         return null;
       }
 
+      const storedLoginId =
+        Number(
+          staffUser?.loginId ??
+            staffUser?.login_id
+        );
+
       return {
         ...staffUser,
         staffId:
           storedAssistanceId,
+
+        loginId:
+          Number.isInteger(
+            storedLoginId
+          ) &&
+          storedLoginId > 0
+            ? storedLoginId
+            : null,
       };
     } catch (error) {
       console.error(
@@ -330,6 +372,12 @@ export default function AssistanceDashboard({
             "Assistance Officer"
         );
 
+        setOfficerProfilePhoto(
+          buildProfilePhotoUrl(
+            assistance.profilePhoto
+          )
+        );
+
         setAssistanceId(
           staffUser.staffId
         );
@@ -357,6 +405,10 @@ export default function AssistanceDashboard({
           "Assistance Officer"
         );
 
+        setOfficerProfilePhoto(
+          null
+        );
+
         setAssistanceId(null);
         setGarageId(null);
 
@@ -370,6 +422,21 @@ export default function AssistanceDashboard({
         setIsLoadingOfficer(false);
       }
     }, []);
+
+  const officerInitials =
+    String(
+      officerName ||
+        "Assistance Officer"
+    )
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) =>
+        part
+          .charAt(0)
+          .toUpperCase()
+      )
+      .join("") || "AO";
 
   // ====================================================
   // LOAD DASHBOARD DATABASE DATA
@@ -909,6 +976,10 @@ export default function AssistanceDashboard({
     setView(page);
     setSearchQuery("");
     setIsSidebarOpen(false);
+
+    // Refresh the logged-in officer details so a newly
+    // uploaded profile photo appears in the common header.
+    loadLoggedInOfficer();
   };
 
   // ====================================================
@@ -1552,7 +1623,7 @@ export default function AssistanceDashboard({
             )}
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-6 ml-3">
+          <div className="ml-3 flex shrink-0 items-center gap-3 sm:gap-6">
             <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
               ONLINE
@@ -1590,10 +1661,16 @@ export default function AssistanceDashboard({
                 </p>
               </div>
 
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-700 text-slate-400 transition group-hover:border-blue-500 group-hover:text-white">
-                <User
-                  size={15}
-                />
+              <div className="flex h-9 w-9 min-h-9 min-w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-700 bg-[#0b0e14] text-xs font-bold text-slate-300 transition group-hover:border-blue-500 group-hover:text-white">
+                {officerProfilePhoto ? (
+                  <img
+                    src={officerProfilePhoto}
+                    alt={`${officerName} profile`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  officerInitials
+                )}
               </div>
             </button>
           </div>
