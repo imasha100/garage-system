@@ -91,20 +91,20 @@ const createInvoiceAndPayment = async (req, res) => {
           DATE_FORMAT(
             CURDATE(),
             '%Y-%m-%d'
-          ) AS current_date,
+          ) AS formatted_date,
 
           TIME_FORMAT(
             CURTIME(),
             '%H:%i:%s'
-          ) AS current_time
+          ) AS formatted_time
         `
       );
 
     const currentDate =
-      currentDateTimeRows[0]?.current_date;
+      currentDateTimeRows[0]?.formatted_date;
 
     const currentTime =
-      currentDateTimeRows[0]?.current_time;
+      currentDateTimeRows[0]?.formatted_time;
 
     // ==================================================
     // CHECK SERVICE JOB

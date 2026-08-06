@@ -29,6 +29,8 @@ import {
   LoaderCircle,
   AlertCircle,
 } from "lucide-react";
+
+import { FaFacebookF, FaInstagram, FaLinkedinIn } from "react-icons/fa";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   MapContainer,
@@ -1371,29 +1373,28 @@ export default function StartPage({ onNavigate }) {
                   SwiftGarage <span className="text-teal-400">AI</span>
                 </span>
               </div>
-
               <div className="flex items-center gap-3" aria-label="Social media">
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
-                  title="Facebook"
-                >
-                  <span className="text-lg font-black leading-none">f</span>
-                </div>
+  <div
+    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
+    title="Facebook"
+  >
+    <FaFacebookF className="h-4 w-4" />
+  </div>
 
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
-                  title="Instagram"
-                >
-                  <span className="text-lg font-black leading-none">◎</span>
-                </div>
+  <div
+    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
+    title="Instagram"
+  >
+    <FaInstagram className="h-5 w-5" />
+  </div>
 
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
-                  title="LinkedIn"
-                >
-                  <span className="text-sm font-black leading-none">in</span>
-                </div>
-              </div>
+  <div
+    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-400 transition hover:border-teal-400/40 hover:text-teal-300"
+    title="LinkedIn"
+  >
+    <FaLinkedinIn className="h-4 w-4" />
+  </div>
+</div>
             </div>
 
             <nav aria-label="Footer navigation" className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm">

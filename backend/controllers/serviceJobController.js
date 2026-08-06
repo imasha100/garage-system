@@ -1430,6 +1430,225 @@ const completeServiceJob = async (
 };
 
 // ======================================================
+// CLEAR COMPLETED VEHICLE FROM GARAGE
+// PUT /api/service-jobs/:jobId/clear
+// ======================================================
+
+const clearCompletedVehicle = async (req, res) => {
+  let connection;
+
+  try {
+    const jobId = Number(req.params.jobId);
+
+    // ==================================================
+    // VALIDATE JOB ID
+    // ==================================================
+
+    if (!Number.isInteger(jobId) || jobId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid job ID is required.",
+      });
+    }
+
+    // ==================================================
+    // START TRANSACTION
+    // ==================================================
+
+    connection = await db.getConnection();
+
+    await connection.beginTransaction();
+
+    // ==================================================
+    // CHECK SERVICE JOB
+    // ==================================================
+
+    const [jobRows] = await connection.query(
+      `
+        SELECT
+          job_id,
+          job_status,
+          service_request_request_id,
+          garage_garage_id
+        FROM service_job
+        WHERE job_id = ?
+        LIMIT 1
+      `,
+      [jobId]
+    );
+
+    if (jobRows.length === 0) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Service job not found.",
+      });
+    }
+
+    const job = jobRows[0];
+
+    const currentStatus = String(
+      job.job_status || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    // ==================================================
+    // ONLY COMPLETED JOBS CAN BE CLEARED
+    // ==================================================
+
+    if (currentStatus !== "COMPLETED") {
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "Only a completed service job can be cleared from the garage.",
+      });
+    }
+
+    // ==================================================
+    // CLEAR VEHICLE
+    // ==================================================
+
+    await connection.query(
+      `
+        UPDATE service_job
+        SET job_status = 'CLEARED'
+        WHERE job_id = ?
+      `,
+      [jobId]
+    );
+
+    // ==================================================
+    // UPDATE SERVICE REQUEST
+    // ==================================================
+
+    if (job.service_request_request_id) {
+      await connection.query(
+        `
+          UPDATE service_request
+          SET request_status = 'COMPLETED'
+          WHERE request_id = ?
+        `,
+        [job.service_request_request_id]
+      );
+    }
+
+    // ==================================================
+    // GET UPDATED JOB
+    // ==================================================
+
+    const [updatedRows] = await connection.query(
+      `
+        SELECT
+          job_id,
+          job_status,
+          service_request_request_id,
+          garage_garage_id,
+          end_date,
+          end_time,
+          actual_completion_time
+        FROM service_job
+        WHERE job_id = ?
+        LIMIT 1
+      `,
+      [jobId]
+    );
+
+    await connection.commit();
+
+    const clearedJob = updatedRows[0];
+
+    // ==================================================
+    // SUCCESS RESPONSE
+    // ==================================================
+
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Vehicle cleared from the garage successfully.",
+
+      job: {
+        jobId:
+          clearedJob.job_id,
+
+        jobStatus:
+          clearedJob.job_status,
+
+        requestId:
+          clearedJob.service_request_request_id,
+
+        garageId:
+          clearedJob.garage_garage_id,
+
+        completedDate:
+          clearedJob.end_date,
+
+        completedTime:
+          clearedJob.end_time,
+
+        actualCompletionTime:
+          clearedJob.actual_completion_time,
+      },
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "Clear vehicle rollback error:",
+          rollbackError
+        );
+      }
+    }
+
+    console.error(
+      "========== CLEAR COMPLETED VEHICLE ERROR =========="
+    );
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
+    console.error(
+      "SQL Message:",
+      error.sqlMessage
+    );
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
+    console.error(
+      "==================================================="
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        error.sqlMessage ||
+        "Unable to clear vehicle from the garage.",
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+};
+
+// ======================================================
 // GARAGE OWNER LIVE DASHBOARD
 // GET /api/service-jobs/garage/:garageId/live-dashboard
 // ======================================================
@@ -1679,17 +1898,18 @@ const getGarageLiveDashboard = async (req, res) => {
            sj.job_id
 
       WHERE
-        sj.garage_garage_id = ?
+  sj.garage_garage_id = ?
 
-        AND UPPER(
-          COALESCE(
-            sj.job_status,
-            ''
-          )
-        ) IN (
-          'ASSIGNED',
-          'IN_PROGRESS'
-        )
+  AND UPPER(
+    COALESCE(
+      sj.job_status,
+      ''
+    )
+  ) IN (
+    'ASSIGNED',
+    'IN_PROGRESS',
+    'COMPLETED'
+  )
 
       ORDER BY
         CASE
@@ -2885,8 +3105,10 @@ module.exports = {
   getTechnicianJobs,
   startServiceJob,
   completeServiceJob,
+  clearCompletedVehicle,
   getGarageLiveDashboard,
   getGaragePerformanceAudit,
   getCustomerLiveProgress,
   getCompletedJobsForBilling,
+
 };
