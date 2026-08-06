@@ -21,6 +21,7 @@ import {
   Clock,
   FileText,
   RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
 
 export default function LiveDashboard({
@@ -70,6 +71,10 @@ export default function LiveDashboard({
     dashboardError,
     setDashboardError,
   ] = useState("");
+
+  const [clearingJobId, setClearingJobId] = useState(null);
+  const [clearVehicleMessage, setClearVehicleMessage] = useState("");
+  const [clearVehicleError, setClearVehicleError] = useState("");
 
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -719,6 +724,15 @@ export default function LiveDashboard({
 
             Icon =
               Hourglass;
+          } else if (
+            jobStatus ===
+            "COMPLETED"
+          ) {
+            color =
+              "green";
+
+            Icon =
+              CheckCircle2;
           }
 
           return {
@@ -864,6 +878,9 @@ export default function LiveDashboard({
 
     red:
       "bg-red-500/10 text-red-400 border-red-500/30",
+
+    green:
+      "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
   };
 
   const iconStyle = {
@@ -875,6 +892,9 @@ export default function LiveDashboard({
 
     red:
       "text-red-400 border-red-500/20",
+
+    green:
+      "text-emerald-400 border-emerald-500/20",
   };
 
   // ======================================================
@@ -908,6 +928,75 @@ export default function LiveDashboard({
         null
       );
     };
+
+  // ======================================================
+  // CLEAR COMPLETED VEHICLE FROM GARAGE
+  // ======================================================
+
+  const handleClearVehicle = async (vehicle) => {
+    if (!vehicle?.jobId) {
+      setClearVehicleError("A valid service job was not found.");
+      return;
+    }
+
+    if (String(vehicle.status || "").toUpperCase() !== "COMPLETED") {
+      setClearVehicleError(
+        "Only completed vehicles can be cleared from the garage."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Confirm that ${vehicle.vehicle} has left the garage?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setClearingJobId(vehicle.jobId);
+      setClearVehicleError("");
+      setClearVehicleMessage("");
+      setOpenActionMenu(null);
+
+      const response = await fetch(
+        `http://localhost:5000/api/service-jobs/${vehicle.jobId}/clear`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || result.success === false) {
+        throw new Error(
+          result.message || "Unable to clear vehicle from the garage."
+        );
+      }
+
+      setClearVehicleMessage(
+        `${vehicle.vehicle} cleared from the garage successfully.`
+      );
+
+      if (selectedVehicle?.jobId === vehicle.jobId) {
+        setSelectedVehicle(null);
+      }
+
+      await loadDashboardData(garageId, false);
+    } catch (error) {
+      console.error("Clear vehicle error:", error);
+
+      setClearVehicleError(
+        error.message || "Unable to clear vehicle from the garage."
+      );
+    } finally {
+      setClearingJobId(null);
+    }
+  };
 
   // ======================================================
   // UI
@@ -1214,6 +1303,18 @@ export default function LiveDashboard({
         {dashboardError && (
           <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {dashboardError}
+          </div>
+        )}
+
+        {clearVehicleError && (
+          <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {clearVehicleError}
+          </div>
+        )}
+
+        {clearVehicleMessage && (
+          <div className="mb-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+            {clearVehicleMessage}
           </div>
         )}
 
@@ -1556,6 +1657,36 @@ export default function LiveDashboard({
 
                                 </button>
 
+                                {String(item.status || "").toUpperCase() ===
+                                  "COMPLETED" && (
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleClearVehicle(
+                                        item
+                                      )
+                                    }
+                                    disabled={
+                                      clearingJobId ===
+                                      item.jobId
+                                    }
+                                    className="w-full flex items-center gap-3 border-t border-white/10 px-4 py-3 text-sm text-emerald-300 hover:bg-emerald-500/10 transition disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+
+                                    <CheckCircle2
+                                      size={16}
+                                      className="text-emerald-400"
+                                    />
+
+                                    {clearingJobId === item.jobId
+                                      ? "Clearing..."
+                                      : "Clear Vehicle"}
+
+                                  </button>
+
+                                )}
+
                               </div>
 
                             )}
@@ -1578,7 +1709,7 @@ export default function LiveDashboard({
 
                       {searchText
                         ? "NO VEHICLE FOUND"
-                        : "NO ACTIVE OR ASSIGNED VEHICLES"}
+                        : "NO ASSIGNED, ACTIVE OR COMPLETED VEHICLES"}
 
                     </td>
 
@@ -1827,7 +1958,31 @@ export default function LiveDashboard({
 
               </div>
 
-              <div className="mt-7 flex justify-end">
+              <div className="mt-7 flex flex-wrap justify-end gap-3">
+
+                {String(selectedVehicle.status || "").toUpperCase() ===
+                  "COMPLETED" && (
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleClearVehicle(
+                        selectedVehicle
+                      )
+                    }
+                    disabled={
+                      clearingJobId ===
+                      selectedVehicle.jobId
+                    }
+                    className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-6 py-2.5 text-sm font-bold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={16} />
+                    {clearingJobId === selectedVehicle.jobId
+                      ? "Clearing..."
+                      : "Clear Vehicle"}
+                  </button>
+
+                )}
 
                 <button
                   type="button"

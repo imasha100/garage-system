@@ -6,6 +6,7 @@ const {
   getTechnicianJobs,
   startServiceJob,
   completeServiceJob,
+  clearCompletedVehicle,
   getGarageLiveDashboard,
   getGaragePerformanceAudit,
   getCustomerLiveProgress,
@@ -90,6 +91,16 @@ router.put(
 router.put(
   "/service-jobs/:jobId/complete",
   completeServiceJob
+);
+
+// ======================================================
+// CLEAR COMPLETED VEHICLE FROM GARAGE
+// PUT /api/service-jobs/:jobId/clear
+// ======================================================
+
+router.put(
+  "/service-jobs/:jobId/clear",
+  clearCompletedVehicle
 );
 
 module.exports = router;

@@ -117,11 +117,11 @@ const formatServiceRequest = (row) => ({
       ? Number(row.garage_longitude)
       : null,
 
-      estimatedDistance:
-  row.estimated_distance || "",
+  estimatedDistance:
+    row.estimated_distance || "",
 
-estimatedTime:
-  row.estimated_time || "",
+  estimatedTime:
+    row.estimated_time || "",
 });
 
 // ======================================================
@@ -278,29 +278,29 @@ const validateCreateRequest = (body) => {
     };
   }
 
- return {
-  valid: true,
+  return {
+    valid: true,
 
-  values: {
-    customerName,
-    contact,
-    vehicleNumber,
-    vehicleType,
-    location,
-    requestType,
-    garageId,
-    customerLatitude,
-    customerLongitude,
+    values: {
+      customerName,
+      contact,
+      vehicleNumber,
+      vehicleType,
+      location,
+      requestType,
+      garageId,
+      customerLatitude,
+      customerLongitude,
 
-    estimatedDistance: String(
-      body.estimatedDistance || ""
-    ).trim(),
+      estimatedDistance: String(
+        body.estimatedDistance || ""
+      ).trim(),
 
-    estimatedTime: String(
-      body.estimatedTime || ""
-    ).trim(),
-  },
-};
+      estimatedTime: String(
+        body.estimatedTime || ""
+      ).trim(),
+    },
+  };
 };
 
 // ======================================================
@@ -326,18 +326,18 @@ const createServiceRequest = async (
     }
 
     const {
-  customerName,
-  contact,
-  vehicleNumber,
-  vehicleType,
-  location,
-  requestType,
-  garageId,
-  customerLatitude,
-  customerLongitude,
-  estimatedDistance,
-  estimatedTime,
-} = validation.values;
+      customerName,
+      contact,
+      vehicleNumber,
+      vehicleType,
+      location,
+      requestType,
+      garageId,
+      customerLatitude,
+      customerLongitude,
+      estimatedDistance,
+      estimatedTime,
+    } = validation.values;
 
     connection =
       await db.getConnection();
@@ -452,11 +452,6 @@ const createServiceRequest = async (
 
     // ==================================================
     // GENERATE GARAGE-SPECIFIC TICKET NUMBER
-    //
-    // Examples:
-    // GAR-001-0001
-    // GAR-001-0002
-    // GAR-002-0001
     // ==================================================
 
     const [lastTicketRows] =
@@ -516,10 +511,22 @@ const createServiceRequest = async (
         nextTicketSequence
       ).padStart(4, "0")}`;
 
-      console.log("Garage Code:", garageCode);
-      console.log("Ticket Number:", ticketNumber);
-      console.log("Garage ID:", garageId);
-          // ==================================================
+    console.log(
+      "Garage Code:",
+      garageCode
+    );
+
+    console.log(
+      "Ticket Number:",
+      ticketNumber
+    );
+
+    console.log(
+      "Garage ID:",
+      garageId
+    );
+
+    // ==================================================
     // SAVE REQUEST
     // ==================================================
 
@@ -527,66 +534,63 @@ const createServiceRequest = async (
       await connection.query(
         `
           INSERT INTO service_request (
-  ticket_number,
-  customer_name,
-  contact_number,
-  vehicle_number,
-  vehicle_type,
-  location,
-  customer_latitude,
-  customer_longitude,
-  request_date,
-  request_time,
-  garage_id,
-  request_type,
-  request_status,
-  estimated_distance,
-  estimated_time,
-  customer_customer_id,
-  vehicle_vehicle_id,
-  assistance_assistance_id,
-  garage_garage_id
-
+            ticket_number,
+            customer_name,
+            contact_number,
+            vehicle_number,
+            vehicle_type,
+            location,
+            customer_latitude,
+            customer_longitude,
+            request_date,
+            request_time,
+            garage_id,
+            request_type,
+            request_status,
+            estimated_distance,
+            estimated_time,
+            customer_customer_id,
+            vehicle_vehicle_id,
+            assistance_assistance_id,
+            garage_garage_id
           )
           VALUES (
-  ?,
-  ?,
-  ?,
-  ?,
-  ?,
-  ?,
-  ?,
-  ?,
-  CURRENT_DATE(),
-  CURRENT_TIME(),
-  ?,
-  ?,
-  'Pending',
-  ?,
-  ?,
-  NULL,
-  NULL,
-  NULL,
-  ?
-)
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            CURRENT_DATE(),
+            CURRENT_TIME(),
+            ?,
+            ?,
+            'Pending',
+            ?,
+            ?,
+            NULL,
+            NULL,
+            NULL,
+            ?
+          )
         `,
-        
-          [
-  ticketNumber,
-  customerName,
-  contact,
-  vehicleNumber,
-  vehicleType,
-  location,
-  customerLatitude,
-  customerLongitude,
-  garageId,
-  requestType,
-  estimatedDistance,
-  estimatedTime,
-  garageId,
-]
-        
+        [
+          ticketNumber,
+          customerName,
+          contact,
+          vehicleNumber,
+          vehicleType,
+          location,
+          customerLatitude,
+          customerLongitude,
+          garageId,
+          requestType,
+          estimatedDistance,
+          estimatedTime,
+          garageId,
+        ]
       );
 
     await connection.commit();
@@ -678,6 +682,7 @@ const createServiceRequest = async (
     }
   }
 };
+
 // ======================================================
 // GET SERVICE REQUESTS
 // GET /api/service-requests
@@ -1022,18 +1027,19 @@ const acceptServiceRequest = async (
     }
 
     if (
-  requestRows[0].request_status !==
-  "Pending"
-) {
-  await connection.rollback();
+      requestRows[0].request_status !==
+      "Pending"
+    ) {
+      await connection.rollback();
 
-  return res.status(409).json({
-    success: false,
-    code: "REQUEST_ALREADY_HANDLED",
-    message:
-      "This request has already been accepted or handled by another assistance officer.",
-  });
-}
+      return res.status(409).json({
+        success: false,
+        code:
+          "REQUEST_ALREADY_HANDLED",
+        message:
+          "This request has already been accepted or handled by another assistance officer.",
+      });
+    }
 
     const [assistanceRows] =
       await connection.query(
@@ -1313,7 +1319,13 @@ const getLatestCustomerRequest = async (
             AS garage_longitude,
 
           a.full_name
-            AS assistance_name
+            AS assistance_name,
+
+          sj.job_id
+            AS service_job_id,
+
+          sj.job_status
+            AS service_job_status
 
         FROM service_request sr
 
@@ -1325,10 +1337,15 @@ const getLatestCustomerRequest = async (
           ON a.assistance_id =
              sr.assistance_assistance_id
 
+        LEFT JOIN service_job sj
+          ON sj.service_request_request_id =
+             sr.request_id
+
         WHERE sr.contact_number = ?
 
         ORDER BY
-          sr.request_id DESC
+          sr.request_id DESC,
+          sj.job_id DESC
 
         LIMIT 1
       `,
@@ -1344,13 +1361,79 @@ const getLatestCustomerRequest = async (
       });
     }
 
+    const row = rows[0];
+
+    const request =
+      formatServiceRequest(row);
+
+    const requestStatus = String(
+      row.request_status || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    const jobStatus = String(
+      row.service_job_status || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    // ==================================================
+    // DETERMINE WHETHER CUSTOMER CAN CONTINUE
+    // ==================================================
+
+    const requestClosed =
+      requestStatus === "COMPLETED" ||
+      requestStatus === "CANCELLED";
+
+    const jobClosed =
+      jobStatus === "COMPLETED" ||
+      jobStatus === "CLEARED";
+
+    const canContinue =
+      !requestClosed &&
+      !jobClosed;
+
+    let continueMessage = "";
+
+    if (
+      jobStatus === "COMPLETED"
+    ) {
+      continueMessage =
+        "Your vehicle repair has already been completed. Please create a new service request if you need further assistance.";
+    } else if (
+      jobStatus === "CLEARED"
+    ) {
+      continueMessage =
+        "Your previous vehicle service has already been completed and cleared from the garage. Please create a new service request.";
+    } else if (
+      requestStatus === "COMPLETED"
+    ) {
+      continueMessage =
+        "Your previous service request has already been completed. Please create a new service request.";
+    } else if (
+      requestStatus === "CANCELLED"
+    ) {
+      continueMessage =
+        "Your previous service request has been cancelled. Please create a new service request.";
+    }
+
     return res.status(200).json({
       success: true,
 
-      request:
-        formatServiceRequest(
-          rows[0]
-        ),
+      canContinue,
+
+      continueMessage,
+
+      jobStatus:
+        row.service_job_status ||
+        null,
+
+      jobId:
+        row.service_job_id ||
+        null,
+
+      request,
     });
   } catch (error) {
     console.error(

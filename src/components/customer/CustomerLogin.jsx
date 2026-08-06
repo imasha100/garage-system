@@ -274,6 +274,34 @@ export default function CustomerLogin({
         }
 
         // ==================================================
+        // CHECK WHETHER EXISTING REQUEST CAN BE CONTINUED
+        // ==================================================
+
+        if (
+          result.canContinue ===
+          false
+        ) {
+          sessionStorage.removeItem(
+            "latestServiceRequest"
+          );
+
+          sessionStorage.removeItem(
+            "latestTowDispatch"
+          );
+
+          sessionStorage.removeItem(
+            "selectedGarage"
+          );
+
+          setContinueMessage(
+            result.continueMessage ||
+              "Your previous service has already been completed. Please create a new service request."
+          );
+
+          return;
+        }
+
+        // ==================================================
         // REQUEST STATUS
         // ==================================================
 

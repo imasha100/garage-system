@@ -33,16 +33,22 @@ import ExternalTruckRegistration from "./components/garageOwner/ExternalTruckReg
 import ExternalTruckRequests from "./components/garageOwner/ExternalTruckRequests";
 
 function App() {
-  const [currentPage, setCurrentPage] = useState("start");
+  const [currentPage, setCurrentPage] = useState(() => {
+    return sessionStorage.getItem("currentPage") || "start";
+  });
 
   // ======================================================
   // BROWSER HISTORY MANAGEMENT
   // ======================================================
 
   useEffect(() => {
-    // Ensure the current entry belongs to this application.
+    const savedPage =
+      sessionStorage.getItem("currentPage") ||
+      "start";
+
+    // Keep the current application page after browser refresh.
     window.history.replaceState(
-      { page: "start", swiftGarage: true },
+      { page: savedPage, swiftGarage: true },
       "",
       window.location.href
     );
@@ -54,12 +60,22 @@ function App() {
         state?.swiftGarage &&
         state?.page
       ) {
+        sessionStorage.setItem(
+          "currentPage",
+          state.page
+        );
+
         setCurrentPage(state.page);
         return;
       }
 
       // If the browser tries to leave the app history,
       // restore the Start Page as the active app screen.
+      sessionStorage.setItem(
+        "currentPage",
+        "start"
+      );
+
       window.history.pushState(
         { page: "start", swiftGarage: true },
         "",
@@ -129,6 +145,11 @@ function App() {
 
       return;
     }
+
+    sessionStorage.setItem(
+      "currentPage",
+      page
+    );
 
     setCurrentPage(page);
 
