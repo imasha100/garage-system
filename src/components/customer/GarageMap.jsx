@@ -46,6 +46,74 @@ export default function GarageMap({
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
+  const [loggedCustomerName, setLoggedCustomerName] =
+    useState("Customer");
+
+  useEffect(() => {
+    const loadCustomerName = () => {
+      try {
+        const storedCustomer = JSON.parse(
+          sessionStorage.getItem("customer") ||
+            sessionStorage.getItem("loggedCustomer") ||
+            sessionStorage.getItem("customerData") ||
+            "null"
+        );
+
+        const customerName =
+          storedCustomer?.fullName ||
+          storedCustomer?.full_name ||
+          storedCustomer?.customerName ||
+          storedCustomer?.name;
+
+        if (customerName) {
+          setLoggedCustomerName(customerName);
+          return;
+        }
+
+        const latestRequest = JSON.parse(
+          sessionStorage.getItem("latestServiceRequest") ||
+            "null"
+        );
+
+        const requestCustomerName =
+          latestRequest?.customerName ||
+          latestRequest?.name;
+
+        if (requestCustomerName) {
+          setLoggedCustomerName(
+            requestCustomerName
+          );
+          return;
+        }
+
+        setLoggedCustomerName("Customer");
+      } catch (error) {
+        console.error(
+          "Load customer name error:",
+          error
+        );
+
+        setLoggedCustomerName(
+          "Customer"
+        );
+      }
+    };
+
+    loadCustomerName();
+
+    window.addEventListener(
+      "latestServiceRequestUpdated",
+      loadCustomerName
+    );
+
+    return () => {
+      window.removeEventListener(
+        "latestServiceRequestUpdated",
+        loadCustomerName
+      );
+    };
+  }, []);
+
   const [customerStatusPopup, setCustomerStatusPopup] = useState({
     show: false,
     title: "",
@@ -188,80 +256,264 @@ export default function GarageMap({
 
   useEffect(() => {
     let isMounted = true;
+    let refreshInterval;
 
-    const loadGarages = async () => {
+    const loadGaragesWithLiveTechnicians = async (
+      showLoading = false
+    ) => {
       try {
-        setGaragesLoading(true);
+        if (showLoading) {
+          setGaragesLoading(true);
+        }
+
         setGaragesError("");
 
-        const response = await fetch("http://localhost:5000/api/garages");
+        const response = await fetch(
+          "http://localhost:5000/api/garages"
+        );
+
         const result = await response.json();
 
         if (!response.ok || !result.success) {
           throw new Error(
-            result.message || "Unable to load registered garages."
+            result.message ||
+              "Unable to load registered garages."
           );
         }
 
-        const normalizedGarages = (
-          Array.isArray(result.data) ? result.data : []
-        )
-          .map((garage) => {
-            const latitude = Number(garage.latitude);
-            const longitude = Number(garage.longitude);
+        const rawGarages =
+          Array.isArray(result.data)
+            ? result.data
+            : [];
 
-            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-              return null;
-            }
+        const normalizedGarages =
+          await Promise.all(
+            rawGarages.map(async (garage) => {
+              const latitude =
+                Number(garage.latitude);
+              const longitude =
+                Number(garage.longitude);
 
-            return {
-              id: garage.garage_id,
-              name: garage.garage_name || "Registered Garage",
-              address: garage.address || "Address not available",
-              contact: garage.contact_number || "Contact not available",
-              district: garage.district || "District not available",
-              capacity: Number(garage.capacity) || 0,
-              openingTime: garage.opening_time || "N/A",
-              closingTime: garage.closing_time || "N/A",
-              workingDays: garage.working_days || "N/A",
-              shiftType: garage.shift_type || "N/A",
-              workload: "AVAILABLE",
-              status: "REGISTERED GARAGE",
-              specialization: "General Vehicle Service",
-              specDesc: `${
-                garage.garage_name || "This garage"
-              } is registered in the SwiftGarage system.`,
-              lat: latitude,
-              lng: longitude,
-              freeTechs: [],
-            };
-          })
-          .filter(Boolean);
+              if (
+                !Number.isFinite(latitude) ||
+                !Number.isFinite(longitude)
+              ) {
+                return null;
+              }
+
+              const garageId =
+                Number(garage.garage_id);
+
+              let freeTechs = [];
+
+              if (
+                Number.isInteger(garageId) &&
+                garageId > 0
+              ) {
+                try {
+                  const techResponse =
+                    await fetch(
+                      `http://localhost:5000/api/technicians?garageId=${garageId}`
+                    );
+
+                  const techResult =
+                    await techResponse.json();
+
+                  if (
+                    techResponse.ok &&
+                    techResult.success !== false
+                  ) {
+                    const technicians =
+                      Array.isArray(
+                        techResult.technicians
+                      )
+                        ? techResult.technicians
+                        : [];
+
+                    freeTechs = technicians
+                      .filter((technician) => {
+                        const shiftStatus =
+                          String(
+                            technician.shiftStatus ??
+                              technician.shift_status ??
+                              "OFF"
+                          )
+                            .trim()
+                            .toUpperCase();
+
+                        const availabilityStatus =
+                          String(
+                            technician.availabilityStatus ??
+                              technician.availability_status ??
+                              "AVAILABLE"
+                          )
+                            .trim()
+                            .toUpperCase();
+
+                        return (
+                          shiftStatus === "ON" &&
+                          availabilityStatus ===
+                            "AVAILABLE"
+                        );
+                      })
+                      .map((technician) => ({
+                        id:
+                          technician.technicianId ??
+                          technician.technician_id,
+                        name:
+                          technician.fullName ??
+                          technician.full_name ??
+                          "Technician",
+                        specialization:
+                          Array.isArray(
+                            technician.specialization
+                          )
+                            ? technician.specialization
+                                .filter(Boolean)
+                                .join(", ")
+                            : String(
+                                technician.specialization ||
+                                  "General Service"
+                              ),
+                        shiftStatus:
+                          technician.shiftStatus ??
+                          technician.shift_status ??
+                          "ON",
+                        availabilityStatus:
+                          technician.availabilityStatus ??
+                          technician.availability_status ??
+                          "AVAILABLE",
+                      }));
+                  }
+                } catch (technicianError) {
+                  console.error(
+                    `Failed to load technicians for garage ${garageId}:`,
+                    technicianError
+                  );
+                }
+              }
+
+              return {
+                id: garage.garage_id,
+                name:
+                  garage.garage_name ||
+                  "Registered Garage",
+                address:
+                  garage.address ||
+                  "Address not available",
+                contact:
+                  garage.contact_number ||
+                  "Contact not available",
+                district:
+                  garage.district ||
+                  "District not available",
+                capacity:
+                  Number(garage.capacity) || 0,
+                openingTime:
+                  garage.opening_time || "N/A",
+                closingTime:
+                  garage.closing_time || "N/A",
+                workingDays:
+                  garage.working_days || "N/A",
+                shiftType:
+                  garage.shift_type || "N/A",
+                workload:
+                  freeTechs.length > 0
+                    ? "AVAILABLE"
+                    : "QUEUEING",
+                status: "REGISTERED GARAGE",
+                specialization:
+                  "General Vehicle Service",
+                specDesc: `${
+                  garage.garage_name ||
+                  "This garage"
+                } is registered in the SwiftGarage system.`,
+                lat: latitude,
+                lng: longitude,
+                freeTechs,
+              };
+            })
+          );
+
+        const validGarages =
+          normalizedGarages.filter(Boolean);
 
         if (isMounted) {
-          setGarageList(normalizedGarages);
+          setGarageList(validGarages);
+
+          setSelectedGarage(
+            (previousSelectedGarage) => {
+              if (!previousSelectedGarage) {
+                return previousSelectedGarage;
+              }
+
+              const refreshedGarage =
+                validGarages.find(
+                  (garage) =>
+                    Number(garage.id) ===
+                    Number(
+                      previousSelectedGarage.id
+                    )
+                );
+
+              if (!refreshedGarage) {
+                return previousSelectedGarage;
+              }
+
+              return {
+                ...previousSelectedGarage,
+                ...refreshedGarage,
+                distance:
+                  previousSelectedGarage.distance,
+                distanceValue:
+                  previousSelectedGarage.distanceValue,
+                time:
+                  previousSelectedGarage.time,
+              };
+            }
+          );
         }
       } catch (error) {
-        console.error("Failed to load garages:", error);
+        console.error(
+          "Failed to load garages:",
+          error
+        );
 
         if (isMounted) {
           setGaragesError(
             error.message ||
               "Unable to load registered garages from the server."
           );
-          setGarageList([]);
+
+          if (showLoading) {
+            setGarageList([]);
+          }
         }
       } finally {
-        if (isMounted) {
+        if (
+          isMounted &&
+          showLoading
+        ) {
           setGaragesLoading(false);
         }
       }
     };
 
-    loadGarages();
+    loadGaragesWithLiveTechnicians(true);
+
+    refreshInterval =
+      window.setInterval(() => {
+        loadGaragesWithLiveTechnicians(false);
+      }, 5000);
 
     return () => {
       isMounted = false;
+
+      if (refreshInterval) {
+        window.clearInterval(
+          refreshInterval
+        );
+      }
     };
   }, []);
 
@@ -323,16 +575,35 @@ export default function GarageMap({
           sessionStorage.getItem("latestServiceRequest") || "null"
         );
 
-        const contact = String(storedRequest?.contact || "")
+        const contact = String(
+          storedRequest?.contact ||
+            storedRequest?.customerContact ||
+            ""
+        )
           .trim()
           .replace(/\s+/g, "");
 
-        if (!/^0\d{9}$/.test(contact)) {
+        const vehicleNumber = String(
+          storedRequest?.vehicleNumber ||
+            storedRequest?.vNo ||
+            ""
+        )
+          .trim()
+          .toUpperCase();
+
+        if (
+          !/^0\d{9}$/.test(contact) ||
+          !vehicleNumber
+        ) {
           return;
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/service-requests/customer/${contact}/latest`
+          `http://localhost:5000/api/service-requests/customer/${encodeURIComponent(
+            contact
+          )}/latest?vehicleNumber=${encodeURIComponent(
+            vehicleNumber
+          )}`
         );
 
         const result = await response.json();
@@ -474,8 +745,14 @@ The garage will contact you shortly. If you need immediate assistance, you may c
 
     const customerNameRegex = /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
     const contactRegex = /^0\d{9}$/;
+    // Sri Lankan vehicle registration formats supported:
+    // Newer formats: ABC-1234, ABC 1234, AB-1234, AB 1234
+    // Province-prefixed display: WP CAS 1234, WP-CAS-1234
+    // Older numeric-prefix formats: 65-1234, 250-1234
+    //
+    // A plain four-digit number is not accepted.
     const vehicleNumberRegex =
-      /^(?:[A-Z]{2,3}[-\s]?\d{4}|[A-Z]{2}\s[A-Z]{1,3}[-\s]?\d{4})$/;
+      /^(?:[A-Z]{2}[\s-]?[A-Z]{2,3}[\s-]?\d{4}|[A-Z]{2,3}[\s-]?\d{4}|\d{2,3}[\s-]\d{4})$/;
 
     if (!customerName) {
       errors.customerName = "Customer name is required.";
@@ -495,7 +772,7 @@ The garage will contact you shortly. If you need immediate assistance, you may c
       errors.vehicleNumber = "Vehicle number is required.";
     } else if (!vehicleNumberRegex.test(vehicleNumber)) {
       errors.vehicleNumber =
-        "Enter a valid vehicle number. Example: WP CAS 1234 or CAB-1234.";
+        "Enter a valid Sri Lankan vehicle number. Examples: ABC-1234, AB-1234, WP CAS 1234, 65-1234.";
     }
 
     if (!vehicleType) {
@@ -634,6 +911,9 @@ The garage will contact you shortly. If you need immediate assistance, you may c
         customerLongitude: userLocation[1],
         status: "pending",
         requestStatus: "Pending",
+        customerStage:
+          result.request.customerStage ||
+          "REQUEST_CREATED",
         createdAt: new Date().toISOString(),
       };
 
@@ -794,10 +1074,10 @@ The garage will contact you shortly. If you need immediate assistance, you may c
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
             <div className="text-right hidden sm:block">
               <span className="block text-white font-bold tracking-wide">
-                CUSTOMER
+                {loggedCustomerName}
               </span>
               <span className="block text-[9px] text-purple-400 tracking-widest uppercase">
-                Premium Hub Access
+                CUSTOMER
               </span>
             </div>
 
@@ -1212,7 +1492,7 @@ The garage will contact you shortly. If you need immediate assistance, you may c
                   <div>
                     <input
                       type="text"
-                      placeholder="Example: WP CAS 1234"
+                      placeholder="Ex: ABC-1234, WP CAS 1234, 65-1234"
                       value={requestData.vehicleNumber}
                       onChange={(e) =>
                         updateRequestField(
@@ -1222,7 +1502,7 @@ The garage will contact you shortly. If you need immediate assistance, you may c
                             .replace(/[^A-Z0-9\s-]/g, "")
                         )
                       }
-                      maxLength={15}
+                      maxLength={16}
                       autoComplete="off"
                       className={`w-full bg-[#111827] border rounded-lg px-4 py-3 text-white outline-none placeholder:text-slate-600 ${
                         requestErrors.vehicleNumber

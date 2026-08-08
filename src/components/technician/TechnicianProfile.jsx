@@ -305,33 +305,35 @@ export default function TechnicianProfile({
             `technicianShiftStart_${technicianId}`
           );
 
-        if (
-          currentShift &&
-          storedShiftStart
-        ) {
+        if (currentShift) {
           const start =
-            Number(
-              storedShiftStart
-            );
+            Number(storedShiftStart);
 
           if (
             Number.isFinite(start) &&
             start > 0
           ) {
+            setShiftStartTime(start);
+          } else {
+            const fallbackStart =
+              Date.now();
+
+            sessionStorage.setItem(
+              `technicianShiftStart_${technicianId}`,
+              String(fallbackStart)
+            );
+
             setShiftStartTime(
-              start
+              fallbackStart
             );
           }
-        }
-
-        if (!currentShift) {
-          setShiftStartTime(
-            null
+        } else {
+          sessionStorage.removeItem(
+            `technicianShiftStart_${technicianId}`
           );
 
-          setDuration(
-            "00:00:00"
-          );
+          setShiftStartTime(null);
+          setDuration("00:00:00");
         }
       } catch (error) {
         console.error(
@@ -1721,7 +1723,9 @@ export default function TechnicianProfile({
                       }`}
                     />
 
-                    {isOnShift
+                    {isUpdatingShift
+                      ? "Updating Shift..."
+                      : isOnShift
                       ? "Currently On-Shift"
                       : "Currently Off-Shift"}
                   </span>
@@ -1741,12 +1745,19 @@ export default function TechnicianProfile({
                     }`}
                   >
                     <div
-                      className={`h-4 w-4 rounded-full bg-white transition-transform ${
+                      className={`flex h-4 w-4 items-center justify-center rounded-full bg-white shadow transition-transform duration-300 ${
                         isOnShift
                           ? "translate-x-6"
                           : "translate-x-0"
                       }`}
-                    />
+                    >
+                      {isUpdatingShift && (
+                        <RefreshCw
+                          size={10}
+                          className="animate-spin text-slate-600"
+                        />
+                      )}
+                    </div>
                   </button>
                 </div>
               </div>

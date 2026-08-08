@@ -15,6 +15,7 @@ import {
   Car,
   Clock,
   AlertTriangle,
+  Users,
 } from "lucide-react";
 
 const API_BASE =
@@ -31,6 +32,9 @@ export default function ResourceMatrix({
     useState("");
 
   const [technicians, setTechnicians] =
+    useState([]);
+
+  const [assistances, setAssistances] =
     useState([]);
 
   const [liveJobs, setLiveJobs] =
@@ -52,6 +56,9 @@ export default function ResourceMatrix({
     useState("");
 
   const technicianScrollRef =
+    useRef(null);
+
+  const assistanceScrollRef =
     useRef(null);
 
   // ======================================================
@@ -385,6 +392,44 @@ export default function ResourceMatrix({
         );
 
         // ================================================
+        // ASSISTANCE OFFICERS
+        // ================================================
+
+        const assistanceResponse =
+          await fetch(
+            `${API_BASE}/api/assistances?garageId=${numericGarageId}`
+          );
+
+        const assistanceResult =
+          await assistanceResponse.json();
+
+        if (
+          !assistanceResponse.ok ||
+          assistanceResult.success ===
+            false
+        ) {
+          throw new Error(
+            assistanceResult.message ||
+              "Unable to load assistance officers."
+          );
+        }
+
+        const receivedAssistances =
+          Array.isArray(
+            assistanceResult?.assistances
+          )
+            ? assistanceResult.assistances
+            : Array.isArray(
+                assistanceResult?.data
+              )
+            ? assistanceResult.data
+            : [];
+
+        setAssistances(
+          receivedAssistances
+        );
+
+        // ================================================
         // LIVE JOBS
         // ================================================
 
@@ -648,6 +693,70 @@ export default function ResourceMatrix({
   // SEARCH
   // ======================================================
 
+  // ======================================================
+  // FORMAT ASSISTANCE OFFICERS
+  // ======================================================
+
+  const formattedAssistances =
+    useMemo(() => {
+      return assistances.map(
+        (officer, index) => {
+          const assistanceId =
+            officer.assistanceId ??
+            officer.assistance_id ??
+            officer.id ??
+            index + 1;
+
+          const shiftStatus =
+            String(
+              officer.shiftStatus ??
+                officer.shift_status ??
+                "OFF"
+            )
+              .trim()
+              .toUpperCase();
+
+          const status =
+            shiftStatus === "ON"
+              ? "AVAILABLE"
+              : "OFF SHIFT";
+
+          return {
+            id:
+              assistanceId,
+
+            formattedId:
+              officer.formattedAssistanceId ??
+              `ASSIST-${String(
+                assistanceId
+              ).padStart(4, "0")}`,
+
+            name:
+              officer.fullName ??
+              officer.full_name ??
+              "Unnamed Assistance Officer",
+
+            email:
+              officer.email ??
+              "Not Provided",
+
+            contact:
+              officer.contactNumber ??
+              officer.contact_number ??
+              "Not Provided",
+
+            shiftStatus,
+
+            status,
+          };
+        }
+      );
+    }, [assistances]);
+
+  // ======================================================
+  // SEARCH TECHNICIANS
+  // ======================================================
+
   const filteredTechnicians =
     useMemo(() => {
       const query =
@@ -682,6 +791,36 @@ export default function ResourceMatrix({
   // COUNTS
   // ======================================================
 
+  const filteredAssistances =
+    useMemo(() => {
+      const query =
+        searchText
+          .trim()
+          .toLowerCase();
+
+      if (!query) {
+        return formattedAssistances;
+      }
+
+      return formattedAssistances.filter(
+        (officer) =>
+          `
+            ${officer.id}
+            ${officer.formattedId}
+            ${officer.name}
+            ${officer.email}
+            ${officer.contact}
+            ${officer.shiftStatus}
+            ${officer.status}
+          `
+            .toLowerCase()
+            .includes(query)
+      );
+    }, [
+      formattedAssistances,
+      searchText,
+    ]);
+
   const registeredTechnicianCount =
     formattedTechnicians.length;
 
@@ -701,6 +840,23 @@ export default function ResourceMatrix({
     formattedTechnicians.filter(
       (tech) =>
         tech.status ===
+        "OFF SHIFT"
+    ).length;
+
+  const registeredAssistanceCount =
+    formattedAssistances.length;
+
+  const availableAssistanceCount =
+    formattedAssistances.filter(
+      (officer) =>
+        officer.status ===
+        "AVAILABLE"
+    ).length;
+
+  const offShiftAssistanceCount =
+    formattedAssistances.filter(
+      (officer) =>
+        officer.status ===
         "OFF SHIFT"
     ).length;
 
@@ -843,10 +999,34 @@ export default function ResourceMatrix({
   // STATUS STYLE
   // ======================================================
 
+  const handleAssistanceWheel = (
+    event
+  ) => {
+    const element =
+      assistanceScrollRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    if (
+      Math.abs(event.deltaY) >
+      Math.abs(event.deltaX)
+    ) {
+      element.scrollBy({
+        left: event.deltaY,
+        behavior: "smooth",
+      });
+    }
+  };
+
   const getStatusStyle = (
     status
   ) => {
-    if (status === "FREE") {
+    if (
+      status === "FREE" ||
+      status === "AVAILABLE"
+    ) {
       return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
     }
 
@@ -901,7 +1081,7 @@ export default function ResourceMatrix({
                   event.target.value
                 )
               }
-              placeholder="Search technicians..."
+              placeholder="Search technicians or assistance..."
               className="w-full bg-transparent outline-none text-sm text-white placeholder:text-gray-500"
             />
 
@@ -1095,6 +1275,47 @@ export default function ResourceMatrix({
           <SummaryCard
             title="Off Shift Technicians"
             value={`${offShiftTechnicianCount} Off`}
+            valueClass="text-gray-400"
+            icon={
+              <Clock
+                size={15}
+                className="text-gray-500"
+              />
+            }
+          />
+
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-10">
+
+          <SummaryCard
+            title="Registered Assistance"
+            value={
+              registeredAssistanceCount
+            }
+            icon={
+              <Users
+                size={15}
+                className="text-cyan-300"
+              />
+            }
+          />
+
+          <SummaryCard
+            title="Available Assistance"
+            value={`${availableAssistanceCount} Available`}
+            valueClass="text-emerald-400"
+            icon={
+              <CircleDot
+                size={14}
+                className="text-emerald-400"
+              />
+            }
+          />
+
+          <SummaryCard
+            title="Off Shift Assistance"
+            value={`${offShiftAssistanceCount} Off`}
             valueClass="text-gray-400"
             icon={
               <Clock
@@ -1333,6 +1554,141 @@ export default function ResourceMatrix({
                   searchText
                     ? "No technicians match your search."
                     : "No technicians are registered for this garage."
+                }
+              />
+
+            )}
+
+          </div>
+
+        </section>
+
+        {/* ==================================================
+            ASSISTANCE OFFICERS
+        ================================================== */}
+
+        <section className="mb-10">
+
+          <div className="flex items-center justify-between gap-4 mb-2">
+
+            <h2 className="text-base text-gray-200">
+              Assistance Officer Availability
+            </h2>
+
+            <div className="flex items-center gap-2 text-[10px] text-cyan-400">
+
+              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+
+              LIVE DATA
+
+            </div>
+
+          </div>
+
+          <p className="text-sm text-gray-400 mb-5">
+            Registered assistance officers and current shift availability for this garage.
+          </p>
+
+          <div
+            ref={
+              assistanceScrollRef
+            }
+            onWheel={
+              handleAssistanceWheel
+            }
+            className="flex gap-4 overflow-x-auto pb-5"
+          >
+
+            {loading ? (
+
+              <EmptyBox
+                text="Loading assistance officers..."
+              />
+
+            ) : filteredAssistances.length >
+              0 ? (
+
+              filteredAssistances.map(
+                (officer) => (
+
+                  <div
+                    key={
+                      officer.id
+                    }
+                    className={`min-w-[290px] rounded-xl border bg-[#1b1b24] p-5 ${
+                      officer.status ===
+                      "AVAILABLE"
+                        ? "border-emerald-500/20"
+                        : "border-white/10"
+                    }`}
+                  >
+
+                    <div className="flex justify-between gap-4 mb-5">
+
+                      <div>
+
+                        <h3 className="font-mono font-bold">
+                          {officer.name.toUpperCase()}
+                        </h3>
+
+                        <p className="mt-1 text-[10px] text-gray-500">
+                          {officer.formattedId}
+                        </p>
+
+                      </div>
+
+                      <span
+                        className={`h-fit rounded border px-2 py-1 text-[10px] ${getStatusStyle(
+                          officer.status
+                        )}`}
+                      >
+                        {officer.status}
+                      </span>
+
+                    </div>
+
+                    <Info
+                      label="Shift Status"
+                      value={
+                        officer.shiftStatus ===
+                        "ON"
+                          ? "ON SHIFT"
+                          : "OFF SHIFT"
+                      }
+                      className={
+                        officer.shiftStatus ===
+                        "ON"
+                          ? "text-emerald-400"
+                          : "text-gray-500"
+                      }
+                    />
+
+                    <Info
+                      label="Email"
+                      value={
+                        officer.email
+                      }
+                    />
+
+                    <Info
+                      label="Contact"
+                      value={
+                        officer.contact
+                      }
+                    />
+
+                  </div>
+
+                )
+              )
+
+            ) : (
+
+              <EmptyBox
+                text={
+                  searchText
+                    ? "No assistance officers match your search."
+                    : "No assistance officers are registered for this garage."
                 }
               />
 

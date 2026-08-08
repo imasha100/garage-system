@@ -81,6 +81,10 @@ const formatServiceRequest = (row) => ({
     row.request_status ||
     "Pending",
 
+  customerStage:
+    row.customer_stage ||
+    "",
+
   assistanceId:
     row.assistance_assistance_id ||
     null,
@@ -180,8 +184,13 @@ const validateCreateRequest = (body) => {
   const contactRegex =
     /^0\d{9}$/;
 
+  // Sri Lankan vehicle registration formats supported:
+  // New: ABC-1234, ABC 1234, AB-1234, AB 1234
+  // Province-prefixed: WP CAS 1234, WP-CAS-1234
+  // Older numeric-prefix: 65-1234, 250-1234
+  // Plain 1234 is not accepted.
   const vehicleNumberRegex =
-    /^(?:[A-Z]{2,3}[-\s]?\d{4}|[A-Z]{2}\s[A-Z]{1,3}[-\s]?\d{4})$/;
+    /^(?:[A-Z]{2}[\s-]?[A-Z]{2,3}[\s-]?\d{4}|[A-Z]{2,3}[\s-]?\d{4}|\d{2,3}[\s-]\d{4})$/;
 
   if (!customerName) {
     return {
@@ -227,7 +236,7 @@ const validateCreateRequest = (body) => {
     return {
       valid: false,
       message:
-        "Enter a valid vehicle number. Example: WP CAS 1234 or CAB-1234.",
+        "Enter a valid Sri Lankan vehicle number. Examples: ABC-1234, AB-1234, WP CAS 1234, 65-1234.",
     };
   }
 
@@ -547,6 +556,7 @@ const createServiceRequest = async (
             garage_id,
             request_type,
             request_status,
+            customer_stage,
             estimated_distance,
             estimated_time,
             customer_customer_id,
@@ -568,6 +578,7 @@ const createServiceRequest = async (
             ?,
             ?,
             'Pending',
+            'REQUEST_CREATED',
             ?,
             ?,
             NULL,
@@ -609,6 +620,9 @@ const createServiceRequest = async (
 
         requestStatus:
           "Pending",
+
+        customerStage:
+          "REQUEST_CREATED",
 
         customerName,
 
@@ -1047,7 +1061,8 @@ const acceptServiceRequest = async (
           SELECT
             assistance_id,
             garage_garage_id,
-            full_name
+            full_name,
+            shift_status
           FROM assistance
           WHERE assistance_id = ?
           LIMIT 1
@@ -1064,6 +1079,23 @@ const acceptServiceRequest = async (
         success: false,
         message:
           "Assistance officer not found.",
+      });
+    }
+
+    const assistanceShiftStatus = String(
+      assistanceRows[0].shift_status || "OFF"
+    )
+      .trim()
+      .toUpperCase();
+
+    if (assistanceShiftStatus !== "ON") {
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        code: "ASSISTANCE_SHIFT_OFF",
+        message:
+          "Your assistance shift is OFF. Please start your shift before accepting service requests.",
       });
     }
 
@@ -1095,6 +1127,7 @@ const acceptServiceRequest = async (
         UPDATE service_request
         SET
           request_status = 'Accepted',
+          customer_stage = 'NAVIGATION',
           assistance_assistance_id = ?
         WHERE request_id = ?
       `,
@@ -1121,6 +1154,9 @@ const acceptServiceRequest = async (
 
         requestStatus:
           "Accepted",
+
+        customerStage:
+          "NAVIGATION",
 
         assistanceId,
 
@@ -1176,6 +1212,10 @@ const rejectServiceRequest = async (
       req.params.id
     );
 
+    const assistanceId = Number(
+      req.body.assistanceId
+    );
+
     if (
       !Number.isInteger(requestId) ||
       requestId <= 0
@@ -1187,13 +1227,62 @@ const rejectServiceRequest = async (
       });
     }
 
+    if (
+      !Number.isInteger(assistanceId) ||
+      assistanceId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid assistance ID is required.",
+      });
+    }
+
+    const [assistanceRows] =
+      await db.query(
+        `
+          SELECT
+            assistance_id,
+            garage_garage_id,
+            shift_status
+          FROM assistance
+          WHERE assistance_id = ?
+          LIMIT 1
+        `,
+        [assistanceId]
+      );
+
+    if (assistanceRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Assistance officer not found.",
+      });
+    }
+
+    const assistanceShiftStatus = String(
+      assistanceRows[0].shift_status || "OFF"
+    )
+      .trim()
+      .toUpperCase();
+
+    if (assistanceShiftStatus !== "ON") {
+      return res.status(403).json({
+        success: false,
+        code: "ASSISTANCE_SHIFT_OFF",
+        message:
+          "Your assistance shift is OFF. Please start your shift before rejecting service requests.",
+      });
+    }
+
     const [requestRows] =
       await db.query(
         `
           SELECT
             request_id,
             ticket_number,
-            request_status
+            request_status,
+            garage_garage_id
           FROM service_request
           WHERE request_id = ?
           LIMIT 1
@@ -1219,6 +1308,22 @@ const rejectServiceRequest = async (
         success: false,
         message:
           "Only pending requests can be rejected.",
+      });
+    }
+
+    const requestGarageId = Number(
+      requestRows[0].garage_garage_id
+    );
+
+    const assistanceGarageId = Number(
+      assistanceRows[0].garage_garage_id
+    );
+
+    if (requestGarageId !== assistanceGarageId) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "This request belongs to another garage.",
       });
     }
 
@@ -1267,14 +1372,17 @@ const rejectServiceRequest = async (
 };
 
 // ======================================================
-// GET LATEST GUEST REQUEST BY CONTACT NUMBER
+// GET LATEST GUEST REQUEST BY CONTACT + VEHICLE NUMBER
 //
-// Existing route:
+// Route:
 // GET /api/service-requests/customer/:customerId/latest
 //
-// For guest flow, :customerId contains contact number.
 // Example:
-// /api/service-requests/customer/0711685045/latest
+// /api/service-requests/customer/0711685045/latest?vehicleNumber=WP-CAS-1234
+//
+// For guest flow, :customerId contains the contact number.
+// The latest request is selected only when BOTH the
+// contact number and vehicle number match.
 // ======================================================
 
 const getLatestCustomerRequest = async (
@@ -1282,11 +1390,31 @@ const getLatestCustomerRequest = async (
   res
 ) => {
   try {
+    // ==================================================
+    // NORMALIZE INPUT
+    // ==================================================
+
     const contact = String(
       req.params.customerId || ""
     )
       .trim()
       .replace(/\s+/g, "");
+
+    const vehicleNumber = String(
+      req.query.vehicleNumber || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    const normalizedVehicleNumber =
+      vehicleNumber.replace(
+        /[\s-]/g,
+        ""
+      );
+
+    // ==================================================
+    // VALIDATION
+    // ==================================================
 
     if (!/^0\d{9}$/.test(contact)) {
       return res.status(400).json({
@@ -1296,6 +1424,30 @@ const getLatestCustomerRequest = async (
           "A valid 10-digit customer contact number is required.",
       });
     }
+
+    if (!vehicleNumber) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Vehicle number is required.",
+      });
+    }
+
+    // ==================================================
+    // GET LATEST REQUEST MATCHING
+    // CONTACT NUMBER + VEHICLE NUMBER
+    // ==================================================
+    //
+    // Vehicle number comparison ignores spaces and hyphens.
+    //
+    // Example:
+    // WP CAS 1234
+    // WP-CAS-1234
+    // WPCAS1234
+    //
+    // are treated as the same vehicle.
+    // ==================================================
 
     const [rows] = await db.query(
       `
@@ -1325,7 +1477,31 @@ const getLatestCustomerRequest = async (
             AS service_job_id,
 
           sj.job_status
-            AS service_job_status
+            AS service_job_status,
+
+          (
+            SELECT
+              td.dispatch_id
+            FROM tow_dispatch td
+            WHERE
+              td.service_request_request_id =
+                sr.request_id
+            ORDER BY
+              td.dispatch_id DESC
+            LIMIT 1
+          ) AS latest_dispatch_id,
+
+          (
+            SELECT
+              td.dispatch_status
+            FROM tow_dispatch td
+            WHERE
+              td.service_request_request_id =
+                sr.request_id
+            ORDER BY
+              td.dispatch_id DESC
+            LIMIT 1
+          ) AS latest_dispatch_status
 
         FROM service_request sr
 
@@ -1341,7 +1517,22 @@ const getLatestCustomerRequest = async (
           ON sj.service_request_request_id =
              sr.request_id
 
-        WHERE sr.contact_number = ?
+        WHERE
+          sr.contact_number = ?
+
+          AND REPLACE(
+            REPLACE(
+              UPPER(
+                TRIM(
+                  sr.vehicle_number
+                )
+              ),
+              ' ',
+              ''
+            ),
+            '-',
+            ''
+          ) = ?
 
         ORDER BY
           sr.request_id DESC,
@@ -1349,15 +1540,25 @@ const getLatestCustomerRequest = async (
 
         LIMIT 1
       `,
-      [contact]
+      [
+        contact,
+        normalizedVehicleNumber,
+      ]
     );
+
+    // ==================================================
+    // NO MATCH
+    // ==================================================
 
     if (rows.length === 0) {
       return res.status(404).json({
         success: false,
 
+        code:
+          "REQUEST_NOT_FOUND",
+
         message:
-          "No service request was found for this contact number.",
+          "No service request was found for this contact number and vehicle number.",
       });
     }
 
@@ -1365,6 +1566,10 @@ const getLatestCustomerRequest = async (
 
     const request =
       formatServiceRequest(row);
+
+    // ==================================================
+    // NORMALIZE DATABASE STATUSES
+    // ==================================================
 
     const requestStatus = String(
       row.request_status || ""
@@ -1378,13 +1583,26 @@ const getLatestCustomerRequest = async (
       .trim()
       .toUpperCase();
 
+    const towDispatchStatus = String(
+      row.latest_dispatch_status || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    const customerStage = String(
+      row.customer_stage || ""
+    )
+      .trim()
+      .toUpperCase();
+
     // ==================================================
     // DETERMINE WHETHER CUSTOMER CAN CONTINUE
     // ==================================================
 
     const requestClosed =
       requestStatus === "COMPLETED" ||
-      requestStatus === "CANCELLED";
+      requestStatus === "CANCELLED" ||
+      requestStatus === "REJECTED";
 
     const jobClosed =
       jobStatus === "COMPLETED" ||
@@ -1394,29 +1612,108 @@ const getLatestCustomerRequest = async (
       !requestClosed &&
       !jobClosed;
 
+    // ==================================================
+    // CONTINUE MESSAGE
+    // ==================================================
+
     let continueMessage = "";
 
-    if (
-      jobStatus === "COMPLETED"
-    ) {
+    if (jobStatus === "COMPLETED") {
       continueMessage =
         "Your vehicle repair has already been completed. Please create a new service request if you need further assistance.";
-    } else if (
-      jobStatus === "CLEARED"
-    ) {
+    } else if (jobStatus === "CLEARED") {
       continueMessage =
         "Your previous vehicle service has already been completed and cleared from the garage. Please create a new service request.";
-    } else if (
-      requestStatus === "COMPLETED"
-    ) {
+    } else if (requestStatus === "COMPLETED") {
       continueMessage =
         "Your previous service request has already been completed. Please create a new service request.";
-    } else if (
-      requestStatus === "CANCELLED"
-    ) {
+    } else if (requestStatus === "CANCELLED") {
       continueMessage =
         "Your previous service request has been cancelled. Please create a new service request.";
+    } else if (requestStatus === "REJECTED") {
+      continueMessage =
+        "Your previous service request was rejected. Please create a new service request and select another garage.";
+    } else if (
+      customerStage ===
+        "ARRIVED_AT_GARAGE" &&
+      !jobStatus
+    ) {
+      continueMessage =
+        "You have arrived at the garage. Please wait while the assistance officer assigns a technician to your vehicle.";
+    } else if (requestStatus === "PENDING") {
+      continueMessage =
+        `Your request ${
+          row.ticket_number || ""
+        } is still waiting for garage approval.`;
     }
+
+    // ==================================================
+    // DETERMINE RESUME STAGE
+    // ==================================================
+    //
+    // Values returned to CustomerLogin.jsx:
+    //
+    // closed       -> show completed/cancelled/rejected message
+    // pending      -> stay on popup and show waiting message
+    // live-progress-> open NavigationHub Live Progress tab
+    // track-tow    -> open NavigationHub Track My Tow Truck tab
+    // mobility     -> tow request was rejected; select another tow
+    // navigation   -> accepted request, continue normal hub
+    // ==================================================
+
+    let resumeStage =
+      "navigation";
+
+    if (!canContinue) {
+      resumeStage =
+        "closed";
+    } else if (
+      requestStatus === "PENDING"
+    ) {
+      resumeStage =
+        "pending";
+    } else if (
+      jobStatus === "ASSIGNED" ||
+      jobStatus === "IN_PROGRESS"
+    ) {
+      resumeStage =
+        "live-progress";
+    } else if (
+      towDispatchStatus ===
+        "PENDING VERIFICATION" ||
+      towDispatchStatus ===
+        "APPROVED" ||
+      towDispatchStatus ===
+        "DISPATCHED"
+    ) {
+      resumeStage =
+        "track-tow";
+    } else if (
+      towDispatchStatus ===
+        "REJECTED"
+    ) {
+      resumeStage =
+        "mobility";
+    } else if (
+      customerStage ===
+        "ARRIVED_AT_GARAGE"
+    ) {
+      resumeStage =
+        "arrived-at-garage";
+    } else if (
+      customerStage ===
+        "MOBILITY"
+    ) {
+      resumeStage =
+        "mobility";
+    } else {
+      resumeStage =
+        "navigation";
+    }
+
+    // ==================================================
+    // RESPONSE
+    // ==================================================
 
     return res.status(200).json({
       success: true,
@@ -1425,12 +1722,26 @@ const getLatestCustomerRequest = async (
 
       continueMessage,
 
+      resumeStage,
+
+      customerStage:
+        row.customer_stage ||
+        null,
+
       jobStatus:
         row.service_job_status ||
         null,
 
       jobId:
         row.service_job_id ||
+        null,
+
+      towDispatchId:
+        row.latest_dispatch_id ||
+        null,
+
+      towDispatchStatus:
+        row.latest_dispatch_status ||
         null,
 
       request,
@@ -1452,6 +1763,156 @@ const getLatestCustomerRequest = async (
 };
 
 // ======================================================
+// UPDATE CUSTOMER FLOW STAGE
+// PUT /api/service-requests/:id/customer-stage
+//
+// Body:
+// {
+//   "stage": "MOBILITY"
+// }
+//
+// This is used to persist the customer's completed flow
+// so logout / refresh cannot send the customer back to
+// an already-finished step.
+// ======================================================
+
+const updateCustomerStage = async (
+  req,
+  res
+) => {
+  try {
+    const requestId = Number(
+      req.params.id
+    );
+
+    const stage = String(
+      req.body.stage || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    if (
+      !Number.isInteger(
+        requestId
+      ) ||
+      requestId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid service request ID is required.",
+      });
+    }
+
+    const allowedStages = [
+      "REQUEST_CREATED",
+      "NAVIGATION",
+      "ARRIVED_AT_GARAGE",
+      "MOBILITY",
+      "TRACK_TOW",
+      "LIVE_PROGRESS",
+      "COMPLETED",
+    ];
+
+    if (
+      !allowedStages.includes(
+        stage
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid customer stage is required.",
+      });
+    }
+
+    const [requestRows] =
+      await db.query(
+        `
+          SELECT
+            request_id,
+            request_status,
+            customer_stage
+          FROM service_request
+          WHERE request_id = ?
+          LIMIT 1
+        `,
+        [requestId]
+      );
+
+    if (
+      requestRows.length === 0
+    ) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Service request not found.",
+      });
+    }
+
+    const requestStatus = String(
+      requestRows[0]
+        .request_status || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    if (
+      requestStatus ===
+        "COMPLETED" ||
+      requestStatus ===
+        "CANCELLED" ||
+      requestStatus ===
+        "REJECTED"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "A closed service request cannot be moved to another customer stage.",
+      });
+    }
+
+    await db.query(
+      `
+        UPDATE service_request
+        SET customer_stage = ?
+        WHERE request_id = ?
+      `,
+      [
+        stage,
+        requestId,
+      ]
+    );
+
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Customer flow stage updated successfully.",
+
+      request: {
+        requestId,
+        customerStage:
+          stage,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Update customer stage error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        error.sqlMessage ||
+        "Unable to update the customer flow stage.",
+    });
+  }
+};
+
+// ======================================================
 // EXPORTS
 // ======================================================
 
@@ -1462,4 +1923,5 @@ module.exports = {
   acceptServiceRequest,
   rejectServiceRequest,
   getLatestCustomerRequest,
+  updateCustomerStage,
 };

@@ -8,6 +8,7 @@ const {
   acceptServiceRequest,
   rejectServiceRequest,
   getLatestCustomerRequest,
+  updateCustomerStage,
 } = require("../controllers/serviceRequestController");
 
 // ======================================================
@@ -65,6 +66,22 @@ router.put(
 router.put(
   "/service-requests/:id/reject",
   rejectServiceRequest
+);
+
+// ======================================================
+// UPDATE CUSTOMER FLOW STAGE
+//
+// PUT /api/service-requests/:id/customer-stage
+//
+// Example body:
+// {
+//   "stage": "ARRIVED_AT_GARAGE"
+// }
+// ======================================================
+
+router.put(
+  "/service-requests/:id/customer-stage",
+  updateCustomerStage
 );
 
 module.exports = router;

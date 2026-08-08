@@ -10,6 +10,7 @@ import {
   X,
   LogOut,
   AlertTriangle,
+  Lock,
 } from "lucide-react";
 
 export default function Sidebar({
@@ -17,6 +18,8 @@ export default function Sidebar({
   onNavigate,
   isOpen = false,
   onClose = () => {},
+  isShiftOn = false,
+  isCheckingShift = false,
 }) {
   const [showLogoutConfirm, setShowLogoutConfirm] =
     useState(false);
@@ -25,35 +28,51 @@ export default function Sidebar({
     {
       icon: LayoutDashboard,
       label: "Dashboard",
+      requiresShift: true,
     },
     {
       icon: Siren,
       label: "Incident Dispatch",
+      requiresShift: true,
     },
     {
       icon: MessageSquare,
       label: "Customer Comms",
+      requiresShift: true,
     },
     {
       icon: CalendarDays,
       label: "Resource Schedule",
+      requiresShift: true,
     },
     {
       icon: ReceiptText,
       label: "Counter Ledger",
+      requiresShift: true,
     },
     {
       icon: ShieldCheck,
       label: "Experience Audit",
+      requiresShift: true,
     },
     {
       icon: User,
       label: "Assistance Profile",
+      requiresShift: false,
     },
   ];
 
-  const handleNavigation = (itemLabel) => {
-    onNavigate(itemLabel);
+  const handleNavigation = (item) => {
+    const isLocked =
+      item.requiresShift &&
+      !isCheckingShift &&
+      !isShiftOn;
+
+    if (isLocked) {
+      return;
+    }
+
+    onNavigate(item.label);
 
     // Mobile screen එකේ menu item එක select කළාම
     // sidebar close වෙනවා.
@@ -87,9 +106,11 @@ export default function Sidebar({
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/80 md:hidden"
+        <button
+          type="button"
+          aria-label="Close assistance sidebar overlay"
           onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/70 md:hidden"
         />
       )}
 
@@ -103,10 +124,36 @@ export default function Sidebar({
       >
         <div className="min-h-0 flex-1 overflow-y-auto">
           {/* Sidebar Header */}
-          <div className="mb-10 mt-2 flex items-center justify-between">
-            <h1 className="text-xl font-black tracking-widest text-white">
-              ASSIST SYSTEM
-            </h1>
+          <div className="mb-10 mt-2 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-xl font-black tracking-widest text-white">
+                ASSIST SYSTEM
+              </h1>
+
+              <div
+                className={`mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${
+                  isCheckingShift
+                    ? "border-slate-700 bg-slate-800/60 text-slate-400"
+                    : isShiftOn
+                    ? "border-green-500/30 bg-green-500/10 text-green-400"
+                    : "border-red-500/30 bg-red-500/10 text-red-400"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    isCheckingShift
+                      ? "bg-slate-500"
+                      : isShiftOn
+                      ? "bg-green-400"
+                      : "bg-red-400"
+                  }`}
+                />
+
+                {isCheckingShift
+                  ? "CHECKING SHIFT"
+                  : `SHIFT ${isShiftOn ? "ON" : "OFF"}`}
+              </div>
+            </div>
 
             <button
               type="button"
@@ -123,28 +170,61 @@ export default function Sidebar({
             {menuItems.map((item) => {
               const Icon = item.icon;
 
+              const isLocked =
+                item.requiresShift &&
+                !isCheckingShift &&
+                !isShiftOn;
+
+              const isDisabled =
+                item.requiresShift &&
+                (isLocked ||
+                  isCheckingShift);
+
               return (
                 <button
                   type="button"
                   key={item.label}
                   onClick={() =>
-                    handleNavigation(item.label)
+                    handleNavigation(item)
                   }
-                  className={`flex w-full cursor-pointer items-center gap-4 border px-5 py-4 text-left text-xs font-bold tracking-widest transition-all duration-300 ${
-                    activeItem === item.label
-                      ? "border-[#1e3a8a] bg-[#0a142e]/40 text-blue-400 shadow-[0_0_15px_rgba(30,58,138,0.4)]"
-                      : "border-[#1a1a1a] bg-transparent text-gray-500 hover:border-[#333] hover:text-gray-300"
+                  disabled={isDisabled}
+                  className={`flex w-full items-center gap-4 border px-5 py-4 text-left text-xs font-bold tracking-widest transition-all duration-300 ${
+                    isLocked
+                      ? "cursor-not-allowed border-[#1a1a1a] bg-[#070707] text-gray-700 opacity-65"
+                      : activeItem === item.label
+                      ? "cursor-pointer border-[#1e3a8a] bg-[#0a142e]/40 text-blue-400 shadow-[0_0_15px_rgba(30,58,138,0.4)]"
+                      : "cursor-pointer border-[#1a1a1a] bg-transparent text-gray-500 hover:border-[#333] hover:text-gray-300"
                   }`}
                 >
                   <Icon size={18} />
 
-                  <span>
+                  <span className="flex-1">
                     {item.label.toUpperCase()}
                   </span>
+
+                  {isLocked && (
+                    <Lock
+                      size={15}
+                      className="shrink-0 text-red-400/70"
+                    />
+                  )}
                 </button>
               );
             })}
           </nav>
+
+          {!isCheckingShift &&
+            !isShiftOn && (
+              <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">
+                  Work Access Disabled
+                </p>
+
+                <p className="mt-2 text-[10px] leading-5 text-gray-500">
+                  Open Assistance Profile and turn your shift ON to access operational pages.
+                </p>
+              </div>
+            )}
         </div>
 
         {/* Logout Section */}
@@ -167,7 +247,8 @@ export default function Sidebar({
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
             if (
-              event.target === event.currentTarget
+              event.target ===
+              event.currentTarget
             ) {
               handleCloseLogoutConfirm();
             }
@@ -200,8 +281,7 @@ export default function Sidebar({
               </h2>
 
               <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-gray-400">
-                Are you sure you want to logout from the
-                Assistance Officer account?
+                Are you sure you want to logout from the Assistance Officer account?
               </p>
 
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">

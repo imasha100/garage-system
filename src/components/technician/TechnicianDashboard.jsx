@@ -538,6 +538,18 @@ export default function TechnicianDashboard({
     technician?.email ||
     "";
 
+  const technicianShiftStatus =
+    String(
+      technician?.shiftStatus ??
+        technician?.shift_status ??
+        "OFF"
+    )
+      .trim()
+      .toUpperCase();
+
+  const isTechnicianShiftOn =
+    technicianShiftStatus === "ON";
+
   const technicianInitials =
     technicianName
       .split(" ")
@@ -1119,6 +1131,30 @@ export default function TechnicianDashboard({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-3 sm:gap-4">
+          <span
+            className={`hidden sm:inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+              isLoadingTechnician
+                ? "border-slate-700 bg-slate-800/60 text-slate-400"
+                : isTechnicianShiftOn
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                : "border-rose-500/30 bg-rose-500/10 text-rose-400"
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                isLoadingTechnician
+                  ? "bg-slate-500"
+                  : isTechnicianShiftOn
+                  ? "bg-emerald-400"
+                  : "bg-rose-400"
+              }`}
+            />
+
+            {isLoadingTechnician
+              ? "SHIFT ..."
+              : `SHIFT ${technicianShiftStatus}`}
+          </span>
+
           <button
             type="button"
             aria-label="Notifications"
@@ -1216,6 +1252,34 @@ export default function TechnicianDashboard({
             aria-label="Search dashboard queue"
             className="h-10 w-full rounded-lg border border-slate-800 bg-[#0a0d14] pl-10 pr-4 text-xs text-slate-300 outline-none placeholder:text-slate-600 focus:border-indigo-500"
           />
+        </div>
+      </div>
+
+      <div className="border-b border-slate-800 bg-[#111827] px-4 py-2 sm:hidden">
+        <div className="flex justify-end">
+          <span
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+              isLoadingTechnician
+                ? "border-slate-700 bg-slate-800/60 text-slate-400"
+                : isTechnicianShiftOn
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                : "border-rose-500/30 bg-rose-500/10 text-rose-400"
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                isLoadingTechnician
+                  ? "bg-slate-500"
+                  : isTechnicianShiftOn
+                  ? "bg-emerald-400"
+                  : "bg-rose-400"
+              }`}
+            />
+
+            {isLoadingTechnician
+              ? "SHIFT ..."
+              : `SHIFT ${technicianShiftStatus}`}
+          </span>
         </div>
       </div>
 
