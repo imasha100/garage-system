@@ -15,6 +15,7 @@ import {
   Marker,
   Popup,
   Polyline,
+  useMap,
 } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
@@ -36,6 +37,230 @@ L.Icon.Default.mergeOptions({
   shadowUrl:
     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
+
+// ======================================================
+// ROAD-FOLLOWING ROUTE
+// Persistent cache prevents the road line from disappearing
+// when ResourceSchedule auto-refreshes every 5 seconds.
+// ======================================================
+
+const roadRouteCache = new Map();
+
+const RoadRoute = ({
+  customerLocation,
+  garageLocation,
+}) => {
+  const map = useMap();
+
+  const routeKey = [
+    Number(customerLocation?.[0]).toFixed(6),
+    Number(customerLocation?.[1]).toFixed(6),
+    Number(garageLocation?.[0]).toFixed(6),
+    Number(garageLocation?.[1]).toFixed(6),
+  ].join(":");
+
+  const [routePositions, setRoutePositions] =
+    useState(() => {
+      return roadRouteCache.get(routeKey) || [];
+    });
+
+  useEffect(() => {
+    if (
+      !Array.isArray(customerLocation) ||
+      !Array.isArray(garageLocation) ||
+      customerLocation.length !== 2 ||
+      garageLocation.length !== 2
+    ) {
+      return undefined;
+    }
+
+    const cachedRoute =
+      roadRouteCache.get(routeKey);
+
+    if (
+      Array.isArray(cachedRoute) &&
+      cachedRoute.length > 1
+    ) {
+      setRoutePositions(cachedRoute);
+      return undefined;
+    }
+
+    let isMounted = true;
+    const controller =
+      new AbortController();
+
+    const loadRoadRoute =
+      async () => {
+        try {
+          const startLng =
+            Number(customerLocation[1]);
+          const startLat =
+            Number(customerLocation[0]);
+          const endLng =
+            Number(garageLocation[1]);
+          const endLat =
+            Number(garageLocation[0]);
+
+          const routeUrl =
+            `https://router.project-osrm.org/route/v1/driving/` +
+            `${startLng},${startLat};${endLng},${endLat}` +
+            `?overview=full&geometries=geojson&steps=false`;
+
+          const response =
+            await fetch(routeUrl, {
+              signal:
+                controller.signal,
+            });
+
+          const data =
+            await response.json();
+
+          if (
+            !response.ok ||
+            data?.code !== "Ok" ||
+            !Array.isArray(
+              data?.routes?.[0]
+                ?.geometry
+                ?.coordinates
+            )
+          ) {
+            throw new Error(
+              "Road route could not be loaded."
+            );
+          }
+
+          const positions =
+            data.routes[0]
+              .geometry
+              .coordinates
+              .map(
+                ([lng, lat]) => [
+                  lat,
+                  lng,
+                ]
+              )
+              .filter(
+                (point) =>
+                  Number.isFinite(
+                    point[0]
+                  ) &&
+                  Number.isFinite(
+                    point[1]
+                  )
+              );
+
+          if (
+            positions.length < 2
+          ) {
+            throw new Error(
+              "Road route contains insufficient coordinates."
+            );
+          }
+
+          roadRouteCache.set(
+            routeKey,
+            positions
+          );
+
+          if (isMounted) {
+            setRoutePositions(
+              positions
+            );
+          }
+        } catch (error) {
+          if (
+            error.name !==
+            "AbortError"
+          ) {
+            console.error(
+              "Load persistent road route error:",
+              error
+            );
+
+            // IMPORTANT:
+            // Do not clear an already-rendered route if a later
+            // network refresh fails. This keeps the map stable.
+            const lastGoodRoute =
+              roadRouteCache.get(
+                routeKey
+              );
+
+            if (
+              isMounted &&
+              Array.isArray(
+                lastGoodRoute
+              ) &&
+              lastGoodRoute.length >
+                1
+            ) {
+              setRoutePositions(
+                lastGoodRoute
+              );
+            }
+          }
+        }
+      };
+
+    loadRoadRoute();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [routeKey]);
+
+  useEffect(() => {
+    if (
+      !map ||
+      !Array.isArray(
+        routePositions
+      ) ||
+      routePositions.length < 2
+    ) {
+      return;
+    }
+
+    try {
+      const bounds =
+        L.latLngBounds(
+          routePositions
+        );
+
+      map.fitBounds(bounds, {
+        padding: [28, 28],
+      });
+    } catch (error) {
+      console.warn(
+        "Route fit bounds skipped:",
+        error
+      );
+    }
+  }, [map, routeKey, routePositions]);
+
+  if (
+    !Array.isArray(
+      routePositions
+    ) ||
+    routePositions.length < 2
+  ) {
+    return null;
+  }
+
+  return (
+    <Polyline
+      positions={
+        routePositions
+      }
+      pathOptions={{
+        color: "#2563eb",
+        weight: 6,
+        opacity: 0.95,
+        lineCap: "round",
+        lineJoin: "round",
+      }}
+    />
+  );
+};
 
 // ======================================================
 // DISTANCE AND ETA HELPER FUNCTIONS
@@ -392,6 +617,15 @@ const [techniciansError, setTechniciansError] = useState("");
       requestTime:
         request.requestTime ||
         null,
+
+      customerStage:
+        String(
+          request.customerStage ??
+            request.customer_stage ??
+            ""
+        )
+          .trim()
+          .toUpperCase(),
     };
   };
     // ====================================================
@@ -863,6 +1097,33 @@ setCurrentCapacity(
         showCancel: false,
         requestData: null,
       });
+      return;
+    }
+
+    // ====================================================
+    // CUSTOMER ARRIVAL CHECK
+    // Technician allocation is allowed only after the
+    // customer reaches the selected garage.
+    // ====================================================
+
+    const customerStage = String(
+      selectedRequest.customerStage || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    if (customerStage !== "ARRIVED_AT_GARAGE") {
+      setPopup({
+        show: true,
+        title: "CUSTOMER NOT ARRIVED",
+        message:
+          `Vehicle ${vehicleNumber} has not arrived at the garage yet. ` +
+          "A technician can be assigned only after the customer arrives at the garage.",
+        color: "#f59e0b",
+        showCancel: false,
+        requestData: selectedRequest,
+      });
+
       return;
     }
 
@@ -1576,18 +1837,13 @@ setCurrentCapacity(
                 </Popup>
               </Marker>
 
-              <Polyline
-                positions={[
-                  customerLocation,
-                  garageLocation,
-                ]}
-                pathOptions={{
-                  color:
-                    "#3b82f6",
-                  weight: 5,
-                  dashArray:
-                    "10 8",
-                }}
+              <RoadRoute
+                customerLocation={
+                  customerLocation
+                }
+                garageLocation={
+                  garageLocation
+                }
               />
             </>
           )}
@@ -1601,7 +1857,8 @@ setCurrentCapacity(
   // ====================================================
 
   return (
-    <div className="w-full h-full min-h-0 bg-[#0b0e14] text-[#a0a8b7] font-sans overflow-hidden flex flex-col">
+    <>
+      <div className="w-full h-full min-h-0 bg-[#0b0e14] text-[#a0a8b7] font-sans overflow-hidden flex flex-col">
       {/* HEADER */}
 
       
@@ -2552,7 +2809,8 @@ setCurrentCapacity(
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

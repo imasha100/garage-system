@@ -96,6 +96,11 @@ export default function CustomerLogin({
     setIsCheckingRequest,
   ] = useState(false);
 
+  const [
+    showCreateNewRequestAction,
+    setShowCreateNewRequestAction,
+  ] = useState(false);
+
   // ======================================================
   // NORMALIZE VEHICLE NUMBER
   // ======================================================
@@ -135,6 +140,10 @@ export default function CustomerLogin({
       setIsCheckingRequest(
         false
       );
+
+      setShowCreateNewRequestAction(
+        false
+      );
     };
 
   // ======================================================
@@ -158,6 +167,7 @@ export default function CustomerLogin({
 
     setContinueError("");
     setContinueMessage("");
+    setShowCreateNewRequestAction(false);
   };
 
   // ======================================================
@@ -172,6 +182,7 @@ export default function CustomerLogin({
 
       setContinueError("");
       setContinueMessage("");
+      setShowCreateNewRequestAction(false);
 
       const contactNumber =
         continueData
@@ -224,12 +235,16 @@ export default function CustomerLogin({
         );
 
         // ==================================================
-        // GET LATEST CUSTOMER REQUEST
+        // GET LATEST REQUEST FOR THIS CONTACT + VEHICLE
         // ==================================================
 
         const response =
           await fetch(
-            `http://localhost:5000/api/service-requests/customer/${contactNumber}/latest`
+            `http://localhost:5000/api/service-requests/customer/${encodeURIComponent(
+              contactNumber
+            )}/latest?vehicleNumber=${encodeURIComponent(
+              vehicleNumber
+            )}`
           );
 
         const result =
@@ -250,7 +265,7 @@ export default function CustomerLogin({
           result.request;
 
         // ==================================================
-        // CHECK VEHICLE NUMBER
+        // EXTRA VEHICLE NUMBER SAFETY CHECK
         // ==================================================
 
         const savedVehicleNumber =
@@ -274,35 +289,7 @@ export default function CustomerLogin({
         }
 
         // ==================================================
-        // CHECK WHETHER EXISTING REQUEST CAN BE CONTINUED
-        // ==================================================
-
-        if (
-          result.canContinue ===
-          false
-        ) {
-          sessionStorage.removeItem(
-            "latestServiceRequest"
-          );
-
-          sessionStorage.removeItem(
-            "latestTowDispatch"
-          );
-
-          sessionStorage.removeItem(
-            "selectedGarage"
-          );
-
-          setContinueMessage(
-            result.continueMessage ||
-              "Your previous service has already been completed. Please create a new service request."
-          );
-
-          return;
-        }
-
-        // ==================================================
-        // REQUEST STATUS
+        // REQUEST + JOB + TOW STATUS
         // ==================================================
 
         const requestStatus =
@@ -316,6 +303,76 @@ export default function CustomerLogin({
             .trim()
             .toLowerCase();
 
+        const jobStatus =
+          String(
+            result.jobStatus ||
+            ""
+          )
+            .trim()
+            .toUpperCase();
+
+        const towDispatchStatus =
+          String(
+            result.towDispatchStatus ||
+            ""
+          )
+            .trim()
+            .toUpperCase();
+
+        const resumeStage =
+          String(
+            result.resumeStage ||
+            ""
+          )
+            .trim()
+            .toLowerCase();
+
+        // ==================================================
+        // CLOSED REQUEST / COMPLETED JOB
+        // ==================================================
+
+        if (
+          result.canContinue ===
+            false ||
+          resumeStage ===
+            "closed"
+        ) {
+          sessionStorage.removeItem(
+            "latestServiceRequest"
+          );
+
+          sessionStorage.removeItem(
+            "latestTowDispatch"
+          );
+
+          sessionStorage.removeItem(
+            "selectedGarage"
+          );
+
+          sessionStorage.removeItem(
+            "customerResumeTab"
+          );
+
+          sessionStorage.removeItem(
+            "customerFlowStage"
+          );
+
+          localStorage.removeItem(
+            "currentCustomerRequest"
+          );
+
+          setContinueMessage(
+            result.continueMessage ||
+              "Your previous service request is no longer active. Please create a new service request."
+          );
+
+          setShowCreateNewRequestAction(
+            true
+          );
+
+          return;
+        }
+
         // ==================================================
         // RESTORE SERVICE REQUEST
         // ==================================================
@@ -328,6 +385,16 @@ export default function CustomerLogin({
               .customerContact ||
             contactNumber,
 
+          contactNumber:
+            existingRequest
+              .customerContact ||
+            contactNumber,
+
+          vehicleNumber:
+            existingRequest
+              .vehicleNumber ||
+            vehicleNumber,
+
           customerLatitude:
             existingRequest
               .customerLatitude,
@@ -338,6 +405,36 @@ export default function CustomerLogin({
 
           status:
             requestStatus,
+
+          requestStatus:
+            existingRequest
+              .requestStatus ||
+            requestStatus,
+
+          jobStatus:
+            result.jobStatus ||
+            null,
+
+          jobId:
+            result.jobId ||
+            null,
+
+          towDispatchId:
+            result.towDispatchId ||
+            null,
+
+          towDispatchStatus:
+            result.towDispatchStatus ||
+            null,
+
+          customerStage:
+            result.customerStage ||
+            existingRequest.customerStage ||
+            null,
+
+          resumeStage:
+            result.resumeStage ||
+            null,
         };
 
         sessionStorage.setItem(
@@ -347,10 +444,8 @@ export default function CustomerLogin({
           )
         );
 
-        // ==================================================
-        // RESTORE LATEST TOW DISPATCH
-        // ==================================================
-
+        // Save the request ID separately as an additional
+        // fallback for TrackMyTowTruck.jsx.
         const serviceRequestId =
           existingRequest
             .requestId ||
@@ -358,6 +453,98 @@ export default function CustomerLogin({
             .serviceRequestId ||
           existingRequest
             .request_id;
+
+        if (serviceRequestId) {
+          sessionStorage.setItem(
+            "serviceRequestId",
+            String(
+              serviceRequestId
+            )
+          );
+        }
+
+        // ==================================================
+        // RESTORE SELECTED GARAGE
+        // ==================================================
+
+        const garageLatitude =
+          Number(
+            existingRequest
+              .garageLatitude
+          );
+
+        const garageLongitude =
+          Number(
+            existingRequest
+              .garageLongitude
+          );
+
+        const restoredGarage = {
+          id:
+            existingRequest
+              .garageId,
+
+          name:
+            existingRequest
+              .garageName ||
+            "Selected Garage",
+
+          address:
+            existingRequest
+              .garageAddress ||
+            "",
+
+          contact:
+            existingRequest
+              .garageContact ||
+            "",
+
+          lat:
+            Number.isFinite(
+              garageLatitude
+            )
+              ? garageLatitude
+              : null,
+
+          lng:
+            Number.isFinite(
+              garageLongitude
+            )
+              ? garageLongitude
+              : null,
+
+          distance:
+            existingRequest
+              .estimatedDistance ||
+            "N/A",
+
+          time:
+            existingRequest
+              .estimatedTime ||
+            "N/A",
+
+          customerRequest:
+            restoredRequest,
+        };
+
+        if (
+          setSelectedGarage
+        ) {
+          setSelectedGarage(
+            restoredGarage
+          );
+        }
+
+        sessionStorage.setItem(
+          "selectedGarage",
+          JSON.stringify(
+            restoredGarage
+          )
+        );
+
+        // ==================================================
+        // RESTORE LATEST TOW DISPATCH
+        // ==================================================
 
         sessionStorage.removeItem(
           "latestTowDispatch"
@@ -386,6 +573,34 @@ export default function CustomerLogin({
                   towResult.dispatch
                 )
               );
+
+              // Keep a compatible local-storage copy for
+              // NavigationHub / TrackMyTowTruck.
+              localStorage.setItem(
+                "currentCustomerRequest",
+                JSON.stringify({
+                  ...restoredRequest,
+                  ...towResult.dispatch,
+                  requestId:
+                    serviceRequestId,
+                  dispatchId:
+                    towResult.dispatch
+                      .dispatchId ||
+                    towResult.dispatch
+                      .dispatch_id ||
+                    result.towDispatchId ||
+                    null,
+                  dispatchStatus:
+                    towResult.dispatch
+                      .dispatchStatus ||
+                    result.towDispatchStatus ||
+                    null,
+                })
+              );
+            } else {
+              localStorage.removeItem(
+                "currentCustomerRequest"
+              );
             }
           } catch (
             towError
@@ -402,72 +617,52 @@ export default function CustomerLogin({
         }
 
         // ==================================================
-        // ACCEPTED REQUEST
+        // PENDING REQUEST
         // ==================================================
 
         if (
+          resumeStage ===
+            "pending" ||
           requestStatus ===
-          "accepted"
+            "pending"
         ) {
-          const restoredGarage = {
-            id:
-              existingRequest
-                .garageId,
+          sessionStorage.removeItem(
+            "customerResumeTab"
+          );
 
-            name:
-              existingRequest
-                .garageName ||
-              "Selected Garage",
-
-            address:
-              existingRequest
-                .garageAddress ||
-              "",
-
-            contact:
-              existingRequest
-                .garageContact ||
-              "",
-
-            lat:
-              Number(
+          setContinueMessage(
+            result.continueMessage ||
+              `Your request ${
                 existingRequest
-                  .garageLatitude
-              ),
+                  .ticketNumber ||
+                ""
+              } is still waiting for garage approval.`
+          );
 
-            lng:
-              Number(
-                existingRequest
-                  .garageLongitude
-              ),
+          return;
+        }
 
-            distance:
-              existingRequest
-                .estimatedDistance ||
-              "N/A",
+        // ==================================================
+        // LIVE PROGRESS
+        // ASSIGNED / IN_PROGRESS SERVICE JOB
+        // ==================================================
 
-            time:
-              existingRequest
-                .estimatedTime ||
-              "N/A",
-
-            customerRequest:
-              restoredRequest,
-          };
-
-          if (
-            setSelectedGarage
-          ) {
-            setSelectedGarage(
-              restoredGarage
-            );
-          }
+        if (
+          resumeStage ===
+            "live-progress" ||
+          jobStatus ===
+            "ASSIGNED" ||
+          jobStatus ===
+            "IN_PROGRESS"
+        ) {
+          sessionStorage.setItem(
+            "customerResumeTab",
+            "progress"
+          );
 
           sessionStorage.setItem(
-            "selectedGarage",
-            JSON.stringify(
-              restoredGarage
-            )
+            "customerFlowStage",
+            "progress"
           );
 
           resetContinuePopup();
@@ -480,78 +675,139 @@ export default function CustomerLogin({
         }
 
         // ==================================================
-        // PENDING REQUEST
+        // TRACK TOW TRUCK
         // ==================================================
 
         if (
-          requestStatus ===
-          "pending"
+          resumeStage ===
+            "track-tow" ||
+          towDispatchStatus ===
+            "PENDING VERIFICATION" ||
+          towDispatchStatus ===
+            "APPROVED" ||
+          towDispatchStatus ===
+            "DISPATCHED"
         ) {
-          setContinueMessage(
-            `Your request ${
-              existingRequest
-                .ticketNumber ||
-              ""
-            } is still waiting for garage approval.`
+          sessionStorage.setItem(
+            "customerResumeTab",
+            "track-tow"
+          );
+
+          sessionStorage.setItem(
+            "customerFlowStage",
+            "track-tow"
+          );
+
+          resetContinuePopup();
+
+          onNavigate(
+            "navigation-hub"
           );
 
           return;
         }
 
         // ==================================================
-        // REJECTED REQUEST
+        // TOW REQUEST REJECTED
+        // RETURN TO MOBILITY RECOVERY
         // ==================================================
 
         if (
-          requestStatus ===
-          "rejected"
+          resumeStage ===
+            "mobility" ||
+          towDispatchStatus ===
+            "REJECTED"
         ) {
-          setContinueMessage(
-            "Your previous request was rejected. Please create a new service request and select another garage."
+          sessionStorage.setItem(
+            "customerResumeTab",
+            "mobility"
+          );
+
+          sessionStorage.setItem(
+            "customerFlowStage",
+            "mobility"
+          );
+
+          resetContinuePopup();
+
+          onNavigate(
+            "navigation-hub"
           );
 
           return;
         }
 
         // ==================================================
-        // COMPLETED / CANCELLED REQUEST
+        // ARRIVED AT GARAGE
+        // CUSTOMER HAS FINISHED NAVIGATION
+        // WAIT FOR TECHNICIAN ASSIGNMENT
         // ==================================================
 
         if (
-          requestStatus ===
-            "completed" ||
-          requestStatus ===
-            "cancelled"
+          resumeStage ===
+            "arrived-at-garage"
         ) {
-          sessionStorage.removeItem(
-            "latestServiceRequest"
+          sessionStorage.setItem(
+            "customerResumeTab",
+            "arrived-at-garage"
           );
 
-          sessionStorage.removeItem(
-            "latestTowDispatch"
+          sessionStorage.setItem(
+            "customerFlowStage",
+            "arrived-at-garage"
           );
 
-          sessionStorage.removeItem(
-            "selectedGarage"
-          );
+          resetContinuePopup();
 
-          setContinueMessage(
-            "Your previous request is no longer active. Please create a new service request."
+          onNavigate(
+            "navigation-hub"
           );
 
           return;
         }
 
         // ==================================================
-        // OTHER STATUS
+        // ACCEPTED REQUEST / NORMAL NAVIGATION HUB
         // ==================================================
 
-        setContinueMessage(
-          `Current request status: ${
-            existingRequest
-              .requestStatus ||
-            "Unknown"
-          }.`
+        if (
+          resumeStage ===
+            "navigation" ||
+          requestStatus ===
+            "accepted"
+        ) {
+          sessionStorage.setItem(
+            "customerResumeTab",
+            "navigation"
+          );
+
+          sessionStorage.setItem(
+            "customerFlowStage",
+            "navigation"
+          );
+
+          resetContinuePopup();
+
+          onNavigate(
+            "navigation-hub"
+          );
+
+          return;
+        }
+
+        // ==================================================
+        // FALLBACK
+        // ==================================================
+
+        sessionStorage.setItem(
+          "customerResumeTab",
+          "navigation"
+        );
+
+        resetContinuePopup();
+
+        onNavigate(
+          "navigation-hub"
         );
       } catch (error) {
         console.error(
@@ -687,6 +943,10 @@ export default function CustomerLogin({
 
                 setContinueMessage(
                   ""
+                );
+
+                setShowCreateNewRequestAction(
+                  false
                 );
 
                 setShowContinuePopup(
@@ -849,6 +1109,50 @@ export default function CustomerLogin({
                       continueMessage
                     }
                   </div>
+                )}
+
+                {/* CREATE NEW REQUEST AFTER CLOSED REQUEST */}
+
+                {showCreateNewRequestAction && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sessionStorage.removeItem(
+                        "latestServiceRequest"
+                      );
+
+                      sessionStorage.removeItem(
+                        "latestTowDispatch"
+                      );
+
+                      sessionStorage.removeItem(
+                        "selectedGarage"
+                      );
+
+                      sessionStorage.removeItem(
+                        "customerResumeTab"
+                      );
+
+                      sessionStorage.removeItem(
+                        "customerFlowStage"
+                      );
+
+                      localStorage.removeItem(
+                        "currentCustomerRequest"
+                      );
+
+                      resetContinuePopup();
+
+                      onNavigate(
+                        "garage-map"
+                      );
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 py-3.5 text-sm font-black uppercase tracking-widest text-white transition hover:bg-red-500"
+                  >
+                    <PlusCircle size={18} />
+
+                    Create New Request
+                  </button>
                 )}
 
                 {/* CONTINUE */}

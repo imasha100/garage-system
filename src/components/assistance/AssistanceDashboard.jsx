@@ -152,6 +152,11 @@ export default function AssistanceDashboard({
   ] = useState(null);
 
   const [
+    isShiftOn,
+    setIsShiftOn,
+  ] = useState(false);
+
+  const [
     garageDetails,
     setGarageDetails,
   ] = useState({
@@ -386,6 +391,16 @@ export default function AssistanceDashboard({
           relatedGarageId
         );
 
+        setIsShiftOn(
+          String(
+            assistance.shiftStatus ||
+              assistance.shift_status ||
+              "OFF"
+          )
+            .trim()
+            .toUpperCase() === "ON"
+        );
+
         setDashboardError("");
 
         return {
@@ -411,6 +426,7 @@ export default function AssistanceDashboard({
 
         setAssistanceId(null);
         setGarageId(null);
+        setIsShiftOn(false);
 
         setDashboardError(
           error.message ||
@@ -630,6 +646,23 @@ export default function AssistanceDashboard({
   ]);
 
   // ====================================================
+  // REFRESH ASSISTANCE SHIFT STATUS EVERY 5 SECONDS
+  // ====================================================
+
+  useEffect(() => {
+    const shiftRefreshInterval =
+      window.setInterval(() => {
+        loadLoggedInOfficer();
+      }, 5000);
+
+    return () => {
+      window.clearInterval(
+        shiftRefreshInterval
+      );
+    };
+  }, [loadLoggedInOfficer]);
+
+  // ====================================================
   // DASHBOARD COUNTS
   // ====================================================
 
@@ -807,6 +840,16 @@ export default function AssistanceDashboard({
 
   const handleAcceptRequest =
     async (request) => {
+      if (!isShiftOn) {
+        showNotification(
+          "error",
+          "Shift Is OFF",
+          "Please start your shift from Assistance Profile before accepting service requests."
+        );
+
+        return;
+      }
+
       if (
         !request?.requestId ||
         !assistanceId ||
@@ -884,8 +927,19 @@ export default function AssistanceDashboard({
 
   const handleRejectRequest =
     async (request) => {
+      if (!isShiftOn) {
+        showNotification(
+          "error",
+          "Shift Is OFF",
+          "Please start your shift from Assistance Profile before rejecting service requests."
+        );
+
+        return;
+      }
+
       if (
         !request?.requestId ||
+        !assistanceId ||
         actionLoadingId
       ) {
         return;
@@ -905,6 +959,10 @@ export default function AssistanceDashboard({
               "Content-Type":
                 "application/json",
             },
+
+            body: JSON.stringify({
+              assistanceId,
+            }),
           }
         );
 
@@ -1427,7 +1485,8 @@ export default function AssistanceDashboard({
                                     )
                                   }
                                   disabled={
-                                    isProcessing
+                                    isProcessing ||
+                                    !isShiftOn
                                   }
                                   className="rounded-md bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
@@ -1444,7 +1503,8 @@ export default function AssistanceDashboard({
                                     )
                                   }
                                   disabled={
-                                    isProcessing
+                                    isProcessing ||
+                                    !isShiftOn
                                   }
                                   className="rounded-md border border-red-500 px-4 py-2 text-xs font-bold text-red-300 transition hover:bg-red-950/30 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
@@ -1501,6 +1561,15 @@ export default function AssistanceDashboard({
   };
 
   // ====================================================
+  // SHIFT-OFF POPUP STATE
+  // ====================================================
+
+  const shouldShowShiftPopup =
+    !isLoadingOfficer &&
+    !isShiftOn &&
+    view !== "Assistance Profile";
+
+  // ====================================================
   // MAIN LAYOUT
   // ====================================================
 
@@ -1514,11 +1583,14 @@ export default function AssistanceDashboard({
         isOpen={
           isSidebarOpen
         }
-        toggleSidebar={() =>
-          setIsSidebarOpen(
-            (previousState) =>
-              !previousState
-          )
+        onClose={() =>
+          setIsSidebarOpen(false)
+        }
+        isShiftOn={
+          isShiftOn
+        }
+        isCheckingShift={
+          isLoadingOfficer
         }
       />
 
@@ -1629,6 +1701,16 @@ export default function AssistanceDashboard({
               ONLINE
             </span>
 
+            <span
+              className={`hidden sm:inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+                isShiftOn
+                  ? "border-green-500/30 bg-green-500/10 text-green-400"
+                  : "border-red-500/30 bg-red-500/10 text-red-400"
+              }`}
+            >
+              SHIFT {isShiftOn ? "ON" : "OFF"}
+            </span>
+
             <button
               type="button"
               className="text-slate-400 hover:text-white transition"
@@ -1680,6 +1762,45 @@ export default function AssistanceDashboard({
           {renderContent()}
         </div>
       </div>
+
+      {/* SHIFT OFF POPUP */}
+
+      {shouldShowShiftPopup && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-[#0b0e14] p-6 text-center shadow-2xl sm:p-8">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10">
+              <AlertCircle
+                size={30}
+                className="text-red-400"
+              />
+            </div>
+
+            <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.28em] text-red-400">
+              Shift OFF
+            </p>
+
+            <h2 className="mt-3 text-2xl font-black text-white">
+              Start Your Shift
+            </h2>
+
+            <p className="mt-4 text-sm leading-6 text-slate-400">
+              Your assistance shift is currently OFF. Please turn your shift ON from Assistance Profile before continuing with assistance operations.
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleNavigate(
+                  "Assistance Profile"
+                )
+              }
+              className="mt-6 w-full rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-blue-500"
+            >
+              Open Assistance Profile
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* NOTIFICATION POPUP */}
 

@@ -46,6 +46,7 @@ function RoutingMachine({
   setMovingPosition,
   setProgress,
   setIsAutoPilot,
+  onArrivedAtGarage,
 }) {
   const map = useMap();
 
@@ -115,6 +116,11 @@ function RoutingMachine({
         setMovingPosition(garageLocation);
         setProgress(100);
         setIsAutoPilot(false);
+
+        if (onArrivedAtGarage) {
+          onArrivedAtGarage();
+        }
+
         return;
       }
 
@@ -146,7 +152,31 @@ function MapAutoCenter({ position }) {
 }
 
 export default function NavigationHub({ onNavigate, selectedGarage }) {
-  const [activeTab, setActiveTab] = useState("navigation");
+  const [activeTab, setActiveTab] = useState(() => {
+    const resumeTab =
+      sessionStorage.getItem(
+        "customerResumeTab"
+      );
+
+    if (
+      resumeTab ===
+        "arrived-at-garage" ||
+      resumeTab ===
+        "progress" ||
+      resumeTab ===
+        "track-tow" ||
+      resumeTab ===
+        "mobility" ||
+      resumeTab ===
+        "invoice" ||
+      resumeTab ===
+        "audit"
+    ) {
+      return resumeTab;
+    }
+
+    return "navigation";
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTowRequest, setActiveTowRequest] = useState(() => {
     try {
@@ -190,12 +220,272 @@ const customerLocation =
   const [isAutoPilot, setIsAutoPilot] = useState(false);
   const [movingPosition, setMovingPosition] = useState(customerLocation);
   const [progress, setProgress] = useState(0);
+  const [isSavingArrival, setIsSavingArrival] = useState(false);
+  const [arrivalSaved, setArrivalSaved] = useState(
+    String(savedRequest?.customerStage || "")
+      .trim()
+      .toUpperCase() === "ARRIVED_AT_GARAGE"
+  );
+  const [arrivalError, setArrivalError] = useState("");
+
+  const handleCustomerTabChange = (
+    nextTab
+  ) => {
+    // After the customer has reached the garage,
+    // the road-navigation step must not be repeated.
+    if (
+      arrivalSaved &&
+      nextTab === "navigation"
+    ) {
+      return;
+    }
+
+    setActiveTab(nextTab);
+  };
+
+  const markArrivedAtGarage = async () => {
+    if (arrivalSaved || isSavingArrival) {
+      return;
+    }
+
+    const requestId = Number(
+      savedRequest?.requestId ||
+        savedRequest?.request_id
+    );
+
+    if (!Number.isInteger(requestId) || requestId <= 0) {
+      console.error(
+        "Unable to mark arrival: valid service request ID was not found."
+      );
+      setArrivalError(
+        "Unable to save garage arrival because the service request ID is missing."
+      );
+      return;
+    }
+
+    try {
+      setIsSavingArrival(true);
+      setArrivalError("");
+
+      const response = await fetch(
+        `http://localhost:5000/api/service-requests/${requestId}/customer-stage`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            stage: "ARRIVED_AT_GARAGE",
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+            "Unable to save garage arrival."
+        );
+      }
+
+      const updatedRequest = {
+        ...(savedRequest || {}),
+        customerStage: "ARRIVED_AT_GARAGE",
+      };
+
+      sessionStorage.setItem(
+        "latestServiceRequest",
+        JSON.stringify(updatedRequest)
+      );
+
+      const storedCurrentRequest = JSON.parse(
+        localStorage.getItem("currentCustomerRequest") ||
+          "null"
+      );
+
+      if (storedCurrentRequest) {
+        localStorage.setItem(
+          "currentCustomerRequest",
+          JSON.stringify({
+            ...storedCurrentRequest,
+            customerStage: "ARRIVED_AT_GARAGE",
+          })
+        );
+      }
+
+      sessionStorage.setItem(
+        "customerFlowStage",
+        "arrived-at-garage"
+      );
+
+      sessionStorage.setItem(
+        "customerResumeTab",
+        "arrived-at-garage"
+      );
+
+      setArrivalSaved(true);
+      setActiveTab(
+        "arrived-at-garage"
+      );
+    } catch (error) {
+      console.error(
+        "Mark arrived at garage error:",
+        error
+      );
+
+      setArrivalError(
+        error.message ||
+          "Unable to save garage arrival."
+      );
+    } finally {
+      setIsSavingArrival(false);
+    }
+  };
 
   useEffect(() => {
     setMovingPosition(customerLocation);
     setProgress(0);
     setIsAutoPilot(false);
+    setArrivalError("");
+
+    setArrivalSaved(
+      String(savedRequest?.customerStage || "")
+        .trim()
+        .toUpperCase() === "ARRIVED_AT_GARAGE"
+    );
   }, [selectedGarage]);
+
+  // ======================================================
+  // WAITING AT GARAGE -> WATCH FOR TECHNICIAN ASSIGNMENT
+  // ======================================================
+
+  useEffect(() => {
+    if (
+      activeTab !==
+      "arrived-at-garage"
+    ) {
+      return undefined;
+    }
+
+    const contactNumber = String(
+      savedRequest?.customerContact ||
+        savedRequest?.contact ||
+        ""
+    )
+      .trim()
+      .replace(/\s+/g, "");
+
+    const vehicleNumber = String(
+      savedRequest?.vehicleNumber ||
+        ""
+    )
+      .trim()
+      .toUpperCase();
+
+    if (
+      !contactNumber ||
+      !vehicleNumber
+    ) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const checkTechnicianAssignment =
+      async () => {
+        try {
+          const response =
+            await fetch(
+              `http://localhost:5000/api/service-requests/customer/${encodeURIComponent(
+                contactNumber
+              )}/latest?vehicleNumber=${encodeURIComponent(
+                vehicleNumber
+              )}`
+            );
+
+          const result =
+            await response.json();
+
+          if (
+            !response.ok ||
+            !result.success ||
+            !result.request ||
+            !isMounted
+          ) {
+            return;
+          }
+
+          const jobStatus = String(
+            result.jobStatus || ""
+          )
+            .trim()
+            .toUpperCase();
+
+          if (
+            jobStatus === "ASSIGNED" ||
+            jobStatus === "IN_PROGRESS"
+          ) {
+            const updatedRequest = {
+              ...savedRequest,
+              ...result.request,
+              jobId:
+                result.jobId ||
+                null,
+              jobStatus:
+                result.jobStatus ||
+                null,
+              customerStage:
+                result.customerStage ||
+                "ARRIVED_AT_GARAGE",
+              resumeStage:
+                "live-progress",
+            };
+
+            sessionStorage.setItem(
+              "latestServiceRequest",
+              JSON.stringify(
+                updatedRequest
+              )
+            );
+
+            sessionStorage.setItem(
+              "customerResumeTab",
+              "progress"
+            );
+
+            sessionStorage.setItem(
+              "customerFlowStage",
+              "progress"
+            );
+
+            setActiveTab(
+              "progress"
+            );
+          }
+        } catch (error) {
+          console.error(
+            "Technician assignment check error:",
+            error
+          );
+        }
+      };
+
+    checkTechnicianAssignment();
+
+    const intervalId =
+      window.setInterval(
+        checkTechnicianAssignment,
+        5000
+      );
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(
+        intervalId
+      );
+    };
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "track-tow") return undefined;
@@ -320,7 +610,7 @@ const customerLocation =
       <div className="hidden md:block">
         <CustomerSidebar
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleCustomerTabChange}
           onNavigate={onNavigate}
         />
       </div>
@@ -348,7 +638,9 @@ const customerLocation =
           <CustomerSidebar
             activeTab={activeTab}
             setActiveTab={(tab) => {
-              setActiveTab(tab);
+              handleCustomerTabChange(
+                tab
+              );
               setSidebarOpen(false);
             }}
             onNavigate={onNavigate}
@@ -442,6 +734,7 @@ const customerLocation =
                       setMovingPosition={setMovingPosition}
                       setProgress={setProgress}
                       setIsAutoPilot={setIsAutoPilot}
+                      onArrivedAtGarage={markArrivedAtGarage}
                     />
 
                     <MapAutoCenter position={movingPosition} />
@@ -512,14 +805,55 @@ const customerLocation =
                       setMovingPosition(customerLocation);
                       setIsAutoPilot(true);
                     }}
-                    disabled={isAutoPilot}
+                    disabled={
+                      isAutoPilot ||
+                      arrivalSaved ||
+                      isSavingArrival
+                    }
                     className={`w-full mt-6 py-3 rounded font-bold ${
-                      isAutoPilot
+                      isAutoPilot ||
+                      arrivalSaved ||
+                      isSavingArrival
                         ? "bg-slate-700 text-slate-400 cursor-not-allowed"
                         : "bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
                     }`}
                   >
-                    {isAutoPilot ? "NAVIGATING.." : "START NAVIGATION"}
+                    {isSavingArrival
+                      ? "SAVING ARRIVAL..."
+                      : arrivalSaved
+                      ? "ARRIVED - WAITING FOR TECHNICIAN"
+                      : isAutoPilot
+                      ? "NAVIGATING.."
+                      : "START NAVIGATION"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsAutoPilot(false);
+                      setMovingPosition(
+                        garageLocation
+                      );
+                      setProgress(100);
+
+                      await markArrivedAtGarage();
+                    }}
+                    disabled={
+                      arrivalSaved ||
+                      isSavingArrival
+                    }
+                    className={`w-full mt-3 py-3 rounded font-bold border ${
+                      arrivalSaved ||
+                      isSavingArrival
+                        ? "border-slate-700 bg-slate-800 text-slate-500 cursor-not-allowed"
+                        : "border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 cursor-pointer"
+                    }`}
+                  >
+                    {isSavingArrival
+                      ? "SAVING ARRIVAL..."
+                      : arrivalSaved
+                      ? "ARRIVAL CONFIRMED"
+                      : "SIMULATE ARRIVAL"}
                   </button>
 
                   <button
@@ -528,17 +862,107 @@ const customerLocation =
                       setProgress(0);
                       setMovingPosition(customerLocation);
                     }}
-                    className="w-full mt-3 border border-slate-600 cursor-pointer text-slate-300 py-3 rounded font-bold hover:bg-slate-800"
+                    disabled={arrivalSaved || isSavingArrival}
+                    className={`w-full mt-3 border border-slate-600 py-3 rounded font-bold ${
+                      arrivalSaved || isSavingArrival
+                        ? "text-slate-600 cursor-not-allowed"
+                        : "cursor-pointer text-slate-300 hover:bg-slate-800"
+                    }`}
                   >
                     RESET ROUTE
                   </button>
 
                   <button
                     onClick={() => onNavigate("garage-map")}
-                    className="w-full mt-3 border border-slate-600 cursor-pointer text-slate-300 py-3 rounded font-bold hover:bg-slate-800"
+                    disabled={arrivalSaved || isSavingArrival}
+                    className={`w-full mt-3 border border-slate-600 py-3 rounded font-bold ${
+                      arrivalSaved || isSavingArrival
+                        ? "text-slate-600 cursor-not-allowed"
+                        : "cursor-pointer text-slate-300 hover:bg-slate-800"
+                    }`}
                   >
                     SELECT ANOTHER GARAGE
                   </button>
+
+                  {arrivalSaved && (
+                    <div className="mt-4 border border-emerald-500/30 bg-emerald-500/10 rounded p-3">
+                      <p className="text-xs font-bold text-emerald-400">
+                        ARRIVAL CONFIRMED
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        You have arrived at the garage. Please wait while the assistance officer assigns a technician.
+                      </p>
+                    </div>
+                  )}
+
+                  {arrivalError && (
+                    <div className="mt-4 border border-red-500/30 bg-red-500/10 rounded p-3">
+                      <p className="text-xs text-red-400">
+                        {arrivalError}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab ===
+            "arrived-at-garage" && (
+            <div className="max-w-3xl mx-auto min-h-[65vh] flex items-center justify-center">
+              <div className="w-full rounded-xl border border-emerald-500/30 bg-[#0c0d19] p-6 md:p-10 text-center shadow-[0_0_35px_rgba(16,185,129,0.12)]">
+                <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
+                  <MapPin className="h-8 w-8 text-emerald-400" />
+                </div>
+
+                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-400">
+                  Arrival Confirmed
+                </p>
+
+                <h1 className="mt-3 text-2xl md:text-3xl font-black uppercase tracking-wide text-white">
+                  Arrived at Garage
+                </h1>
+
+                <p className="mt-4 text-sm md:text-base leading-7 text-slate-400">
+                  Your vehicle has reached{" "}
+                  <span className="font-bold text-white">
+                    {selectedGarage?.name ||
+                      savedRequest?.garageName ||
+                      "the selected garage"}
+                  </span>
+                  . Please wait while the assistance officer assigns a technician.
+                </p>
+
+                <div className="mt-7 grid gap-3 sm:grid-cols-2 text-left">
+                  <div className="rounded-lg border border-slate-800 bg-black/20 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      Vehicle
+                    </p>
+                    <p className="mt-1 font-bold text-cyan-300">
+                      {savedRequest?.vehicleNumber ||
+                        "-"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-800 bg-black/20 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                      Ticket Number
+                    </p>
+                    <p className="mt-1 font-bold text-emerald-300">
+                      {savedRequest?.ticketNumber ||
+                        "-"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-4 py-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-indigo-300">
+                    Waiting for Technician Assignment
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-slate-400">
+                    This page checks automatically. Once a technician is assigned or starts the repair, you will be moved to Live Progress.
+                  </p>
                 </div>
               </div>
             </div>
@@ -547,7 +971,7 @@ const customerLocation =
           {activeTab === "mobility" && (
   <MobilityRecovery
     onNavigate={onNavigate}
-    setActiveTab={setActiveTab}
+    setActiveTab={handleCustomerTabChange}
   />
 )}
           {activeTab === "track-tow" && (
@@ -555,7 +979,11 @@ const customerLocation =
           )}
 
           {activeTab === "progress" && (
-            <LiveProgress setActiveTab={setActiveTab} />
+            <LiveProgress
+              setActiveTab={
+                handleCustomerTabChange
+              }
+            />
           )}
           {activeTab === "invoice" && <InvoiceLedger />}
           {activeTab === "audit" && <ExperienceAudit />}

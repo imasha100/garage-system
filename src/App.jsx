@@ -110,9 +110,213 @@ function App() {
   ] = useState(false);
 
   const [
+    technicianShiftOn,
+    setTechnicianShiftOn,
+  ] = useState(false);
+
+  const [
+    isLoadingTechnicianShift,
+    setIsLoadingTechnicianShift,
+  ] = useState(false);
+
+  const [
+    technicianShiftError,
+    setTechnicianShiftError,
+  ] = useState("");
+
+  const [
     ownerSidebarOpen,
     setOwnerSidebarOpen,
   ] = useState(false);
+
+  // ======================================================
+  // TECHNICIAN SHIFT ACCESS
+  // ======================================================
+
+  const technicianPages = [
+    "technician-dashboard",
+    "technician-intake",
+    "technician-profile",
+    "task-logs",
+  ];
+
+  const technicianRestrictedPages = [
+    "technician-dashboard",
+    "technician-intake",
+    "task-logs",
+  ];
+
+  const getLoggedInTechnicianId = () => {
+    try {
+      const storedStaffUser =
+        sessionStorage.getItem(
+          "staffUser"
+        );
+
+      if (!storedStaffUser) {
+        return null;
+      }
+
+      const staffUser =
+        JSON.parse(
+          storedStaffUser
+        );
+
+      if (
+        String(
+          staffUser?.role || ""
+        )
+          .trim()
+          .toLowerCase() !==
+        "technician"
+      ) {
+        return null;
+      }
+
+      const technicianId =
+        Number(
+          staffUser?.staffId ??
+            staffUser?.staff_id ??
+            staffUser?.technicianId ??
+            staffUser?.technician_id
+        );
+
+      if (
+        !Number.isInteger(
+          technicianId
+        ) ||
+        technicianId <= 0
+      ) {
+        return null;
+      }
+
+      return technicianId;
+    } catch (error) {
+      console.error(
+        "Read technician session error:",
+        error
+      );
+
+      return null;
+    }
+  };
+
+  const loadTechnicianShiftStatus =
+    async (
+      showLoading = false
+    ) => {
+      const technicianId =
+        getLoggedInTechnicianId();
+
+      if (!technicianId) {
+        setTechnicianShiftOn(
+          false
+        );
+
+        return false;
+      }
+
+      if (showLoading) {
+        setIsLoadingTechnicianShift(
+          true
+        );
+      }
+
+      try {
+        const response =
+          await fetch(
+            `http://localhost:5000/api/technicians/${technicianId}`
+          );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false ||
+          !result.technician
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to load technician shift status."
+          );
+        }
+
+        const isOnShift =
+          String(
+            result.technician
+              ?.shiftStatus ??
+              result.technician
+                ?.shift_status ??
+              "OFF"
+          )
+            .trim()
+            .toUpperCase() ===
+          "ON";
+
+        setTechnicianShiftOn(
+          isOnShift
+        );
+
+        setTechnicianShiftError(
+          ""
+        );
+
+        return isOnShift;
+      } catch (error) {
+        console.error(
+          "Load technician shift status error:",
+          error
+        );
+
+        setTechnicianShiftOn(
+          false
+        );
+
+        setTechnicianShiftError(
+          error.message ||
+            "Unable to verify technician shift status."
+        );
+
+        return false;
+      } finally {
+        if (showLoading) {
+          setIsLoadingTechnicianShift(
+            false
+          );
+        }
+      }
+    };
+
+  useEffect(() => {
+    if (
+      !technicianPages.includes(
+        currentPage
+      )
+    ) {
+      return undefined;
+    }
+
+    loadTechnicianShiftStatus(
+      true
+    );
+
+    const interval =
+      window.setInterval(
+        () => {
+          loadTechnicianShiftStatus(
+            false
+          );
+        },
+        5000
+      );
+
+    return () => {
+      window.clearInterval(
+        interval
+      );
+    };
+  }, [currentPage]);
 
   // ======================================================
   // MAIN NAVIGATION
@@ -131,6 +335,10 @@ function App() {
 
       setTechnicianSidebarOpen(false);
       setOwnerSidebarOpen(false);
+
+      setTechnicianShiftOn(false);
+      setIsLoadingTechnicianShift(false);
+      setTechnicianShiftError("");
 
       setCurrentPage("start");
 
@@ -206,20 +414,95 @@ function App() {
 
   const TechnicianLayout = ({
     children,
-  }) => (
-    <div className="flex h-screen w-full overflow-hidden bg-[#0a0d14]">
-      <TechnicianSidebar
-        activeItem={currentPage}
-        onNavigate={handleNavigate}
-        isOpen={technicianSidebarOpen}
-        onClose={closeTechnicianSidebar}
-      />
+  }) => {
+    const isRestrictedPage =
+      technicianRestrictedPages.includes(
+        currentPage
+      );
 
-      <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-        {children}
-      </main>
-    </div>
-  );
+    const shouldLock =
+      isRestrictedPage &&
+      !isLoadingTechnicianShift &&
+      !technicianShiftOn;
+
+    return (
+      <div className="flex h-screen w-full overflow-hidden bg-[#0a0d14]">
+        <TechnicianSidebar
+          activeItem={currentPage}
+          onNavigate={handleNavigate}
+          isOpen={technicianSidebarOpen}
+          onClose={closeTechnicianSidebar}
+          isShiftOn={technicianShiftOn}
+          isCheckingShift={
+            isLoadingTechnicianShift
+          }
+        />
+
+        <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+          {isRestrictedPage &&
+          isLoadingTechnicianShift ? (
+            <div className="flex min-h-screen items-center justify-center bg-[#0a0d14] p-6 text-center font-mono text-slate-300">
+              <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#10121b] p-8">
+                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-700 border-t-indigo-500" />
+
+                <h2 className="mt-5 text-xl font-black text-white">
+                  Checking Shift Status
+                </h2>
+
+                <p className="mt-2 text-sm text-slate-500">
+                  Please wait while your current technician shift is verified.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="relative min-h-screen">
+              {children}
+
+              {shouldLock && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+                  <div className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-[#10121b] p-6 text-center font-mono shadow-2xl sm:p-8">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-rose-500/30 bg-rose-500/10 text-2xl font-black text-rose-400">
+                      !
+                    </div>
+
+                    <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.28em] text-rose-400">
+                      Shift OFF
+                    </p>
+
+                    <h2 className="mt-3 text-2xl font-black text-white">
+                      Start Your Shift
+                    </h2>
+
+                    <p className="mt-4 text-sm leading-6 text-slate-400">
+                      Your technician shift is currently OFF. Please turn your shift ON from Technician Profile before continuing with technician work.
+                    </p>
+
+                    {technicianShiftError && (
+                      <p className="mt-4 text-xs text-amber-400">
+                        {technicianShiftError}
+                      </p>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleNavigate(
+                          "technician-profile"
+                        )
+                      }
+                      className="mt-6 w-full rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold uppercase tracking-widest text-white transition hover:bg-indigo-700"
+                    >
+                      Open Technician Profile
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  };
 
   // ======================================================
   // GARAGE OWNER LAYOUT
