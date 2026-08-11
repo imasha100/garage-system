@@ -171,6 +171,11 @@ export default function AssistanceDashboard({
   ] = useState([]);
 
   const [
+    technicians,
+    setTechnicians,
+  ] = useState([]);
+
+  const [
     isLoadingOfficer,
     setIsLoadingOfficer,
   ] = useState(true);
@@ -482,6 +487,7 @@ export default function AssistanceDashboard({
           const [
             garagesResponse,
             requestsResponse,
+            techniciansResponse,
           ] = await Promise.all([
             fetch(
               `${API_BASE_URL}/garages`
@@ -490,14 +496,20 @@ export default function AssistanceDashboard({
             fetch(
               `${API_BASE_URL}/service-requests?garageId=${numericGarageId}`
             ),
+
+            fetch(
+              `${API_BASE_URL}/technicians?garageId=${numericGarageId}`
+            ),
           ]);
 
           const [
             garagesResult,
             requestsResult,
+            techniciansResult,
           ] = await Promise.all([
             garagesResponse.json(),
             requestsResponse.json(),
+            techniciansResponse.json(),
           ]);
 
           if (
@@ -519,6 +531,17 @@ export default function AssistanceDashboard({
             throw new Error(
               requestsResult.message ||
                 "Unable to load service requests."
+            );
+          }
+
+          if (
+            !techniciansResponse.ok ||
+            techniciansResult.success ===
+              false
+          ) {
+            throw new Error(
+              techniciansResult.message ||
+                "Unable to load technicians."
             );
           }
 
@@ -566,6 +589,17 @@ export default function AssistanceDashboard({
                 currentGarage.current_capacity
               ) || 0,
           });
+
+          const garageTechnicians =
+            Array.isArray(
+              techniciansResult.technicians
+            )
+              ? techniciansResult.technicians
+              : [];
+
+          setTechnicians(
+            garageTechnicians
+          );
 
           setServiceRequests(
             requests
@@ -730,19 +764,32 @@ export default function AssistanceDashboard({
       {
         label: "Active Techs",
 
-        val: "00",
+        val: isLoadingDashboard
+          ? "--"
+          : String(
+              technicians.filter(
+                (technician) =>
+                  String(
+                    technician.shiftStatus ||
+                      ""
+                  )
+                    .trim()
+                    .toUpperCase() === "ON"
+              ).length
+            ).padStart(2, "0"),
 
         icon: User,
         img: techImg,
 
         note:
-          "Technician module pending",
+          "Technicians currently on shift",
       },
     ],
     [
       garageDetails,
       isLoadingDashboard,
       pendingRequests.length,
+      technicians,
     ]
   );
 

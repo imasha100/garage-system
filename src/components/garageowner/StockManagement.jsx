@@ -39,6 +39,15 @@ export default function StockManagement({
   const [stockItems, setStockItems] =
     useState([]);
 
+  const [categories, setCategories] =
+    useState([]);
+
+  const [categoriesLoading, setCategoriesLoading] =
+    useState(false);
+
+  const [batchLoading, setBatchLoading] =
+    useState(false);
+
   // OWNER / GARAGE
   const [ownerData, setOwnerData] =
     useState(null);
@@ -71,6 +80,7 @@ export default function StockManagement({
   const [formData, setFormData] =
     useState({
       itemName: "",
+      categoryId: "",
       categoryName: "",
       batchNumber: "",
       purchasePrice: "",
@@ -226,6 +236,110 @@ export default function StockManagement({
       : null;
 
   // ======================================================
+  // LOAD ADMIN-CREATED CATEGORIES
+  // ======================================================
+
+  const loadCategories = useCallback(async () => {
+    try {
+      setCategoriesLoading(true);
+
+      const response = await fetch(
+        `${API_BASE}/api/stock/categories`
+      );
+
+      const result = await response.json();
+
+      if (
+        !response.ok ||
+        result.success === false
+      ) {
+        throw new Error(
+          result.message ||
+            "Unable to load categories."
+        );
+      }
+
+      setCategories(
+        Array.isArray(result.categories)
+          ? result.categories
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "Load categories error:",
+        error
+      );
+
+      setFormError(
+        error.message ||
+          "Unable to load categories."
+      );
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }, []);
+
+  const loadNextBatchNumber = useCallback(
+    async (categoryId) => {
+      const numericCategoryId =
+        Number(categoryId);
+
+      if (
+        !Number.isInteger(
+          numericCategoryId
+        ) ||
+        numericCategoryId <= 0
+      ) {
+        setFormData((previous) => ({
+          ...previous,
+          batchNumber: "",
+        }));
+
+        return;
+      }
+
+      try {
+        setBatchLoading(true);
+
+        const response = await fetch(
+          `${API_BASE}/api/stock/next-batch-number/${numericCategoryId}`
+        );
+
+        const result = await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to generate batch number."
+          );
+        }
+
+        setFormData((previous) => ({
+          ...previous,
+          batchNumber:
+            result.batchNumber || "",
+        }));
+      } catch (error) {
+        console.error(
+          "Generate batch number error:",
+          error
+        );
+
+        setFormError(
+          error.message ||
+            "Unable to generate batch number."
+        );
+      } finally {
+        setBatchLoading(false);
+      }
+    },
+    []
+  );
+
+  // ======================================================
   // LOAD STOCK
   // ======================================================
 
@@ -336,6 +450,10 @@ export default function StockManagement({
     loadStock,
   ]);
 
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
   // ======================================================
   // FILTER STOCK
   // ======================================================
@@ -414,6 +532,30 @@ export default function StockManagement({
         value,
       } = event.target;
 
+      if (name === "categoryId") {
+        const selectedCategory =
+          categories.find(
+            (category) =>
+              String(
+                category.categoryId
+              ) === String(value)
+          );
+
+        setFormData(
+          (previous) => ({
+            ...previous,
+            categoryId: value,
+            categoryName:
+              selectedCategory?.name || "",
+            batchNumber: "",
+          })
+        );
+
+        setFormError("");
+        loadNextBatchNumber(value);
+        return;
+      }
+
       setFormData(
         (previous) => ({
           ...previous,
@@ -431,6 +573,7 @@ export default function StockManagement({
   const resetForm = () => {
     setFormData({
       itemName: "",
+      categoryId: "",
       categoryName: "",
       batchNumber: "",
       purchasePrice: "",
@@ -479,6 +622,9 @@ export default function StockManagement({
         const itemName =
           formData.itemName.trim();
 
+        const categoryId =
+          Number(formData.categoryId);
+
         const categoryName =
           formData.categoryName.trim();
 
@@ -521,6 +667,15 @@ export default function StockManagement({
           );
         }
 
+        if (
+          !Number.isInteger(categoryId) ||
+          categoryId <= 0
+        ) {
+          throw new Error(
+            "Please select a category."
+          );
+        }
+
         if (!categoryName) {
           throw new Error(
             "Category is required."
@@ -529,7 +684,7 @@ export default function StockManagement({
 
         if (!batchNumber) {
           throw new Error(
-            "Batch number is required."
+            "Batch number is being generated. Please wait."
           );
         }
 
@@ -594,9 +749,9 @@ export default function StockManagement({
 
           itemName,
 
-          categoryName,
+          categoryId,
 
-          batchNumber,
+          categoryName,
 
           purchasePrice:
             Number(
@@ -1273,19 +1428,41 @@ export default function StockManagement({
                     Category
                   </label>
 
-                  <input
-                    type="text"
-                    name="categoryName"
+                  <select
+                    name="categoryId"
                     value={
-                      formData.categoryName
+                      formData.categoryId
                     }
                     onChange={
                       handleChange
                     }
                     required
-                    placeholder="Lubricants"
-                    className="w-full rounded-lg border border-white/10 bg-[#0b0b12] px-4 py-3 text-sm outline-none focus:border-indigo-500"
-                  />
+                    disabled={
+                      categoriesLoading
+                    }
+                    className="w-full rounded-lg border border-white/10 bg-[#0b0b12] px-4 py-3 text-sm outline-none focus:border-indigo-500 disabled:opacity-50"
+                  >
+                    <option value="">
+                      {categoriesLoading
+                        ? "Loading categories..."
+                        : "Select category"}
+                    </option>
+
+                    {categories.map(
+                      (category) => (
+                        <option
+                          key={
+                            category.categoryId
+                          }
+                          value={
+                            category.categoryId
+                          }
+                        >
+                          {category.name}
+                        </option>
+                      )
+                    )}
+                  </select>
                 </div>
 
                 <div>
@@ -1297,15 +1474,19 @@ export default function StockManagement({
                     type="text"
                     name="batchNumber"
                     value={
-                      formData.batchNumber
+                      batchLoading
+                        ? "Generating..."
+                        : formData.batchNumber
                     }
-                    onChange={
-                      handleChange
-                    }
+                    readOnly
                     required
-                    placeholder="EO-001"
-                    className="w-full rounded-lg border border-white/10 bg-[#0b0b12] px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                    placeholder="Auto-generated"
+                    className="w-full cursor-not-allowed rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-indigo-300 outline-none"
                   />
+
+                  <p className="mt-2 text-[10px] text-gray-500">
+                    Batch number is generated automatically from the selected category.
+                  </p>
                 </div>
 
                 <div>
@@ -1461,7 +1642,11 @@ export default function StockManagement({
                 <button
                   type="submit"
                   disabled={
-                    saving
+                    saving ||
+                    categoriesLoading ||
+                    batchLoading ||
+                    !formData.categoryId ||
+                    !formData.batchNumber
                   }
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-indigo-600 text-xs font-bold hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >

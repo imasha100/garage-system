@@ -195,6 +195,32 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
   sessionStorage.getItem("latestServiceRequest") || "null"
 );
 
+  const latestCompletedJob = (() => {
+    try {
+      return JSON.parse(
+        sessionStorage.getItem(
+          "latestCompletedJob"
+        ) || "null"
+      );
+    } catch {
+      return null;
+    }
+  })();
+
+  const savedResumeTab =
+    sessionStorage.getItem(
+      "customerResumeTab"
+    );
+
+  const isFinalCustomerFlow =
+    Boolean(latestCompletedJob) ||
+    activeTab === "progress" ||
+    activeTab === "invoice" ||
+    activeTab === "audit" ||
+    savedResumeTab === "progress" ||
+    savedResumeTab === "invoice" ||
+    savedResumeTab === "audit";
+
 const savedCustomerLatitude = Number(
   savedRequest?.customerLatitude
 );
@@ -239,6 +265,26 @@ const customerLocation =
     ) {
       return;
     }
+
+    // Once the customer is in the final service flow,
+    // do not send them back to map/navigation pages.
+    // Keep access to Live Progress, Invoice and Feedback
+    // until the customer finishes the final flow or logs out.
+    if (
+      isFinalCustomerFlow &&
+      (
+        nextTab === "navigation" ||
+        nextTab === "mobility" ||
+        nextTab === "track-tow"
+      )
+    ) {
+      return;
+    }
+
+    sessionStorage.setItem(
+      "customerResumeTab",
+      nextTab
+    );
 
     setActiveTab(nextTab);
   };
@@ -580,7 +626,16 @@ const customerLocation =
     return () => window.clearInterval(intervalId);
   }, [activeTab]);
 
-  if (!selectedGarage) {
+  const canContinueWithoutSelectedGarage =
+    activeTab === "progress" ||
+    activeTab === "invoice" ||
+    activeTab === "audit" ||
+    isFinalCustomerFlow;
+
+  if (
+    !selectedGarage &&
+    !canContinueWithoutSelectedGarage
+  ) {
     return (
       <div className="w-screen h-screen flex items-center justify-center bg-[#070814] text-white font-mono flex-col gap-5">
         <div className="text-center p-8 bg-[#0c0d19] border border-slate-800 rounded-lg shadow-xl">
@@ -681,7 +736,7 @@ const customerLocation =
           {activeTab === "navigation" && (
             <div className="max-w-6xl mx-auto">
               <h1 className="text-xl md:text-2xl font-bold text-white mb-6">
-                {selectedGarage.name} - LOGISTICS SYNC
+                {selectedGarage?.name || savedRequest?.garageName || "Selected Garage"} - LOGISTICS SYNC
               </h1>
 
               <p className="text-sm text-slate-400 mb-6">
@@ -769,21 +824,21 @@ const customerLocation =
                   </h2>
 
                   <p className="text-purple-400 text-sm mb-6">
-                    Active Node: {selectedGarage.id}
+                    Active Node: {selectedGarage?.id || savedRequest?.garageId || "-"}
                   </p>
 
                   <div className="space-y-6 text-white">
                     <div>
                       <p className="text-xs text-slate-400">ETA</p>
                       <p className="text-3xl font-black">
-                        {formatValue(selectedGarage.time)} MINS
+                        {formatValue(selectedGarage?.time)} MINS
                       </p>
                     </div>
 
                     <div>
                       <p className="text-xs text-slate-400">DISTANCE</p>
                       <p className="text-3xl font-black">
-                        {formatValue(selectedGarage.distance)} KM
+                        {formatValue(selectedGarage?.distance)} KM
                       </p>
                     </div>
 
