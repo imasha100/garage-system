@@ -595,18 +595,41 @@ export default function TechnicianDashboard({
       [jobs]
     );
 
+  // COMPLETED and CLEARED both represent finished repair jobs.
+  // CLEARED jobs must remain in historical totals after the vehicle
+  // has left the garage.
   const completedJobs =
     useMemo(
       () =>
         jobs.filter(
-          (job) =>
-            String(
-              job.jobStatus ||
-                ""
-            ).toUpperCase() ===
-            "COMPLETED"
+          (job) => {
+            const status =
+              String(
+                job.jobStatus ||
+                  ""
+              ).toUpperCase();
+
+            return (
+              status ===
+                "COMPLETED" ||
+              status ===
+                "CLEARED"
+            );
+          }
         ),
       [jobs]
+    );
+
+  const currentWorkloadJobs =
+    useMemo(
+      () => [
+        ...assignedJobs,
+        ...inProgressJobs,
+      ],
+      [
+        assignedJobs,
+        inProgressJobs,
+      ]
     );
 
   // ======================================================
@@ -618,78 +641,46 @@ export default function TechnicianDashboard({
       new Date()
     );
 
-  const todayJobs =
+  // A finished job belongs to today's completed statistics
+  // when it was actually completed today, not when it started.
+  const todayCompletedJobs =
     useMemo(() => {
-      return jobs.filter(
+      return completedJobs.filter(
         (job) => {
-          const status =
-            String(
-              job.jobStatus ||
-                ""
-            ).toUpperCase();
-
-          // Assigned / active jobs belong
-          // to current workload.
           if (
-            status ===
-              "ASSIGNED" ||
-            status ===
-              "IN_PROGRESS"
+            job.actualCompletionTime
           ) {
-            return true;
+            return (
+              formatDateOnly(
+                job.actualCompletionTime
+              ) === todayString
+            );
           }
 
-          if (
-            status ===
-              "COMPLETED" &&
+          return (
             formatDateOnly(
-              job.startDate
+              job.endDate
             ) === todayString
-          ) {
-            return true;
-          }
-
-          return false;
+          );
         }
       );
     }, [
-      jobs,
+      completedJobs,
       todayString,
     ]);
 
-  const totalToday =
-    todayJobs.length;
+  const pendingToday =
+    currentWorkloadJobs.length;
 
   const completedToday =
-    todayJobs.filter(
-      (job) =>
-        String(
-          job.jobStatus ||
-            ""
-        ).toUpperCase() ===
-        "COMPLETED"
-    ).length;
+    todayCompletedJobs.length;
 
-  const pendingToday =
-    todayJobs.filter(
-      (job) => {
-        const status =
-          String(
-            job.jobStatus ||
-              ""
-          ).toUpperCase();
-
-        return (
-          status ===
-            "ASSIGNED" ||
-          status ===
-            "IN_PROGRESS"
-        );
-      }
-    ).length;
+  const totalToday =
+    pendingToday +
+    completedToday;
 
   // ======================================================
-  // COMPLETION PERCENTAGE
+  // COMPLETION PERCENTAGE - TODAY ONLY
   // ======================================================
 
   const percentage =
@@ -718,7 +709,7 @@ export default function TechnicianDashboard({
       circumference;
 
   // ======================================================
-  // AVERAGE REPAIR TIME
+  // TOTAL REPAIR TIME - ALL COMPLETED JOBS
   // ======================================================
 
   const completedDurations =
@@ -732,89 +723,119 @@ export default function TechnicianDashboard({
           value >= 0
       );
 
-  const averageRepairMinutes =
-    completedDurations.length > 0
-      ? completedDurations.reduce(
-          (
-            sum,
-            value
-          ) =>
-            sum + value,
-          0
-        ) /
-        completedDurations.length
-      : 0;
+  const totalRepairMinutes =
+    completedDurations.reduce(
+      (sum, value) =>
+        sum + value,
+      0
+    );
 
-  const averageRepairTime =
-    completedDurations.length > 0
-      ? formatMinutes(
-          averageRepairMinutes
-        )
-      : "0m";
+  const totalRepairTime =
+    formatMinutes(
+      totalRepairMinutes
+    );
 
   // ======================================================
-  // EFFICIENCY CALCULATION
+  // TODAY'S TOTAL REPAIR TIME
+  // ======================================================
+
+  const todayCompletedDurations =
+    todayCompletedJobs
+      .map(
+        getActualJobMinutes
+      )
+      .filter(
+        (value) =>
+          value !== null &&
+          value >= 0
+      );
+
+  const todayTotalRepairMinutes =
+    todayCompletedDurations.reduce(
+      (sum, value) =>
+        sum + value,
+      0
+    );
+
+  const todayTotalRepairTime =
+    formatMinutes(
+      todayTotalRepairMinutes
+    );
+
+  // ======================================================
+  // OVERALL EFFICIENCY CALCULATION
   // ======================================================
   // Expected vs actual duration.
   // Finished within expected time = 100%.
   // ======================================================
 
-  const efficiencyValues =
-    completedJobs
-      .map((job) => {
-        const expected =
-          getExpectedJobMinutes(
-            job
+  const calculateEfficiency =
+    (jobList) => {
+      const values =
+        jobList
+          .map((job) => {
+            const expected =
+              getExpectedJobMinutes(
+                job
+              );
+
+            const actual =
+              getActualJobMinutes(
+                job
+              );
+
+            if (
+              expected === null ||
+              actual === null ||
+              expected <= 0 ||
+              actual <= 0
+            ) {
+              return null;
+            }
+
+            const value =
+              (
+                expected /
+                actual
+              ) * 100;
+
+            return Math.min(
+              100,
+              Math.max(
+                0,
+                value
+              )
+            );
+          })
+          .filter(
+            (value) =>
+              value !== null
           );
 
-        const actual =
-          getActualJobMinutes(
-            job
-          );
+      if (
+        values.length === 0
+      ) {
+        return 0;
+      }
 
-        if (
-          expected === null ||
-          actual === null ||
-          expected <= 0 ||
-          actual <= 0
-        ) {
-          return null;
-        }
-
-        const value =
-          (
-            expected /
-            actual
-          ) * 100;
-
-        return Math.min(
-          100,
-          Math.max(
-            0,
-            value
-          )
-        );
-      })
-      .filter(
-        (value) =>
-          value !== null
+      return Math.round(
+        values.reduce(
+          (sum, value) =>
+            sum + value,
+          0
+        ) / values.length
       );
+    };
 
   const efficiency =
-    efficiencyValues.length >
-    0
-      ? Math.round(
-          efficiencyValues.reduce(
-            (
-              sum,
-              value
-            ) =>
-              sum + value,
-            0
-          ) /
-            efficiencyValues.length
-        )
-      : 0;
+    calculateEfficiency(
+      completedJobs
+    );
+
+  const todayEfficiency =
+    calculateEfficiency(
+      todayCompletedJobs
+    );
 
   // ======================================================
   // CURRENT ACTIVE TASK
@@ -903,7 +924,9 @@ export default function TechnicianDashboard({
         "Assigned Vehicles",
 
       value:
-        String(totalToday),
+        String(
+          currentWorkloadJobs.length
+        ),
 
       sub:
         "Current workload",
@@ -926,10 +949,12 @@ export default function TechnicianDashboard({
         "Completed Tasks",
 
       value:
-        `${completedToday} / ${totalToday}`,
+        String(
+          completedJobs.length
+        ),
 
       sub:
-        "Daily progress",
+        "All completed jobs",
 
       icon:
         CheckCircle,
@@ -952,7 +977,7 @@ export default function TechnicianDashboard({
         `${efficiency}%`,
 
       sub:
-        "Performance KPI",
+        "Overall performance KPI",
 
       icon:
         Activity,
@@ -969,13 +994,13 @@ export default function TechnicianDashboard({
 
     {
       label:
-        "Avg Repair Time",
+        "Total Repair Time",
 
       value:
-        averageRepairTime,
+        totalRepairTime,
 
       sub:
-        "Completed vehicles",
+        "All completed jobs",
 
       icon:
         Clock,
@@ -1537,12 +1562,12 @@ export default function TechnicianDashboard({
 
                 <div className="rounded-xl border border-slate-800 bg-[#0a0d14] p-4">
                   <p className="text-[10px] uppercase text-slate-500">
-                    Avg Time
+                    Total Time
                   </p>
 
                   <p className="text-2xl font-black text-amber-400">
                     {
-                      averageRepairTime
+                      todayTotalRepairTime
                     }
                   </p>
                 </div>
@@ -1554,7 +1579,7 @@ export default function TechnicianDashboard({
 
                   <p className="text-2xl font-black text-purple-400">
                     {
-                      efficiency
+                      todayEfficiency
                     }
                     %
                   </p>

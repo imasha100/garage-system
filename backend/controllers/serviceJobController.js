@@ -861,7 +861,6 @@ const getTechnicianJobs = async (
     });
   }
 };
-
 // ======================================================
 // START SERVICE JOB / ADD TO ACTIVE WORKLOAD
 // PUT /api/service-jobs/:jobId/start
@@ -1647,7 +1646,6 @@ const clearCompletedVehicle = async (req, res) => {
     }
   }
 };
-
 // ======================================================
 // GARAGE OWNER LIVE DASHBOARD
 // GET /api/service-jobs/garage/:garageId/live-dashboard
@@ -1898,18 +1896,17 @@ const getGarageLiveDashboard = async (req, res) => {
            sj.job_id
 
       WHERE
-  sj.garage_garage_id = ?
+        sj.garage_garage_id = ?
 
-  AND UPPER(
-    COALESCE(
-      sj.job_status,
-      ''
-    )
-  ) IN (
-    'ASSIGNED',
-    'IN_PROGRESS',
-    'COMPLETED'
-  )
+        AND UPPER(
+          COALESCE(
+            sj.job_status,
+            ''
+          )
+        ) IN (
+          'ASSIGNED',
+          'IN_PROGRESS'
+        )
 
       ORDER BY
         CASE
@@ -2463,8 +2460,7 @@ const getGaragePerformanceAudit = async (req, res) => {
         performanceLevel,
       };
     });
-
-    // ==================================================
+        // ==================================================
     // SUMMARY
     // ==================================================
 
@@ -2637,6 +2633,11 @@ const getCustomerLiveProgress = async (req, res) => {
         ) AS garage_name,
 
         COALESCE(
+          g.contact_number,
+          ''
+        ) AS garage_contact_number,
+
+        COALESCE(
           extension_data.total_extension_minutes,
           0
         ) AS total_extension_minutes,
@@ -2767,6 +2768,10 @@ const getCustomerLiveProgress = async (req, res) => {
       ]
     );
 
+    // ==================================================
+    // NO JOB FOUND
+    // ==================================================
+
     if (rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -2782,6 +2787,10 @@ const getCustomerLiveProgress = async (req, res) => {
         row.total_extension_minutes
       ) || 0;
 
+    // ==================================================
+    // DISPLAY STATUS
+    // ==================================================
+
     let displayStatus =
       String(
         row.job_status || ""
@@ -2793,8 +2802,13 @@ const getCustomerLiveProgress = async (req, res) => {
       displayStatus === "IN_PROGRESS" &&
       totalExtensionMinutes > 0
     ) {
-      displayStatus = "TIME EXTENDED";
+      displayStatus =
+        "TIME EXTENDED";
     }
+
+    // ==================================================
+    // RESPONSE
+    // ==================================================
 
     return res.status(200).json({
       success: true,
@@ -2841,11 +2855,22 @@ const getCustomerLiveProgress = async (req, res) => {
           row.technician_specialization ||
           "",
 
+        // ==============================================
+        // GARAGE DETAILS
+        // ==============================================
+
         garageId:
           row.garage_garage_id,
 
         garageName:
           row.garage_name || "",
+
+        garageContactNumber:
+          row.garage_contact_number || "",
+
+        // ==============================================
+        // SERVICE TIME DETAILS
+        // ==============================================
 
         startDate:
           row.start_date,
@@ -2864,6 +2889,10 @@ const getCustomerLiveProgress = async (req, res) => {
 
         actualCompletionTime:
           row.actual_completion_time,
+
+        // ==============================================
+        // TIME EXTENSION DETAILS
+        // ==============================================
 
         timeExtended:
           totalExtensionMinutes > 0,
@@ -3110,5 +3139,4 @@ module.exports = {
   getGaragePerformanceAudit,
   getCustomerLiveProgress,
   getCompletedJobsForBilling,
-
 };

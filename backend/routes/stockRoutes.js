@@ -3,9 +3,31 @@ const router = express.Router();
 
 const {
   addStock,
+  getCategories,
+  getNextBatchNumber,
   getGarageStock,
   getGarageBillItems,
 } = require("../controllers/stockController");
+
+// ======================================================
+// GET ADMIN-CREATED STOCK CATEGORIES
+// GET /api/stock/categories
+// ======================================================
+
+router.get(
+  "/stock/categories",
+  getCategories
+);
+
+// ======================================================
+// GET NEXT AUTO-GENERATED BATCH NUMBER
+// GET /api/stock/next-batch-number/:categoryId
+// ======================================================
+
+router.get(
+  "/stock/next-batch-number/:categoryId",
+  getNextBatchNumber
+);
 
 // ======================================================
 // ADD STOCK

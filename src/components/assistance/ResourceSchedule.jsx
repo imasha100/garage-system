@@ -467,6 +467,11 @@ const [techniciansError, setTechniciansError] = useState("");
   const [extensionReason, setExtensionReason] = useState("");
   const [extensionLoading, setExtensionLoading] = useState(false);
 
+  const [
+    completingJobId,
+    setCompletingJobId,
+  ] = useState(null);
+
   const extensionTimeOptions = Array.from(
     { length: 16 },
     (_, index) => {
@@ -1178,6 +1183,142 @@ setCurrentCapacity(
       });
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // ====================================================
+  // MARK SERVICE JOB AS COMPLETED
+  // Technician verbally informs the Assistance Officer
+  // after finishing the repair. The Assistance Officer
+  // confirms completion from this page.
+  // ====================================================
+
+  const handleCompleteJob = async (technician) => {
+    const jobId = Number(
+      technician?.jobId
+    );
+
+    const jobStatus = String(
+      technician?.jobStatus || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    if (
+      !Number.isInteger(jobId) ||
+      jobId <= 0
+    ) {
+      setPopup({
+        show: true,
+        title: "JOB NOT FOUND",
+        message:
+          "A valid active service job could not be identified for this technician.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+
+      return;
+    }
+
+    if (
+      jobStatus !==
+      "IN_PROGRESS"
+    ) {
+      setPopup({
+        show: true,
+        title: "JOB NOT IN PROGRESS",
+        message:
+          "Only an in-progress service job can be marked as completed.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+
+      return;
+    }
+
+    const technicianName =
+      technician?.fullName ||
+      technician?.name ||
+      "Technician";
+
+    const vehicleNumber =
+      technician?.vehicleNumber ||
+      "this vehicle";
+
+    const confirmed =
+      window.confirm(
+        `${technicianName} has informed you that the repair for ${vehicleNumber} is finished. Mark this job as COMPLETED?`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setCompletingJobId(
+        jobId
+      );
+
+      const response =
+        await fetch(
+          `http://localhost:5000/api/service-jobs/${jobId}/complete`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        result.success === false
+      ) {
+        throw new Error(
+          result.message ||
+            "Unable to complete the service job."
+        );
+      }
+
+      setPopup({
+        show: true,
+        title: "JOB COMPLETED",
+        message:
+          `${vehicleNumber} has been marked as completed successfully. ` +
+          `${technicianName} is now available for another service job.`,
+        color: "#52f0ac",
+        showCancel: false,
+        requestData: null,
+      });
+
+      await loadRequests();
+    } catch (error) {
+      console.error(
+        "Complete service job error:",
+        error
+      );
+
+      setPopup({
+        show: true,
+        title: "COMPLETION FAILED",
+        message:
+          error.message ||
+          "Unable to mark the service job as completed.",
+        color: "#e78181",
+        showCancel: false,
+        requestData: null,
+      });
+    } finally {
+      setCompletingJobId(
+        null
+      );
     }
   };
 
@@ -2597,14 +2738,50 @@ setCurrentCapacity(
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => openExtensionModal(technician)}
-                        disabled={!isInProgress || !technician.jobId}
-                        className="w-full mt-4 border border-[#f59e0b] text-[#f59e0b] px-4 py-2 rounded text-xs font-bold hover:bg-[#f59e0b]/10 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {isInProgress ? "EXTEND TIME" : "WAITING FOR JOB START"}
-                      </button>
+                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openExtensionModal(
+                              technician
+                            )
+                          }
+                          disabled={
+                            !isInProgress ||
+                            !technician.jobId ||
+                            completingJobId ===
+                              technician.jobId
+                          }
+                          className="w-full border border-[#f59e0b] text-[#f59e0b] px-4 py-2 rounded text-xs font-bold hover:bg-[#f59e0b]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {isInProgress
+                            ? "EXTEND TIME"
+                            : "WAITING FOR JOB START"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleCompleteJob(
+                              technician
+                            )
+                          }
+                          disabled={
+                            !isInProgress ||
+                            !technician.jobId ||
+                            completingJobId ===
+                              technician.jobId
+                          }
+                          className="w-full border border-[#52f0ac] bg-[#52f0ac]/10 text-[#52f0ac] px-4 py-2 rounded text-xs font-bold hover:bg-[#52f0ac]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {completingJobId ===
+                          technician.jobId
+                            ? "COMPLETING..."
+                            : isInProgress
+                            ? "MARK AS COMPLETED"
+                            : "COMPLETE UNAVAILABLE"}
+                        </button>
+                      </div>
                     </div>
                   );
                 })

@@ -1,29 +1,206 @@
 const db = require("../config/db");
 
 // ======================================================
+// GET ADMIN-CREATED CATEGORIES
+// GET /api/stock/categories
+// ======================================================
+
+const getCategories = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT
+        category_id,
+        name,
+        category_code
+      FROM category
+      WHERE category_code IS NOT NULL
+        AND TRIM(category_code) <> ''
+      ORDER BY name ASC
+      `
+    );
+
+    return res.status(200).json({
+      success: true,
+      categories: rows.map((row) => ({
+        categoryId: row.category_id,
+        name: row.name,
+        categoryCode: row.category_code,
+      })),
+    });
+  } catch (error) {
+    console.error("GET CATEGORIES ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.sqlMessage ||
+        "Unable to load stock categories.",
+    });
+  }
+};
+
+// ======================================================
+// GET NEXT BATCH NUMBER
+// GET /api/stock/next-batch-number/:categoryId
+// ======================================================
+
+const getNextBatchNumber = async (req, res) => {
+  try {
+    const categoryId = Number(req.params.categoryId);
+
+    if (
+      !Number.isInteger(categoryId) ||
+      categoryId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid category ID is required.",
+      });
+    }
+
+    const [categoryRows] = await db.query(
+      `
+      SELECT
+        category_id,
+        name,
+        category_code
+      FROM category
+      WHERE category_id = ?
+      LIMIT 1
+      `,
+      [categoryId]
+    );
+
+    if (categoryRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Selected category was not found.",
+      });
+    }
+
+    const category = categoryRows[0];
+
+    const categoryCode = String(
+      category.category_code || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    if (!categoryCode) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "The selected category does not have a category code.",
+      });
+    }
+
+    const [batchRows] = await db.query(
+      `
+      SELECT
+        sb.batch_num
+      FROM stock_batch sb
+      INNER JOIN stock s
+        ON s.stock_id = sb.stock_stock_id
+      INNER JOIN stock_item si
+        ON si.item_id = s.stock_item_item_id
+      WHERE si.category_category_id = ?
+        AND UPPER(sb.batch_num) LIKE CONCAT(?, '-%')
+      `,
+      [categoryId, categoryCode]
+    );
+
+    let maxNumber = 0;
+
+    const escapedCode =
+      categoryCode.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+    const pattern = new RegExp(
+      `^${escapedCode}-(\\d+)$`
+    );
+
+    for (const row of batchRows) {
+      const value = String(
+        row.batch_num || ""
+      )
+        .trim()
+        .toUpperCase();
+
+      const match =
+        value.match(pattern);
+
+      if (match) {
+        maxNumber = Math.max(
+          maxNumber,
+          Number(match[1]) || 0
+        );
+      }
+    }
+
+    const batchNumber =
+      `${categoryCode}-${String(
+        maxNumber + 1
+      ).padStart(3, "0")}`;
+
+    return res.status(200).json({
+      success: true,
+
+      category: {
+        categoryId:
+          category.category_id,
+
+        name:
+          category.name,
+
+        categoryCode,
+      },
+
+      batchNumber,
+    });
+  } catch (error) {
+    console.error(
+      "NEXT BATCH NUMBER ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        error.sqlMessage ||
+        "Unable to generate the next batch number.",
+    });
+  }
+};
+
+// ======================================================
 // ADD STOCK
 // POST /api/stock
 // ======================================================
 
 const addStock = async (req, res) => {
-  const connection = await db.getConnection();
+  const connection =
+    await db.getConnection();
 
   try {
     await connection.beginTransaction();
 
-    const garageId = Number(req.body.garageId);
+    const garageId = Number(
+      req.body.garageId
+    );
 
     const itemName = String(
       req.body.itemName || ""
     ).trim();
 
-    const categoryName = String(
-      req.body.categoryName || ""
-    ).trim();
-
-    const batchNumber = String(
-      req.body.batchNumber || ""
-    ).trim();
+    const categoryId = Number(
+      req.body.categoryId
+    );
 
     const purchasePrice = Number(
       req.body.purchasePrice
@@ -55,6 +232,8 @@ const addStock = async (req, res) => {
       !Number.isInteger(garageId) ||
       garageId <= 0
     ) {
+      await connection.rollback();
+
       return res.status(400).json({
         success: false,
         message:
@@ -63,6 +242,8 @@ const addStock = async (req, res) => {
     }
 
     if (!itemName) {
+      await connection.rollback();
+
       return res.status(400).json({
         success: false,
         message:
@@ -70,19 +251,16 @@ const addStock = async (req, res) => {
       });
     }
 
-    if (!categoryName) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Category name is required.",
-      });
-    }
+    if (
+      !Number.isInteger(categoryId) ||
+      categoryId <= 0
+    ) {
+      await connection.rollback();
 
-    if (!batchNumber) {
       return res.status(400).json({
         success: false,
         message:
-          "Batch number is required.",
+          "Please select a valid category.",
       });
     }
 
@@ -90,6 +268,8 @@ const addStock = async (req, res) => {
       !Number.isFinite(purchasePrice) ||
       purchasePrice < 0
     ) {
+      await connection.rollback();
+
       return res.status(400).json({
         success: false,
         message:
@@ -101,6 +281,8 @@ const addStock = async (req, res) => {
       !Number.isFinite(sellingPrice) ||
       sellingPrice < 0
     ) {
+      await connection.rollback();
+
       return res.status(400).json({
         success: false,
         message:
@@ -112,6 +294,8 @@ const addStock = async (req, res) => {
       !Number.isInteger(receivedQuantity) ||
       receivedQuantity <= 0
     ) {
+      await connection.rollback();
+
       return res.status(400).json({
         success: false,
         message:
@@ -123,10 +307,22 @@ const addStock = async (req, res) => {
       !Number.isInteger(reorderLevel) ||
       reorderLevel < 0
     ) {
+      await connection.rollback();
+
       return res.status(400).json({
         success: false,
         message:
           "A valid reorder level is required.",
+      });
+    }
+
+    if (!purchaseDate) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Purchase date is required.",
       });
     }
 
@@ -156,38 +352,124 @@ const addStock = async (req, res) => {
     }
 
     // ==================================================
-    // FIND / CREATE CATEGORY
+    // CHECK ADMIN-CREATED CATEGORY
     // ==================================================
-
-    let categoryId;
 
     const [categoryRows] =
       await connection.query(
         `
-        SELECT category_id
+        SELECT
+          category_id,
+          name,
+          category_code
         FROM category
-        WHERE LOWER(name) = LOWER(?)
+        WHERE category_id = ?
         LIMIT 1
         `,
-        [categoryName]
+        [categoryId]
       );
 
-    if (categoryRows.length > 0) {
-      categoryId =
-        categoryRows[0].category_id;
-    } else {
-      const [categoryInsert] =
-        await connection.query(
-          `
-          INSERT INTO category (name)
-          VALUES (?)
-          `,
-          [categoryName]
-        );
+    if (categoryRows.length === 0) {
+      await connection.rollback();
 
-      categoryId =
-        categoryInsert.insertId;
+      return res.status(404).json({
+        success: false,
+        message:
+          "Selected category was not found.",
+      });
     }
+
+    const category =
+      categoryRows[0];
+
+    const categoryName =
+      String(
+        category.name || ""
+      ).trim();
+
+    const categoryCode =
+      String(
+        category.category_code || ""
+      )
+        .trim()
+        .toUpperCase();
+
+    if (!categoryCode) {
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "Selected category does not have a category code.",
+      });
+    }
+
+    // ==================================================
+    // AUTO GENERATE BATCH NUMBER
+    // ==================================================
+
+    const [existingBatchRows] =
+      await connection.query(
+        `
+        SELECT
+          sb.batch_num
+        FROM stock_batch sb
+        INNER JOIN stock s
+          ON s.stock_id =
+             sb.stock_stock_id
+        INNER JOIN stock_item si
+          ON si.item_id =
+             s.stock_item_item_id
+        WHERE si.category_category_id = ?
+          AND UPPER(sb.batch_num)
+              LIKE CONCAT(?, '-%')
+        FOR UPDATE
+        `,
+        [
+          categoryId,
+          categoryCode,
+        ]
+      );
+
+    let maxNumber = 0;
+
+    const escapedCode =
+      categoryCode.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+    const pattern =
+      new RegExp(
+        `^${escapedCode}-(\\d+)$`
+      );
+
+    for (
+      const row of existingBatchRows
+    ) {
+      const value =
+        String(
+          row.batch_num || ""
+        )
+          .trim()
+          .toUpperCase();
+
+      const match =
+        value.match(pattern);
+
+      if (match) {
+        maxNumber =
+          Math.max(
+            maxNumber,
+            Number(match[1]) || 0
+          );
+      }
+    }
+
+    const batchNumber =
+      `${categoryCode}-${String(
+        maxNumber + 1
+      ).padStart(3, "0")}`;
 
     // ==================================================
     // FIND / CREATE STOCK ITEM
@@ -210,7 +492,9 @@ const addStock = async (req, res) => {
         ]
       );
 
-    if (itemRows.length > 0) {
+    if (
+      itemRows.length > 0
+    ) {
       itemId =
         itemRows[0].item_id;
     } else {
@@ -256,7 +540,9 @@ const addStock = async (req, res) => {
         ]
       );
 
-    if (stockRows.length > 0) {
+    if (
+      stockRows.length > 0
+    ) {
       stockId =
         stockRows[0].stock_id;
 
@@ -305,35 +591,6 @@ const addStock = async (req, res) => {
     }
 
     // ==================================================
-    // CHECK DUPLICATE BATCH
-    // ==================================================
-
-    const [batchRows] =
-      await connection.query(
-        `
-        SELECT batch_id
-        FROM stock_batch
-        WHERE batch_num = ?
-          AND stock_stock_id = ?
-        LIMIT 1
-        `,
-        [
-          batchNumber,
-          stockId,
-        ]
-      );
-
-    if (batchRows.length > 0) {
-      await connection.rollback();
-
-      return res.status(409).json({
-        success: false,
-        message:
-          "This batch number already exists for the selected stock item.",
-      });
-    }
-
-    // ==================================================
     // INSERT STOCK BATCH
     // ==================================================
 
@@ -379,62 +636,59 @@ const addStock = async (req, res) => {
 
     return res.status(201).json({
       success: true,
+
       message:
         "Stock added successfully.",
 
       stock: {
         stockId,
+
         batchId:
           batchInsert.insertId,
+
         itemId,
+
         categoryId,
+
         garageId,
+
         itemName,
+
         categoryName,
+
+        categoryCode,
+
         batchNumber,
+
         purchasePrice,
+
         sellingPrice,
+
         receivedQuantity,
+
         availableQuantity:
           receivedQuantity,
+
         reorderLevel,
+
         purchaseDate,
+
         expiryDate,
       },
     });
   } catch (error) {
-    await connection.rollback();
+    try {
+      await connection.rollback();
+    } catch {}
 
     console.error(
-      "========== ADD STOCK ERROR =========="
-    );
-
-    console.error(
-      "Code:",
-      error.code
-    );
-
-    console.error(
-      "Message:",
-      error.message
-    );
-
-    console.error(
-      "SQL Message:",
-      error.sqlMessage
-    );
-
-    console.error(
-      "SQL:",
-      error.sql
-    );
-
-    console.error(
-      "====================================="
+      "ADD STOCK ERROR:",
+      error
     );
 
     return res.status(500).json({
       success: false,
+
       message:
         error.sqlMessage ||
         "Unable to add stock.",
@@ -518,82 +772,83 @@ const getGarageStock = async (
       [garageId]
     );
 
-    const items = rows.map(
-      (row) => ({
-        stockId:
-          row.stock_id,
+    const items =
+      rows.map(
+        (row) => ({
+          stockId:
+            row.stock_id,
 
-        itemId:
-          row.item_id,
+          itemId:
+            row.item_id,
 
-        itemName:
-          row.item_name,
+          itemName:
+            row.item_name,
 
-        itemStatus:
-          row.item_status,
+          itemStatus:
+            row.item_status,
 
-        categoryId:
-          row.category_id,
+          categoryId:
+            row.category_id,
 
-        categoryName:
-          row.category_name ||
-          "Uncategorized",
+          categoryName:
+            row.category_name ||
+            "Uncategorized",
 
-        batchId:
-          row.batch_id,
+          batchId:
+            row.batch_id,
 
-        batchNumber:
-          row.batch_num,
+          batchNumber:
+            row.batch_num,
 
-        purchaseDate:
-          row.purchase_date,
+          purchaseDate:
+            row.purchase_date,
 
-        purchasePrice:
-          Number(
-            row.purchase_price
-          ) || 0,
+          purchasePrice:
+            Number(
+              row.purchase_price
+            ) || 0,
 
-        sellingPrice:
-          Number(
-            row.selling_price
-          ) || 0,
+          sellingPrice:
+            Number(
+              row.selling_price
+            ) || 0,
 
-        receivedQuantity:
-          Number(
-            row.received_quantity
-          ) || 0,
+          receivedQuantity:
+            Number(
+              row.received_quantity
+            ) || 0,
 
-        availableQuantity:
-          Number(
-            row.available_quantity
-          ) || 0,
+          availableQuantity:
+            Number(
+              row.available_quantity
+            ) || 0,
 
-        reorderLevel:
-          Number(
-            row.reorder_level
-          ) || 0,
+          reorderLevel:
+            Number(
+              row.reorder_level
+            ) || 0,
 
-        expiryDate:
-          row.expiry_date,
+          expiryDate:
+            row.expiry_date,
 
-        stockZeroDate:
-          row.stock_zero_date,
+          stockZeroDate:
+            row.stock_zero_date,
 
-        lastUpdatedDate:
-          row.last_updated_date,
+          lastUpdatedDate:
+            row.last_updated_date,
 
-        lastUpdatedTime:
-          row.last_updated_time,
+          lastUpdatedTime:
+            row.last_updated_time,
 
-        lowStock:
-          Number(
-            row.available_quantity
-          ) <=
-          Number(
-            row.reorder_level
-          ),
-      })
-    );
+          lowStock:
+            Number(
+              row.available_quantity
+            ) <=
+            Number(
+              row.reorder_level
+            ),
+        })
+      );
 
     return res.status(200).json({
       success: true,
@@ -602,21 +857,13 @@ const getGarageStock = async (
     });
   } catch (error) {
     console.error(
-      "========== GET GARAGE STOCK ERROR =========="
-    );
-
-    console.error(
-      "Message:",
-      error.message
-    );
-
-    console.error(
-      "SQL Message:",
-      error.sqlMessage
+      "GET GARAGE STOCK ERROR:",
+      error
     );
 
     return res.status(500).json({
       success: false,
+
       message:
         error.sqlMessage ||
         "Unable to load garage stock.",
@@ -644,6 +891,7 @@ const getGarageBillItems = async (
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "A valid garage ID is required.",
       });
@@ -695,47 +943,46 @@ const getGarageBillItems = async (
     return res.status(200).json({
       success: true,
 
-      items: rows.map(
-        (row) => ({
-          batchId:
-            row.batch_id,
+      items:
+        rows.map(
+          (row) => ({
+            batchId:
+              row.batch_id,
 
-          batchNumber:
-            row.batch_num,
+            batchNumber:
+              row.batch_num,
 
-          itemId:
-            row.item_id,
+            itemId:
+              row.item_id,
 
-          itemName:
-            row.item_name,
+            itemName:
+              row.item_name,
 
-          categoryName:
-            row.category_name ||
-            "Uncategorized",
+            categoryName:
+              row.category_name ||
+              "Uncategorized",
 
-          sellingPrice:
-            Number(
-              row.selling_price
-            ) || 0,
+            sellingPrice:
+              Number(
+                row.selling_price
+              ) || 0,
 
-          availableQuantity:
-            Number(
-              row.available_quantity
-            ) || 0,
-        })
-      ),
+            availableQuantity:
+              Number(
+                row.available_quantity
+              ) || 0,
+          })
+        ),
     });
   } catch (error) {
     console.error(
-      "========== GET BILL ITEMS ERROR =========="
-    );
-
-    console.error(
+      "GET BILL ITEMS ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
+
       message:
         error.sqlMessage ||
         "Unable to load billing stock items.",
@@ -749,6 +996,8 @@ const getGarageBillItems = async (
 
 module.exports = {
   addStock,
+  getCategories,
+  getNextBatchNumber,
   getGarageStock,
   getGarageBillItems,
 };
