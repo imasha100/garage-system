@@ -125,20 +125,28 @@ const assignTechnicianToJob = async (req, res) => {
       });
     }
 
+    const requestStatus = String(
+      serviceRequest.request_status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const allowedRequestStatuses = [
+      "accepted",
+      "arrived at garage",
+    ];
+
     if (
-      String(
-        serviceRequest.request_status || ""
+      !allowedRequestStatuses.includes(
+        requestStatus
       )
-        .trim()
-        .toLowerCase() !==
-      "accepted"
     ) {
       await connection.rollback();
 
       return res.status(409).json({
         success: false,
         message:
-          "Only accepted service requests can be assigned to a technician.",
+          "Only accepted or garage-arrived service requests can be assigned to a technician.",
       });
     }
 
@@ -790,8 +798,7 @@ const getTechnicianJobs = async (
             timeExtended:
               totalExtensionMinutes >
               0,
-
-            totalExtensionMinutes,
+                        totalExtensionMinutes,
 
             latestExtensionReason:
               row.latest_extension_reason ||
@@ -861,6 +868,7 @@ const getTechnicianJobs = async (
     });
   }
 };
+
 // ======================================================
 // START SERVICE JOB / ADD TO ACTIVE WORKLOAD
 // PUT /api/service-jobs/:jobId/start
@@ -1584,15 +1592,15 @@ const clearCompletedVehicle = async (req, res) => {
           clearedJob.garage_garage_id,
 
         completedDate:
-          clearedJob.end_date,
+  clearedJob.end_date,
 
-        completedTime:
-          clearedJob.end_time,
+completedTime:
+  clearedJob.end_time,
 
-        actualCompletionTime:
-          clearedJob.actual_completion_time,
-      },
-    });
+actualCompletionTime:
+  clearedJob.actual_completion_time,
+},
+});
   } catch (error) {
     if (connection) {
       try {
@@ -1646,6 +1654,7 @@ const clearCompletedVehicle = async (req, res) => {
     }
   }
 };
+
 // ======================================================
 // GARAGE OWNER LIVE DASHBOARD
 // GET /api/service-jobs/garage/:garageId/live-dashboard
@@ -2414,8 +2423,7 @@ const getGaragePerformanceAudit = async (req, res) => {
       // ==================================================
 
       let performanceLevel = "NO DATA";
-
-      if (jobsDone > 0) {
+            if (jobsDone > 0) {
         if (efficiencyIndex >= 90) {
           performanceLevel = "EXCELLENT";
         } else if (efficiencyIndex >= 75) {
@@ -2460,7 +2468,8 @@ const getGaragePerformanceAudit = async (req, res) => {
         performanceLevel,
       };
     });
-        // ==================================================
+
+    // ==================================================
     // SUMMARY
     // ==================================================
 
@@ -2949,6 +2958,14 @@ const getCustomerLiveProgress = async (req, res) => {
 // GET COMPLETED JOBS FOR ASSISTANCE BILLING
 // ONLY COMPLETED + NOT YET BILLED JOBS
 //
+// IMPORTANT:
+// There is NO 3-minute delay here.
+// Assistance can create the bill immediately after
+// the technician completes the job.
+//
+// The 3-minute delay applies only to the CUSTOMER side.
+// ======================================================
+//
 // GET /api/service-jobs/garage/:garageId/completed-for-billing
 // ======================================================
 
@@ -2975,6 +2992,8 @@ const getCompletedJobsForBilling = async (req, res) => {
 
     // ==================================================
     // GET COMPLETED JOBS THAT DO NOT HAVE AN INVOICE
+    //
+    // Assistance receives the completed job immediately.
     // ==================================================
 
     const [rows] = await db.query(

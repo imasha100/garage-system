@@ -25,6 +25,23 @@ import L from "leaflet";
 
 const API_BASE = "http://localhost:5000";
 
+// ======================================================
+// SRI LANKAN VEHICLE NUMBER VALIDATION
+// Accepts examples such as:
+// LA-1234
+// CBG-4587
+// Spaces are normalized to a hyphen on blur/submit.
+// ======================================================
+
+const SRI_LANKAN_PLATE_REGEX =
+  /^(?:[A-Z]{2}|[A-Z]{3})-\d{4}$/;
+
+const normalizeSriLankanPlate = (value = "") =>
+  String(value)
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "-");
+
 // Fix the default Leaflet marker icon in Vite/React projects.
 delete L.Icon.Default.prototype._getIconUrl;
 
@@ -379,6 +396,39 @@ export default function ExternalTruckRegistration({
       text: "",
     });
 
+    // ====================================================
+    // SRI LANKAN TRUCK NUMBER VALIDATION
+    // ====================================================
+
+    const normalizedPlate =
+      normalizeSriLankanPlate(
+        formData.plateNumber
+      );
+
+    if (
+      !SRI_LANKAN_PLATE_REGEX.test(
+        normalizedPlate
+      )
+    ) {
+      setSubmitMessage({
+        type: "error",
+        text:
+          "Please enter a valid Sri Lankan vehicle number. Example: LA-1234 or CBG-4587.",
+      });
+
+      return;
+    }
+
+    // Keep the plate in a consistent format in the UI.
+    setFormData((previousData) => ({
+      ...previousData,
+      plateNumber: normalizedPlate,
+    }));
+
+    // ====================================================
+    // LOCATION VALIDATION
+    // ====================================================
+
     if (!formData.latitude || !formData.longitude) {
       setLocationMessage({
         type: "error",
@@ -387,6 +437,10 @@ export default function ExternalTruckRegistration({
       });
       return;
     }
+
+    // ====================================================
+    // GARAGE VALIDATION
+    // ====================================================
 
     if (
       !Number.isInteger(garageId) ||
@@ -411,10 +465,7 @@ export default function ExternalTruckRegistration({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            truckNumber:
-              formData.plateNumber
-                .trim()
-                .toUpperCase(),
+            truckNumber: normalizedPlate,
 
             truckType:
               formData.truckType,
@@ -680,11 +731,55 @@ export default function ExternalTruckRegistration({
                     type="text"
                     name="plateNumber"
                     value={formData.plateNumber}
-                    onChange={handleChange}
-                    placeholder="CAB-1234 or WP CAA-1234"
+                    onChange={(event) => {
+                      const value =
+                        event.target.value
+                          .toUpperCase()
+                          .replace(
+                            /[^A-Z0-9 -]/g,
+                            ""
+                          );
+
+                      setFormData(
+                        (previousData) => ({
+                          ...previousData,
+                          plateNumber: value,
+                        })
+                      );
+
+                      if (
+                        submitMessage.type ===
+                        "error"
+                      ) {
+                        setSubmitMessage({
+                          type: "",
+                          text: "",
+                        });
+                      }
+                    }}
+                    onBlur={() => {
+                      if (formData.plateNumber) {
+                        setFormData(
+                          (previousData) => ({
+                            ...previousData,
+                            plateNumber:
+                              normalizeSriLankanPlate(
+                                previousData.plateNumber
+                              ),
+                          })
+                        );
+                      }
+                    }}
+                    placeholder="LA-1234 or CBG-4587"
                     required
-                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 outline-none focus:border-purple-500"
+                    maxLength={8}
+                    autoComplete="off"
+                    className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white uppercase placeholder:text-gray-600 outline-none focus:border-purple-500"
                   />
+
+                  <p className="mt-2 text-[11px] text-gray-500">
+                    Format: LA-1234 or CBG-4587
+                  </p>
                 </div>
 
                 <div>

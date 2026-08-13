@@ -1640,11 +1640,12 @@ The garage will contact you shortly. If you need immediate assistance, you may c
                         status: "",
                       });
 
+                      sessionStorage.setItem("customerResumeTab", "mobility");
                       onNavigate("navigation-hub");
                     }}
                     className="mt-6 w-full rounded-lg bg-emerald-600 py-3.5 text-sm font-bold uppercase tracking-widest text-white hover:bg-emerald-500"
                   >
-                    Go to Navigation Hub
+                    Go to Mobility Recovery
                   </button>
                 ) : (
                   <button

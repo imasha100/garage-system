@@ -68,8 +68,20 @@ export default function InvoiceLedger() {
   const [error, setError] =
     useState("");
 
+  const [paymentReady, setPaymentReady] =
+    useState(false);
+
+  const [readyInSeconds, setReadyInSeconds] =
+    useState(0);
+
   // ======================================================
   // LOAD CUSTOMER INVOICE
+  //
+  // CUSTOMER RULE:
+  // - Assistance can create the bill immediately.
+  // - Customer can view it only 3 minutes after the
+  //   service job has been completed.
+  // - Same rule for Driveable and Non-Driveable.
   // ======================================================
 
   const loadCustomerInvoice =
@@ -86,6 +98,136 @@ export default function InvoiceLedger() {
             "Customer contact number or vehicle number could not be identified."
           );
         }
+
+        // ------------------------------------------------------
+        // STEP 1: CHECK CUSTOMER SERVICE JOB
+        // ------------------------------------------------------
+
+        const progressResponse = await fetch(
+          `${API_BASE}/api/service-jobs/customer/${encodeURIComponent(
+            contactNumber
+          )}/${encodeURIComponent(
+            vehicleNumber
+          )}/live-progress`
+        );
+
+        const progressResult =
+          await progressResponse.json();
+
+        if (
+          !progressResponse.ok ||
+          progressResult.success === false ||
+          !progressResult.job
+        ) {
+          setPaymentReady(false);
+          setInvoice(null);
+
+          throw new Error(
+            progressResult.message ||
+              "Service details are not available yet."
+          );
+        }
+
+        const currentJob =
+          progressResult.job;
+
+        const jobStatus = String(
+          currentJob.jobStatus || ""
+        )
+          .trim()
+          .toUpperCase();
+
+        // ------------------------------------------------------
+        // STEP 2: JOB MUST BE COMPLETED
+        // ------------------------------------------------------
+
+        if (jobStatus !== "COMPLETED") {
+          setPaymentReady(false);
+          setReadyInSeconds(0);
+          setInvoice(null);
+
+          throw new Error(
+            "Your service is still in progress. The bill will be available after the service is completed."
+          );
+        }
+
+        // ------------------------------------------------------
+        // STEP 3: WAIT 3 MINUTES AFTER COMPLETION
+        // ------------------------------------------------------
+
+        const completionTime =
+          currentJob.actualCompletionTime;
+
+        if (!completionTime) {
+          setPaymentReady(false);
+          setReadyInSeconds(0);
+          setInvoice(null);
+
+          throw new Error(
+            "Your service has been completed. Please wait while the payment process is being prepared."
+          );
+        }
+
+        const completionDate =
+          new Date(completionTime);
+
+        if (
+          Number.isNaN(
+            completionDate.getTime()
+          )
+        ) {
+          setPaymentReady(false);
+          setReadyInSeconds(0);
+          setInvoice(null);
+
+          throw new Error(
+            "The service completion time could not be verified."
+          );
+        }
+
+        const readyAt =
+          completionDate.getTime() +
+          3 * 60 * 1000;
+
+        const remainingMilliseconds =
+          readyAt - Date.now();
+
+        if (
+          remainingMilliseconds > 0
+        ) {
+          const remainingSeconds =
+            Math.ceil(
+              remainingMilliseconds /
+                1000
+            );
+
+          setPaymentReady(false);
+          setReadyInSeconds(
+            remainingSeconds
+          );
+          setInvoice(null);
+
+          const minutes =
+            Math.floor(
+              remainingSeconds / 60
+            );
+
+          const seconds =
+            remainingSeconds % 60;
+
+          throw new Error(
+            `Your vehicle service is complete. The bill will be available for payment in ${minutes}:${String(
+              seconds
+            ).padStart(2, "0")}.`
+          );
+        }
+
+        setPaymentReady(true);
+        setReadyInSeconds(0);
+
+        // ------------------------------------------------------
+        // STEP 4: LOAD CUSTOMER INVOICE ONLY AFTER 3 MINUTES
+        // ------------------------------------------------------
 
         const response = await fetch(
           `${API_BASE}/api/invoices/customer/${encodeURIComponent(
@@ -104,7 +246,7 @@ export default function InvoiceLedger() {
         ) {
           throw new Error(
             result.message ||
-              "Unable to load invoice."
+              "Your bill is being prepared. Please refresh shortly."
           );
         }
 
@@ -134,6 +276,14 @@ export default function InvoiceLedger() {
 
   useEffect(() => {
     loadCustomerInvoice();
+
+    const interval =
+      setInterval(() => {
+        loadCustomerInvoice();
+      }, 5000);
+
+    return () =>
+      clearInterval(interval);
   }, [
     contactNumber,
     vehicleNumber,
@@ -373,13 +523,33 @@ export default function InvoiceLedger() {
             <AlertCircle className="w-9 h-9 text-amber-400 mb-4" />
 
             <h2 className="text-white font-black text-lg">
-              NO INVOICE AVAILABLE
+              {paymentReady
+                ? "INVOICE NOT READY YET"
+                : "PAYMENT NOT READY YET"}
             </h2>
 
             <p className="mt-2 text-xs text-slate-500 leading-relaxed">
               {error ||
-                "No invoice has been created for this vehicle yet."}
+                "Your invoice is not available yet."}
             </p>
+
+            {readyInSeconds > 0 && (
+              <div className="mt-4 border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-widest text-amber-300">
+                  PAYMENT OPENS IN
+                </p>
+
+                <p className="mt-2 text-xl font-black text-white">
+                  {Math.floor(
+                    readyInSeconds / 60
+                  )}
+                  :
+                  {String(
+                    readyInSeconds % 60
+                  ).padStart(2, "0")}
+                </p>
+              </div>
+            )}
 
             <button
               type="button"

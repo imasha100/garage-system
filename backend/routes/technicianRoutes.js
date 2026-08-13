@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
+
 const {
   getNextTechnicianId,
   registerTechnician,
@@ -8,7 +9,9 @@ const {
   getTechnicianById,
   updateTechnician,
   updateTechnicianShiftStatus,
+  changeTechnicianPassword,
 } = require("../controllers/technicianController");
+
 
 // ========================================
 // Get Next Technician ID
@@ -18,6 +21,7 @@ router.get(
   getNextTechnicianId
 );
 
+
 // ========================================
 // Register Technician
 // ========================================
@@ -25,6 +29,7 @@ router.post(
   "/technicians",
   registerTechnician
 );
+
 
 // ========================================
 // Get Technicians By Garage
@@ -36,6 +41,7 @@ router.get(
   getAllTechnicians
 );
 
+
 // ========================================
 // Update Technician Shift Status
 // මේ route එක /technicians/:id ට කලින් තියෙන්න ඕනේ
@@ -45,6 +51,17 @@ router.put(
   updateTechnicianShiftStatus
 );
 
+
+// ========================================
+// Change Technician Password
+// PUT /api/technicians/:id/change-password
+// ========================================
+router.put(
+  "/technicians/:id/change-password",
+  changeTechnicianPassword
+);
+
+
 // ========================================
 // Get Single Technician
 // ========================================
@@ -53,6 +70,7 @@ router.get(
   getTechnicianById
 );
 
+
 // ========================================
 // Update Technician
 // ========================================
@@ -60,5 +78,6 @@ router.put(
   "/technicians/:id",
   updateTechnician
 );
+
 
 module.exports = router;

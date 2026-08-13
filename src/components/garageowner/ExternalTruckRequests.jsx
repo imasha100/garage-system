@@ -14,6 +14,9 @@ import {
   X,
   XCircle,
   Bell,
+  Copy,
+  KeyRound,
+  LogIn,
 } from "lucide-react";
 
 const API_BASE = "http://localhost:5000";
@@ -120,19 +123,19 @@ const normalizeRequest = (item = {}) => ({
     "External",
 
   truckId:
-   item.truckId ??
-   item.approved_truck_id ??
-   null,
+    item.truckId ??
+    item.approved_truck_id ??
+    null,
 
- assignmentStatus:
-   item.assignmentStatus ??
-   item.assignment_status ??
-   "",
+  assignmentStatus:
+    item.assignmentStatus ??
+    item.assignment_status ??
+    "",
 
- garageId:
-   item.garageId ??
-   item.garage_garage_id ??
-   null,
+  garageId:
+    item.garageId ??
+    item.garage_garage_id ??
+    null,
 
   garageName:
     item.garageName ??
@@ -184,7 +187,7 @@ export default function ExternalTruckRequests({
 
         const loginId = Number(
           staffUser?.loginId ??
-            staffUser?.login_id
+          staffUser?.login_id
         );
 
         if (
@@ -200,8 +203,7 @@ export default function ExternalTruckRequests({
           `${API_BASE}/api/owners/profile/${loginId}`
         );
 
-        const result =
-          await response.json();
+        const result = await response.json();
 
         if (
           !response.ok ||
@@ -209,7 +211,7 @@ export default function ExternalTruckRequests({
         ) {
           throw new Error(
             result.message ||
-              "Unable to load garage owner profile."
+            "Unable to load garage owner profile."
           );
         }
 
@@ -227,7 +229,7 @@ export default function ExternalTruckRequests({
         if (isMounted) {
           setOwnerError(
             error.message ||
-              "Unable to load garage owner profile."
+            "Unable to load garage owner profile."
           );
         }
       } finally {
@@ -260,7 +262,7 @@ export default function ExternalTruckRequests({
 
   const ownerGarageId = Number(
     ownerData?.garage?.garageId ??
-      ownerData?.garage?.garage_id
+    ownerData?.garage?.garage_id
   );
 
   const ownerInitials =
@@ -285,6 +287,10 @@ export default function ExternalTruckRequests({
         : `${API_BASE}${profilePhotoPath}`
       : null;
 
+  // ======================================================
+  // REQUEST STATES
+  // ======================================================
+
   const [requests, setRequests] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -307,17 +313,52 @@ export default function ExternalTruckRequests({
   const [isProcessing, setIsProcessing] =
     useState(false);
 
+  // ======================================================
+  // UPDATED SUCCESS MODAL
+  // Stores generated external-driver credentials
+  // ======================================================
+
   const [successModal, setSuccessModal] = useState({
+    open: false,
+    title: "",
+    message: "",
+
+    externalDriverId: "",
+    temporaryPassword: "",
+
+    garageName: "",
+    driverName: "",
+    truckNumber: "",
+
+    isNewDriverAccount: false,
+  });
+
+  const [errorModal, setErrorModal] = useState({
     open: false,
     title: "",
     message: "",
   });
 
-  const [errorModal, setErrorModal] = useState({
-  open: false,
-  title: "",
-  message: "",
-});
+  // ======================================================
+  // COPY CREDENTIAL
+  // ======================================================
+
+  const copyCredential = async (value) => {
+    if (!value) return;
+
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch (error) {
+      console.error(
+        "Unable to copy credential:",
+        error
+      );
+    }
+  };
+
+  // ======================================================
+  // GARAGE ID
+  // ======================================================
 
   const getLoggedInGarageId = () => {
     try {
@@ -340,9 +381,9 @@ export default function ExternalTruckRequests({
 
       const garageId = Number(
         staffUser?.garageId ??
-          staffUser?.garage_id ??
-          staffUser?.garageGarageId ??
-          staffUser?.garage_garage_id
+        staffUser?.garage_id ??
+        staffUser?.garageGarageId ??
+        staffUser?.garage_garage_id
       );
 
       return Number.isInteger(garageId) &&
@@ -358,6 +399,10 @@ export default function ExternalTruckRequests({
       return null;
     }
   };
+
+  // ======================================================
+  // LOAD REQUESTS
+  // ======================================================
 
   const fetchRequests = async () => {
     setIsLoading(true);
@@ -378,10 +423,13 @@ export default function ExternalTruckRequests({
 
       const data = await response.json();
 
-      if (!response.ok || data.success === false) {
+      if (
+        !response.ok ||
+        data.success === false
+      ) {
         throw new Error(
           data.message ||
-            "Unable to load external truck requests."
+          "Unable to load external truck requests."
         );
       }
 
@@ -403,7 +451,7 @@ export default function ExternalTruckRequests({
 
       setLoadError(
         error.message ||
-          "Unable to load external truck requests."
+        "Unable to load external truck requests."
       );
 
       setRequests([]);
@@ -413,8 +461,14 @@ export default function ExternalTruckRequests({
   };
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    if (!ownerLoading) {
+      fetchRequests();
+    }
+  }, [ownerLoading, ownerGarageId]);
+
+  // ======================================================
+  // OPEN REQUEST DETAILS
+  // ======================================================
 
   const handleOpenDetails = async (request) => {
     setIsLoadingDetails(true);
@@ -426,10 +480,13 @@ export default function ExternalTruckRequests({
 
       const data = await response.json();
 
-      if (!response.ok || data.success === false) {
+      if (
+        !response.ok ||
+        data.success === false
+      ) {
         throw new Error(
           data.message ||
-            "Unable to load request details."
+          "Unable to load request details."
         );
       }
 
@@ -458,6 +515,10 @@ export default function ExternalTruckRequests({
     setSelectedRequest(null);
   };
 
+  // ======================================================
+  // ACTION MODAL
+  // ======================================================
+
   const openActionModal = (type, request) => {
     setActionModal({
       open: true,
@@ -476,6 +537,11 @@ export default function ExternalTruckRequests({
     });
   };
 
+  // ======================================================
+  // APPROVE / REJECT / RELEASE
+  // UPDATED TO READ DRIVER LOGIN CREDENTIALS
+  // ======================================================
+
   const processRequest = async () => {
     const request = actionModal.request;
     const actionType = actionModal.type;
@@ -485,11 +551,10 @@ export default function ExternalTruckRequests({
     setIsProcessing(true);
 
     try {
-
       const targetId =
         actionType === "release"
-        ? request.truckId
-        : request.registrationId;
+          ? request.truckId
+          : request.registrationId;
 
       const response = await fetch(
         `${API_URL}/${targetId}/${actionType}`,
@@ -503,10 +568,13 @@ export default function ExternalTruckRequests({
 
       const data = await response.json();
 
-      if (!response.ok || data.success === false) {
+      if (
+        !response.ok ||
+        data.success === false
+      ) {
         throw new Error(
           data.message ||
-            `Unable to ${actionType} this request.`
+          `Unable to ${actionType} this request.`
         );
       }
 
@@ -527,6 +595,19 @@ export default function ExternalTruckRequests({
             ? {
                 ...item,
                 status: updatedStatus,
+
+                truckId:
+                  actionType === "approve"
+                    ? data?.data?.truckId ??
+                      item.truckId
+                    : item.truckId,
+
+                assignmentStatus:
+                  actionType === "approve"
+                    ? "Active"
+                    : actionType === "release"
+                    ? "Inactive"
+                    : item.assignmentStatus,
               }
             : item
         )
@@ -538,7 +619,21 @@ export default function ExternalTruckRequests({
       ) {
         setSelectedRequest((previous) => ({
           ...previous,
+
           status: updatedStatus,
+
+          truckId:
+            actionType === "approve"
+              ? data?.data?.truckId ??
+                previous?.truckId
+              : previous?.truckId,
+
+          assignmentStatus:
+            actionType === "approve"
+              ? "Active"
+              : actionType === "release"
+              ? "Inactive"
+              : previous?.assignmentStatus,
         }));
       }
 
@@ -548,23 +643,81 @@ export default function ExternalTruckRequests({
         request: null,
       });
 
-      setSuccessModal({
-        open: true,
-        
-        title:
-  actionType === "approve"
-    ? "Request Approved"
-    : actionType === "reject"
-    ? "Request Rejected"
-    : "Truck Released",
+      // ==================================================
+      // APPROVAL - SHOW GENERATED LOGIN DETAILS
+      // ==================================================
 
-message:
-  actionType === "approve"
-    ? "The external tow truck and driver were added to the garage successfully."
-    : actionType === "reject"
-    ? "The external tow truck registration request was rejected successfully."
-    : "The external tow truck has been released successfully.",
-      });
+      if (actionType === "approve") {
+        const approvalData =
+          data?.data || {};
+
+        setSuccessModal({
+          open: true,
+
+          title:
+            "REGISTRATION APPROVED",
+
+          message:
+            `Your registration with ${
+              approvalData.garageName ||
+              request.garageName ||
+              garageName
+            } has been approved.`,
+
+          externalDriverId:
+            approvalData.externalDriverId ||
+            "",
+
+          temporaryPassword:
+            approvalData.temporaryPassword ||
+            "",
+
+          garageName:
+            approvalData.garageName ||
+            request.garageName ||
+            garageName ||
+            "",
+
+          driverName:
+            approvalData.driverFullName ||
+            request.driverFullName ||
+            "",
+
+          truckNumber:
+            approvalData.truckNumber ||
+            request.truckNumber ||
+            "",
+
+          isNewDriverAccount:
+            Boolean(
+              approvalData.isNewDriverAccount ??
+              approvalData.externalDriverId
+            ),
+        });
+      } else {
+        setSuccessModal({
+          open: true,
+
+          title:
+            actionType === "reject"
+              ? "Request Rejected"
+              : "Truck Released",
+
+          message:
+            actionType === "reject"
+              ? "The external tow truck registration request was rejected successfully."
+              : "The external tow truck has been released successfully.",
+
+          externalDriverId: "",
+          temporaryPassword: "",
+          garageName: "",
+          driverName: "",
+          truckNumber: "",
+          isNewDriverAccount: false,
+        });
+      }
+
+      await fetchRequests();
     } catch (error) {
       console.error(
         "Process external request error:",
@@ -573,12 +726,14 @@ message:
 
       setErrorModal({
         open: true,
+
         title:
           actionType === "release"
             ? "Truck Release Failed"
             : actionType === "approve"
             ? "Approval Failed"
             : "Rejection Failed",
+
         message:
           error.message ||
           `Unable to ${actionType} this request.`,
@@ -588,10 +743,13 @@ message:
     }
   };
 
+  // ======================================================
+  // FILTER
+  // ======================================================
+
   const filteredRequests = useMemo(() => {
-    const searchText = searchQuery
-      .trim()
-      .toLowerCase();
+    const searchText =
+      searchQuery.trim().toLowerCase();
 
     return requests.filter((request) => {
       const matchesStatus =
@@ -618,19 +776,29 @@ message:
 
       return matchesStatus && matchesSearch;
     });
-  }, [requests, searchQuery, statusFilter]);
+  }, [
+    requests,
+    searchQuery,
+    statusFilter,
+  ]);
 
   const counts = useMemo(
     () => ({
       total: requests.length,
+
       pending: requests.filter(
-        (request) => request.status === "Pending"
+        (request) =>
+          request.status === "Pending"
       ).length,
+
       approved: requests.filter(
-        (request) => request.status === "Approved"
+        (request) =>
+          request.status === "Approved"
       ).length,
+
       rejected: requests.filter(
-        (request) => request.status === "Rejected"
+        (request) =>
+          request.status === "Rejected"
       ).length,
     }),
     [requests]
@@ -645,12 +813,23 @@ message:
       return "border-red-500/30 bg-red-500/10 text-red-400";
     }
 
+    if (status === "Released") {
+      return "border-orange-500/30 bg-orange-500/10 text-orange-400";
+    }
+
     return "border-amber-500/30 bg-amber-500/10 text-amber-400";
   };
 
+  // ======================================================
+  // MAP
+  // ======================================================
+
   const openMap = (request) => {
-    const latitude = Number(request.latitude);
-    const longitude = Number(request.longitude);
+    const latitude =
+      Number(request.latitude);
+
+    const longitude =
+      Number(request.longitude);
 
     if (
       !Number.isFinite(latitude) ||
@@ -659,6 +838,7 @@ message:
       window.alert(
         "A valid truck location is not available."
       );
+
       return;
     }
 
@@ -668,11 +848,21 @@ message:
       "noopener,noreferrer"
     );
   };
+    // ======================================================
+  // UI
+  // ======================================================
 
   return (
     <div className="min-h-screen bg-[#07080f] text-white">
+
+      {/* ==================================================
+          HEADER
+      ================================================== */}
+
       <header className="min-h-16 border-b border-white/10 bg-[#15151f] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
+
         <div className="flex items-center gap-3">
+
           <button
             type="button"
             onClick={toggleSidebar}
@@ -691,9 +881,11 @@ message:
               Review external truck registration requests
             </p>
           </div>
+
         </div>
 
         <div className="flex items-center gap-5">
+
           <Bell
             size={18}
             className="text-gray-300"
@@ -702,6 +894,7 @@ message:
           <div className="h-8 w-px bg-white/10" />
 
           <div className="text-right">
+
             <p className="text-xs font-bold tracking-widest">
               {ownerName}
             </p>
@@ -709,9 +902,11 @@ message:
             <p className="max-w-[240px] truncate text-[10px] uppercase text-indigo-400">
               {garageName}
             </p>
+
           </div>
 
           <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-purple-500/30 bg-purple-500/10 text-xs">
+
             {ownerProfilePhoto ? (
               <img
                 src={ownerProfilePhoto}
@@ -721,11 +916,19 @@ message:
             ) : (
               ownerInitials
             )}
+
           </div>
+
         </div>
+
       </header>
 
+      {/* ==================================================
+          MAIN
+      ================================================== */}
+
       <main className="p-4 md:p-8">
+
         {ownerError && (
           <div className="mx-auto mb-6 max-w-7xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {ownerError}
@@ -733,16 +936,26 @@ message:
         )}
 
         <div className="mx-auto max-w-7xl">
+
+          {/* BACK */}
+
           <button
             type="button"
-            onClick={() => onNavigate("Registration")}
+            onClick={() =>
+              onNavigate("Registration")
+            }
             className="mb-6 flex items-center gap-2 text-sm text-gray-400 transition hover:text-white"
           >
             <ArrowLeft size={18} />
             Back to Registration
           </button>
 
+          {/* ==================================================
+              SUMMARY CARDS
+          ================================================== */}
+
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+
             <SummaryCard
               label="Total Requests"
               value={counts.total}
@@ -766,11 +979,19 @@ message:
               value={counts.rejected}
               className="text-red-400"
             />
+
           </div>
 
+          {/* ==================================================
+              SEARCH / FILTER
+          ================================================== */}
+
           <div className="mt-6 rounded-2xl border border-white/10 bg-[#15151f] p-5 md:p-6">
+
             <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+
               <div>
+
                 <h2 className="text-xl font-black md:text-2xl">
                   Registration Requests
                 </h2>
@@ -778,6 +999,7 @@ message:
                 <p className="mt-1 text-sm text-gray-500">
                   Review requests sent to your garage.
                 </p>
+
               </div>
 
               <button
@@ -789,15 +1011,21 @@ message:
                 <RefreshCw
                   size={17}
                   className={
-                    isLoading ? "animate-spin" : ""
+                    isLoading
+                      ? "animate-spin"
+                      : ""
                   }
                 />
+
                 Refresh
               </button>
+
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_220px]">
+
               <div className="relative">
+
                 <Search
                   size={19}
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500"
@@ -807,41 +1035,59 @@ message:
                   type="text"
                   value={searchQuery}
                   onChange={(event) =>
-                    setSearchQuery(event.target.value)
+                    setSearchQuery(
+                      event.target.value
+                    )
                   }
                   placeholder="Search by truck, model, driver or NIC..."
                   className="w-full rounded-xl border border-white/10 bg-black/30 py-3 pl-12 pr-4 outline-none placeholder:text-gray-600 focus:border-purple-500"
                 />
+
               </div>
 
               <select
                 value={statusFilter}
                 onChange={(event) =>
-                  setStatusFilter(event.target.value)
+                  setStatusFilter(
+                    event.target.value
+                  )
                 }
                 className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-purple-500"
               >
+
                 <option value="All">
                   All Statuses
                 </option>
+
                 <option value="Pending">
                   Pending
                 </option>
+
                 <option value="Approved">
                   Approved
                 </option>
+
                 <option value="Rejected">
                   Rejected
                 </option>
+
               </select>
+
             </div>
+
           </div>
+
+          {/* ==================================================
+              LOAD ERROR
+          ================================================== */}
 
           {loadError && (
             <div className="mt-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-300">
+
               <AlertCircle size={20} />
 
               <div>
+
                 <p className="font-bold">
                   Unable to load requests
                 </p>
@@ -849,13 +1095,22 @@ message:
                 <p className="mt-1 text-sm">
                   {loadError}
                 </p>
+
               </div>
+
             </div>
           )}
 
+          {/* ==================================================
+              REQUEST LIST
+          ================================================== */}
+
           {isLoading ? (
+
             <div className="mt-6 flex min-h-[320px] items-center justify-center rounded-2xl border border-white/10 bg-[#15151f]">
+
               <div className="text-center">
+
                 <LoaderCircle
                   size={36}
                   className="mx-auto animate-spin text-purple-400"
@@ -864,11 +1119,17 @@ message:
                 <p className="mt-4 text-gray-400">
                   Loading external requests...
                 </p>
+
               </div>
+
             </div>
+
           ) : filteredRequests.length === 0 ? (
+
             <div className="mt-6 flex min-h-[320px] items-center justify-center rounded-2xl border border-white/10 bg-[#15151f] p-8 text-center">
+
               <div>
+
                 <Truck
                   size={50}
                   className="mx-auto text-gray-700"
@@ -879,97 +1140,143 @@ message:
                 </h3>
 
                 <p className="mt-2 text-sm text-gray-500">
+
                   {searchQuery ||
                   statusFilter !== "All"
                     ? "No request matches the selected filters."
                     : "No external tow truck requests have been received yet."}
+
                 </p>
+
               </div>
+
             </div>
+
           ) : (
+
             <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {filteredRequests.map((request) => (
-                <div
-                  key={request.registrationId}
-                  className="rounded-2xl border border-white/10 bg-[#15151f] p-5 transition hover:-translate-y-1 hover:border-purple-500/40"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10">
-                        <Truck
-                          size={24}
-                          className="text-purple-400"
-                        />
+
+              {filteredRequests.map(
+                (request) => (
+
+                  <div
+                    key={
+                      request.registrationId
+                    }
+                    className="rounded-2xl border border-white/10 bg-[#15151f] p-5 transition hover:-translate-y-1 hover:border-purple-500/40"
+                  >
+
+                    <div className="flex items-start justify-between gap-3">
+
+                      <div className="flex min-w-0 items-center gap-3">
+
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10">
+
+                          <Truck
+                            size={24}
+                            className="text-purple-400"
+                          />
+
+                        </div>
+
+                        <div className="min-w-0">
+
+                          <h3 className="truncate font-black">
+                            {request.truckNumber ||
+                              "Unknown Truck"}
+                          </h3>
+
+                          <p className="mt-1 truncate text-xs font-bold text-purple-400">
+                            {request.truckModel ||
+                              "No model"}
+                          </p>
+
+                        </div>
+
                       </div>
 
-                      <div className="min-w-0">
-                        <h3 className="truncate font-black">
-                          {request.truckNumber ||
-                            "Unknown Truck"}
-                        </h3>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider ${statusClass(
+                          request.status
+                        )}`}
+                      >
+                        {request.status}
+                      </span>
 
-                        <p className="mt-1 truncate text-xs font-bold text-purple-400">
-                          {request.truckModel ||
-                            "No model"}
-                        </p>
-                      </div>
                     </div>
 
-                    <span
-                      className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider ${statusClass(
-                        request.status
-                      )}`}
+                    <div className="mt-5 space-y-3 rounded-xl border border-white/5 bg-black/20 p-4 text-sm">
+
+                      <InformationRow
+                        label="Truck Type"
+                        value={
+                          request.truckType
+                        }
+                      />
+
+                      <InformationRow
+                        label="Capacity"
+                        value={
+                          request.capacity !== ""
+                            ? `${request.capacity} tons`
+                            : "N/A"
+                        }
+                      />
+
+                      <InformationRow
+                        label="Driver"
+                        value={
+                          request.driverFullName
+                        }
+                      />
+
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleOpenDetails(
+                          request
+                        )
+                      }
+                      disabled={
+                        isLoadingDetails
+                      }
+                      className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-400 transition hover:bg-purple-500/20 disabled:opacity-50"
                     >
-                      {request.status}
-                    </span>
+                      <Eye size={18} />
+                      View Details
+                    </button>
+
                   </div>
 
-                  <div className="mt-5 space-y-3 rounded-xl border border-white/5 bg-black/20 p-4 text-sm">
-                    <InformationRow
-                      label="Truck Type"
-                      value={request.truckType}
-                    />
+                )
+              )}
 
-                    <InformationRow
-                      label="Capacity"
-                      value={
-                        request.capacity !== ""
-                          ? `${request.capacity} tons`
-                          : "N/A"
-                      }
-                    />
-
-                    <InformationRow
-                      label="Driver"
-                      value={
-                        request.driverFullName
-                      }
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleOpenDetails(request)
-                    }
-                    disabled={isLoadingDetails}
-                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-sm font-bold text-purple-400 transition hover:bg-purple-500/20 disabled:opacity-50"
-                  >
-                    <Eye size={18} />
-                    View Details
-                  </button>
-                </div>
-              ))}
             </div>
+
           )}
+
         </div>
+
       </main>
 
+      {/* ==================================================
+          REQUEST DETAILS MODAL
+      ================================================== */}
+
       {selectedRequest && (
+
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+
           <div className="max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#15151f]">
+
+            {/* MODAL HEADER */}
+
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#15151f] p-5 md:p-6">
+
               <div>
+
                 <h2 className="text-xl font-black md:text-2xl">
                   External Truck Request
                 </h2>
@@ -977,6 +1284,7 @@ message:
                 <p className="mt-1 text-xs font-bold text-purple-400">
                   {selectedRequest.truckNumber}
                 </p>
+
               </div>
 
               <button
@@ -986,11 +1294,17 @@ message:
               >
                 <X size={20} />
               </button>
+
             </div>
 
             <div className="p-5 md:p-6">
+
+              {/* STATUS + MAP */}
+
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+
                 <div>
+
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
                     Request Status
                   </p>
@@ -1002,27 +1316,37 @@ message:
                   >
                     {selectedRequest.status}
                   </span>
+
                 </div>
 
                 <button
                   type="button"
                   onClick={() =>
-                    openMap(selectedRequest)
+                    openMap(
+                      selectedRequest
+                    )
                   }
                   className="flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-sm font-bold text-blue-400 transition hover:bg-blue-500/20"
                 >
                   <MapPin size={18} />
                   View Truck Location
                 </button>
+
               </div>
 
+              {/* ==================================================
+                  TRUCK INFORMATION
+              ================================================== */}
+
               <div className="mt-7">
+
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-purple-400">
                   <Truck size={20} />
                   Truck Information
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
                   <DetailCard
                     label="Truck Number"
                     value={
@@ -1047,7 +1371,8 @@ message:
                   <DetailCard
                     label="Capacity"
                     value={
-                      selectedRequest.capacity !== ""
+                      selectedRequest.capacity !==
+                      ""
                         ? `${selectedRequest.capacity} tons`
                         : "N/A"
                     }
@@ -1080,18 +1405,26 @@ message:
                       selectedRequest.longitude
                     }
                   />
+
                 </div>
+
               </div>
 
               <div className="my-7 border-t border-white/10" />
 
+              {/* ==================================================
+                  DRIVER INFORMATION
+              ================================================== */}
+
               <div>
+
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-emerald-400">
                   <UserRound size={20} />
                   Driver Information
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
                   <DetailCard
                     label="Driver Full Name"
                     value={
@@ -1150,18 +1483,26 @@ message:
                       selectedRequest.driverStatus
                     }
                   />
+
                 </div>
+
               </div>
 
               <div className="my-7 border-t border-white/10" />
 
+              {/* ==================================================
+                  GARAGE INFORMATION
+              ================================================== */}
+
               <div>
+
                 <h3 className="mb-4 flex items-center gap-2 text-lg font-black text-blue-400">
                   <MapPin size={20} />
                   Selected Garage
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
                   <DetailCard
                     label="Garage Name"
                     value={
@@ -1177,17 +1518,26 @@ message:
                   />
 
                   <div className="md:col-span-2">
+
                     <DetailCard
                       label="Garage Address"
                       value={
                         selectedRequest.garageAddress
                       }
                     />
+
                   </div>
+
                 </div>
+
               </div>
 
+              {/* ==================================================
+                  REQUEST ACTION BUTTONS
+              ================================================== */}
+
               <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
+
                 <button
                   type="button"
                   onClick={closeDetails}
@@ -1199,7 +1549,9 @@ message:
 
                 {selectedRequest.status ===
                   "Pending" && (
+
                   <>
+
                     <button
                       type="button"
                       onClick={() =>
@@ -1227,77 +1579,129 @@ message:
                       <Check size={18} />
                       Approve
                     </button>
+
                   </>
+
                 )}
 
-                {selectedRequest.status === "Approved" &&
-   selectedRequest.assignmentStatus === "Active" &&
-  selectedRequest.truckId && (
-    <button
-      type="button"
-      onClick={() =>
-        openActionModal("release", selectedRequest)
-      }
-      className="flex items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-6 py-3 font-black text-orange-400 transition hover:bg-orange-500/20"
-    >
-      <Truck size={18} />
-      Release Truck
-    </button>
-  )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+                {selectedRequest.status ===
+                  "Approved" &&
+                  selectedRequest.assignmentStatus ===
+                    "Active" &&
+                  selectedRequest.truckId && (
 
-      {actionModal.open && actionModal.request && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-          onMouseDown={(event) => {
-            if (
-              event.target === event.currentTarget
-            ) {
-              closeActionModal();
-            }
-          }}
-        >
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#11131b] p-6 text-center shadow-2xl">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openActionModal(
+                          "release",
+                          selectedRequest
+                        )
+                      }
+                      className="flex items-center justify-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-6 py-3 font-black text-orange-400 transition hover:bg-orange-500/20"
+                    >
+                      <Truck size={18} />
+                      Release Truck
+                    </button>
+
+                  )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+            {/* ==================================================
+          ACTION CONFIRMATION MODAL
+      ================================================== */}
+
+      {actionModal.open && (
+
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#15151f] p-6 shadow-2xl">
+
             <div
-              className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full border ${
+              className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${
                 actionModal.type === "approve"
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                  : "border-red-500/30 bg-red-500/10 text-red-400"
+                  ? "border border-emerald-500/30 bg-emerald-500/10"
+                  : actionModal.type === "reject"
+                  ? "border border-red-500/30 bg-red-500/10"
+                  : "border border-orange-500/30 bg-orange-500/10"
               }`}
             >
+
               {actionModal.type === "approve" ? (
-                <Check size={32} />
+
+                <Check
+                  size={30}
+                  className="text-emerald-400"
+                />
+
+              ) : actionModal.type === "reject" ? (
+
+                <XCircle
+                  size={30}
+                  className="text-red-400"
+                />
+
               ) : (
-                <XCircle size={32} />
+
+                <Truck
+                  size={30}
+                  className="text-orange-400"
+                />
+
               )}
+
             </div>
 
-            <h2 className="mt-5 text-2xl font-black">
-              {actionModal.type === "approve"
-                ? "Approve this request?"
-                : actionModal.type === "reject"
-                ? "Reject this request?"
-                : "Release this truck?"}
-            </h2>
+            <div className="mt-5 text-center">
 
-          <p className="mt-3 text-sm leading-6 text-gray-400">
-            {actionModal.type === "approve"
-              ? "The external truck and driver will be added to your garage records."
-              : actionModal.type === "reject"
-              ? "The request will be marked as rejected and no truck record will be created."
-              : "This truck will be released from your garage and can be registered with another garage later."}
-          </p>
+              <h2 className="text-xl font-black">
 
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                {actionModal.type === "approve"
+                  ? "Approve Registration?"
+                  : actionModal.type === "reject"
+                  ? "Reject Registration?"
+                  : "Release External Truck?"}
+
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-gray-400">
+
+                {actionModal.type === "approve"
+                  ? `Are you sure you want to approve ${
+                      actionModal.request?.truckNumber ||
+                      "this external truck"
+                    }? A login account will be created for the external driver.`
+
+                  : actionModal.type === "reject"
+                  ? `Are you sure you want to reject the registration request for ${
+                      actionModal.request?.truckNumber ||
+                      "this external truck"
+                    }?`
+
+                  : `Are you sure you want to release ${
+                      actionModal.request?.truckNumber ||
+                      "this external truck"
+                    } from your garage?`}
+
+              </p>
+
+            </div>
+
+            <div className="mt-7 grid grid-cols-2 gap-3">
+
               <button
                 type="button"
                 onClick={closeActionModal}
                 disabled={isProcessing}
-                className="flex flex-1 items-center justify-center rounded-xl border border-white/10 bg-black/30 px-5 py-3 font-bold text-gray-300 disabled:opacity-50"
+                className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 font-bold text-gray-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -1306,112 +1710,438 @@ message:
                 type="button"
                 onClick={processRequest}
                 disabled={isProcessing}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-3 font-black text-white disabled:opacity-60 ${
+                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-white transition disabled:cursor-not-allowed disabled:opacity-50 ${
                   actionModal.type === "approve"
                     ? "bg-emerald-600 hover:bg-emerald-500"
-                    : "bg-red-600 hover:bg-red-500"
+                    : actionModal.type === "reject"
+                    ? "bg-red-600 hover:bg-red-500"
+                    : "bg-orange-600 hover:bg-orange-500"
                 }`}
               >
+
                 {isProcessing ? (
+
                   <>
                     <LoaderCircle
                       size={18}
                       className="animate-spin"
                     />
+
                     Processing...
                   </>
-                ) : actionModal.type === "approve" ? (
-  <>
-    <Check size={18} />
-    Approve
-  </>
-) : actionModal.type === "reject" ? (
-  <>
-    <XCircle size={18} />
-    Reject
-  </>
-) : (
-  <>
-    <Truck size={18} />
-    Release Truck
-  </>
-)}
+
+                ) : (
+
+                  <>
+                    {actionModal.type === "approve" ? (
+                      <Check size={18} />
+                    ) : actionModal.type === "reject" ? (
+                      <XCircle size={18} />
+                    ) : (
+                      <Truck size={18} />
+                    )}
+
+                    {actionModal.type === "approve"
+                      ? "Approve"
+                      : actionModal.type === "reject"
+                      ? "Reject"
+                      : "Release"}
+                  </>
+
+                )}
+
               </button>
+
             </div>
+
           </div>
+
         </div>
+
       )}
 
+      {/* ==================================================
+          SUCCESS MODAL
+      ================================================== */}
+
       {successModal.open && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-emerald-500/30 bg-[#11131b] p-7 text-center shadow-2xl shadow-emerald-500/10">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-black">
-              <Check size={32} strokeWidth={3} />
+
+      <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/85 p-4 backdrop-blur-md">
+
+      <div className="mx-auto my-4 w-full max-w-lg max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-white/10 bg-[#15151f] shadow-2xl">
+            {/* ==================================================
+                APPROVED + NEW DRIVER ACCOUNT
+            ================================================== */}
+
+            {successModal.isNewDriverAccount ? (
+
+              <>
+
+                {/* TOP */}
+
+                <div className="border-b border-white/10 bg-gradient-to-b from-emerald-500/10 to-transparent px-6 pb-6 pt-8 text-center">
+
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
+
+                    <Check
+                      size={38}
+                      className="text-emerald-400"
+                    />
+
+                  </div>
+
+                  <h2 className="mt-5 text-2xl font-black tracking-wide text-white">
+                    REGISTRATION APPROVED
+                  </h2>
+
+                  <p className="mt-3 text-sm leading-6 text-gray-400">
+                    {successModal.message}
+                  </p>
+
+                </div>
+
+                {/* DETAILS */}
+
+                <div className="p-6">
+
+                  {(successModal.driverName ||
+                    successModal.truckNumber) && (
+
+                    <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                      {successModal.driverName && (
+
+                        <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                            Driver
+                          </p>
+
+                          <p className="mt-2 truncate text-sm font-bold text-white">
+                            {successModal.driverName}
+                          </p>
+
+                        </div>
+
+                      )}
+
+                      {successModal.truckNumber && (
+
+                        <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                            Truck
+                          </p>
+
+                          <p className="mt-2 text-sm font-bold text-white">
+                            {successModal.truckNumber}
+                          </p>
+
+                        </div>
+
+                      )}
+
+                    </div>
+
+                  )}
+
+                  {/* LOGIN CREDENTIAL BOX */}
+
+                  <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-5">
+
+                    <div className="flex items-center gap-3">
+
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-purple-500/30 bg-purple-500/10">
+
+                        <KeyRound
+                          size={21}
+                          className="text-purple-400"
+                        />
+
+                      </div>
+
+                      <div>
+
+                        <h3 className="font-black text-white">
+                          External Driver Login
+                        </h3>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          Use these credentials to access the driver portal.
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {/* DRIVER ID */}
+
+                    <div className="mt-5">
+
+                      <label className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-500">
+                        External Driver ID
+                      </label>
+
+                      <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 p-3">
+
+                        <span className="min-w-0 flex-1 break-all font-mono text-sm font-black tracking-wider text-emerald-400">
+                          {successModal.externalDriverId ||
+                            "Not available"}
+                        </span>
+
+                        {successModal.externalDriverId && (
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyCredential(
+                                successModal.externalDriverId
+                              )
+                            }
+                            title="Copy Driver ID"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition hover:bg-white/10 hover:text-white"
+                          >
+                            <Copy size={16} />
+                          </button>
+
+                        )}
+
+                      </div>
+
+                    </div>
+
+                    {/* TEMP PASSWORD */}
+
+                    <div className="mt-4">
+
+                      <label className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-500">
+                        Temporary Password
+                      </label>
+
+                      <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/40 p-3">
+
+                        <span className="min-w-0 flex-1 break-all font-mono text-sm font-black tracking-wider text-amber-400">
+                          {successModal.temporaryPassword ||
+                            "Not available"}
+                        </span>
+
+                        {successModal.temporaryPassword && (
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              copyCredential(
+                                successModal.temporaryPassword
+                              )
+                            }
+                            title="Copy Temporary Password"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 transition hover:bg-white/10 hover:text-white"
+                          >
+                            <Copy size={16} />
+                          </button>
+
+                        )}
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                  {/* IMPORTANT NOTE */}
+
+                  <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+
+                    <AlertCircle
+                      size={18}
+                      className="mt-0.5 shrink-0 text-amber-400"
+                    />
+
+                    <p className="text-xs leading-5 text-gray-400">
+                      The External Driver ID is the permanent username.
+                      The driver can change the temporary password after
+                      logging in.
+                    </p>
+
+                  </div>
+
+                  {/* BUTTONS */}
+
+                  <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSuccessModal({
+                          open: false,
+                          title: "",
+                          message: "",
+                          externalDriverId: "",
+                          temporaryPassword: "",
+                          garageName: "",
+                          driverName: "",
+                          truckNumber: "",
+                          isNewDriverAccount: false,
+                        })
+                      }
+                      className="rounded-xl border border-white/10 bg-black/30 px-5 py-3 font-bold text-gray-300 transition hover:bg-white/5 hover:text-white"
+                    >
+                      Close
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+
+                        /*
+                          Driver Login page is the next page
+                          we are going to create.
+
+                          After that page is added to App.jsx,
+                          this navigation will open it.
+                        */
+
+                        setSuccessModal({
+                          open: false,
+                          title: "",
+                          message: "",
+                          externalDriverId: "",
+                          temporaryPassword: "",
+                          garageName: "",
+                          driverName: "",
+                          truckNumber: "",
+                          isNewDriverAccount: false,
+                        });
+
+                        if (onNavigate) {
+                          onNavigate(
+                            "external-driver-login"
+                          );
+                        }
+
+                      }}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-5 py-3 font-black text-white transition hover:bg-purple-500"
+                    >
+                      <LogIn size={18} />
+                      GO TO DRIVER LOGIN
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </>
+
+            ) : (
+
+              /* ==================================================
+                 NORMAL SUCCESS POPUP
+                 Reject / Release
+              ================================================== */
+
+              <div className="p-7 text-center">
+
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10">
+
+                  <Check
+                    size={30}
+                    className="text-emerald-400"
+                  />
+
+                </div>
+
+                <h2 className="mt-5 text-xl font-black">
+                  {successModal.title}
+                </h2>
+
+                <p className="mt-3 text-sm leading-6 text-gray-400">
+                  {successModal.message}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSuccessModal({
+                      open: false,
+                      title: "",
+                      message: "",
+                      externalDriverId: "",
+                      temporaryPassword: "",
+                      garageName: "",
+                      driverName: "",
+                      truckNumber: "",
+                      isNewDriverAccount: false,
+                    })
+                  }
+                  className="mt-6 w-full rounded-xl bg-purple-600 px-5 py-3 font-black text-white transition hover:bg-purple-500"
+                >
+                  OK
+                </button>
+
+              </div>
+
+            )}
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* ==================================================
+          ERROR MODAL
+      ================================================== */}
+
+      {errorModal.open && (
+
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
+
+          <div className="w-full max-w-md rounded-3xl border border-red-500/20 bg-[#15151f] p-7 text-center shadow-2xl">
+
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10">
+
+              <XCircle
+                size={30}
+                className="text-red-400"
+              />
+
             </div>
 
-            <h2 className="mt-5 text-2xl font-black">
-              {successModal.title}
+            <h2 className="mt-5 text-xl font-black">
+              {errorModal.title}
             </h2>
 
             <p className="mt-3 text-sm leading-6 text-gray-400">
-              {successModal.message}
+              {errorModal.message}
             </p>
 
             <button
               type="button"
               onClick={() =>
-                setSuccessModal({
+                setErrorModal({
                   open: false,
                   title: "",
                   message: "",
                 })
               }
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3 font-black text-black transition hover:bg-emerald-400"
+              className="mt-6 w-full rounded-xl bg-red-600 px-5 py-3 font-black text-white transition hover:bg-red-500"
             >
-              <Check size={18} />
-              Done
+              Close
             </button>
+
           </div>
+
         </div>
+
       )}
 
-      {errorModal.open && (
-  <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-    <div className="w-full max-w-md rounded-3xl border border-red-500/30 bg-[#11131b] p-7 text-center shadow-2xl shadow-red-500/10">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-white">
-        <XCircle size={32} strokeWidth={3} />
-      </div>
-
-      <h2 className="mt-5 text-2xl font-black text-white">
-        {errorModal.title}
-      </h2>
-
-      <p className="mt-3 text-sm leading-6 text-gray-400">
-        {errorModal.message}
-      </p>
-
-      <button
-        type="button"
-        onClick={() =>
-          setErrorModal({
-            open: false,
-            title: "",
-            message: "",
-          })
-        }
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-5 py-3 font-black text-white transition hover:bg-red-400"
-      >
-        <X size={18} />
-        Close
-      </button>
     </div>
-  </div>
-)}
-    </div>
-
-
   );
 }
+
+// ======================================================
+// SUMMARY CARD
+// ======================================================
 
 function SummaryCard({
   label,
@@ -1420,47 +2150,67 @@ function SummaryCard({
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-[#15151f] p-5">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">
+
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-500">
         {label}
       </p>
 
       <p
-        className={`mt-2 text-2xl font-black md:text-3xl ${className}`}
+        className={`mt-3 text-3xl font-black ${className}`}
       >
         {value}
       </p>
+
     </div>
   );
 }
 
-function InformationRow({ label, value }) {
+// ======================================================
+// INFORMATION ROW
+// ======================================================
+
+function InformationRow({
+  label,
+  value,
+}) {
   return (
-    <div className="flex justify-between gap-4">
+    <div className="flex items-start justify-between gap-4">
+
       <span className="text-gray-500">
         {label}
       </span>
 
-      <span className="max-w-[60%] truncate text-right font-semibold text-gray-300">
+      <span className="max-w-[60%] break-words text-right font-bold text-gray-200">
         {value || "N/A"}
       </span>
+
     </div>
   );
 }
 
-function DetailCard({ label, value }) {
+// ======================================================
+// DETAIL CARD
+// ======================================================
+
+function DetailCard({
+  label,
+  value,
+}) {
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600">
+
+      <p className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500">
         {label}
       </p>
 
-      <p className="mt-2 break-words text-sm font-semibold text-gray-300">
-        {value !== null &&
-        value !== undefined &&
-        value !== ""
-          ? value
-          : "N/A"}
+      <p className="mt-2 break-words text-sm font-bold text-gray-200">
+        {value === null ||
+        value === undefined ||
+        value === ""
+          ? "N/A"
+          : value}
       </p>
+
     </div>
   );
 }

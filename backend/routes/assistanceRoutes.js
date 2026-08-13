@@ -13,6 +13,7 @@ const {
   updateAssistance,
   updateAssistanceShiftStatus,
   uploadAssistanceProfilePhoto,
+  changeAssistancePassword,
 } = require("../controllers/assistanceController");
 
 // ======================================================
@@ -142,17 +143,6 @@ router.get(
 );
 
 // ======================================================
-// GET SINGLE ASSISTANCE OFFICER
-//
-// GET /api/assistances/:id
-// ======================================================
-
-router.get(
-  "/assistances/:id",
-  getAssistanceById
-);
-
-// ======================================================
 // UPLOAD ASSISTANCE PROFILE PHOTO
 //
 // PUT /api/assistances/:id/photo
@@ -176,6 +166,34 @@ router.put(
 router.put(
   "/assistances/:id/shift-status",
   updateAssistanceShiftStatus
+);
+
+// ======================================================
+// CHANGE ASSISTANCE PASSWORD
+//
+// PUT /api/assistances/:id/change-password
+//
+// Body:
+// {
+//   "currentPassword": "Assist@123456",
+//   "newPassword": "NewPass@123"
+// }
+// ======================================================
+
+router.put(
+  "/assistances/:id/change-password",
+  changeAssistancePassword
+);
+
+// ======================================================
+// GET SINGLE ASSISTANCE OFFICER
+//
+// GET /api/assistances/:id
+// ======================================================
+
+router.get(
+  "/assistances/:id",
+  getAssistanceById
 );
 
 // ======================================================
