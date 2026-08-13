@@ -32,6 +32,9 @@ import AssistRegistration from "./components/garageOwner/AssistRegistration";
 import ExternalTruckRegistration from "./components/garageOwner/ExternalTruckRegistration";
 import ExternalTruckRequests from "./components/garageOwner/ExternalTruckRequests";
 
+import ExternalDriverLogin from "./components/externalDriver/ExternalDriverLogin";
+import ExternalDriverDashboard from "./components/externalDriver/ExternalDriverDashboard";
+
 function App() {
   const [currentPage, setCurrentPage] = useState(() => {
     return sessionStorage.getItem("currentPage") || "start";
@@ -48,7 +51,10 @@ function App() {
 
     // Keep the current application page after browser refresh.
     window.history.replaceState(
-      { page: savedPage, swiftGarage: true },
+      {
+        page: savedPage,
+        swiftGarage: true,
+      },
       "",
       window.location.href
     );
@@ -77,7 +83,10 @@ function App() {
       );
 
       window.history.pushState(
-        { page: "start", swiftGarage: true },
+        {
+          page: "start",
+          swiftGarage: true,
+        },
         "",
         window.location.href
       );
@@ -596,6 +605,28 @@ function App() {
     case "staff-login":
       return (
         <StaffLogin
+          onNavigate={handleNavigate}
+        />
+      );
+
+    // ====================================================
+    // EXTERNAL DRIVER LOGIN
+    // ====================================================
+
+    case "external-driver-login":
+      return (
+        <ExternalDriverLogin
+          onNavigate={handleNavigate}
+        />
+      );
+
+    // ====================================================
+    // EXTERNAL DRIVER DASHBOARD
+    // ====================================================
+
+    case "external-driver-dashboard":
+      return (
+        <ExternalDriverDashboard
           onNavigate={handleNavigate}
         />
       );

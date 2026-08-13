@@ -21,6 +21,10 @@ import {
   UserCog,
   Save,
   Pencil,
+  Eye,
+  EyeOff,
+  Camera,
+  CheckCircle2,
 } from "lucide-react";
 
 import avatarImage from "../../assets/profile.png";
@@ -109,6 +113,55 @@ export default function TechnicianProfile({
   ] = useState([]);
 
   // ======================================================
+  // CHANGE PASSWORD STATES
+  // ======================================================
+
+  const [
+    currentPassword,
+    setCurrentPassword,
+  ] = useState("");
+
+  const [
+    newPassword,
+    setNewPassword,
+  ] = useState("");
+
+  const [
+    confirmPassword,
+    setConfirmPassword,
+  ] = useState("");
+
+  const [
+    isChangingPassword,
+    setIsChangingPassword,
+  ] = useState(false);
+
+  const [
+    showCurrentPassword,
+    setShowCurrentPassword,
+  ] = useState(false);
+
+  const [
+    showNewPassword,
+    setShowNewPassword,
+  ] = useState(false);
+
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
+
+  const [
+    passwordSuccessPopup,
+    setPasswordSuccessPopup,
+  ] = useState(false);
+
+  const [
+    profilePhotoPreview,
+    setProfilePhotoPreview,
+  ] = useState("");
+
+  // ======================================================
   // GET LOGGED-IN STAFF USER
   // ======================================================
 
@@ -172,6 +225,108 @@ export default function TechnicianProfile({
     }
 
     return technicianId;
+  };
+
+  // ======================================================
+  // PROFILE PHOTO UPLOAD
+  // ======================================================
+
+  useEffect(() => {
+    const technicianId =
+      getTechnicianId();
+
+    if (!technicianId) {
+      return;
+    }
+
+    const storedPhoto =
+      localStorage.getItem(
+        `technicianProfilePhoto_${technicianId}`
+      );
+
+    if (storedPhoto) {
+      setProfilePhotoPreview(
+        storedPhoto
+      );
+    }
+  }, []);
+
+  const handleProfilePhotoChange = (
+    event
+  ) => {
+    const file =
+      event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (
+      !file.type.startsWith(
+        "image/"
+      )
+    ) {
+      showSaveMessage(
+        "Please select a valid image file.",
+        "error"
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    if (
+      file.size >
+      2 * 1024 * 1024
+    ) {
+      showSaveMessage(
+        "Profile photo must be 2 MB or smaller.",
+        "error"
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    const reader =
+      new FileReader();
+
+    reader.onload = () => {
+      const imageData =
+        String(
+          reader.result || ""
+        );
+
+      const technicianId =
+        getTechnicianId();
+
+      setProfilePhotoPreview(
+        imageData
+      );
+
+      if (technicianId) {
+        localStorage.setItem(
+          `technicianProfilePhoto_${technicianId}`,
+          imageData
+        );
+      }
+
+      showSaveMessage(
+        "Profile photo updated successfully.",
+        "success"
+      );
+    };
+
+    reader.onerror = () => {
+      showSaveMessage(
+        "Unable to load the selected profile photo.",
+        "error"
+      );
+    };
+
+    reader.readAsDataURL(file);
+
+    event.target.value = "";
   };
 
   // ======================================================
@@ -1000,6 +1155,129 @@ export default function TechnicianProfile({
     };
 
   // ======================================================
+  // CHANGE PASSWORD
+  // ======================================================
+
+  const changePassword = async (event) => {
+    event.preventDefault();
+
+    if (isChangingPassword) {
+      return;
+    }
+
+    try {
+      const technicianId =
+        getTechnicianId();
+
+      if (!technicianId) {
+        throw new Error(
+          "A valid technician account could not be identified."
+        );
+      }
+
+      if (
+        !currentPassword.trim() ||
+        !newPassword.trim() ||
+        !confirmPassword.trim()
+      ) {
+        throw new Error(
+          "Please complete all password fields."
+        );
+      }
+
+      const strongPasswordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
+      if (
+        !strongPasswordRegex.test(
+          newPassword
+        )
+      ) {
+        throw new Error(
+          "Password must be at least 8 characters and include uppercase, lowercase, number and special character."
+        );
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        throw new Error(
+          "New password and confirm password do not match."
+        );
+      }
+
+      if (
+        currentPassword ===
+        newPassword
+      ) {
+        throw new Error(
+          "New password must be different from the current password."
+        );
+      }
+
+      setIsChangingPassword(true);
+
+      const response =
+        await fetch(
+          `http://localhost:5000/api/technicians/${technicianId}/change-password`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                currentPassword,
+                newPassword,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        data.success === false
+      ) {
+        throw new Error(
+          data.message ||
+            "Unable to change password."
+        );
+      }
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+      setShowConfirmPassword(false);
+
+      setPasswordSuccessPopup(
+        true
+      );
+    } catch (error) {
+      console.error(
+        "Change technician password error:",
+        error
+      );
+
+      showSaveMessage(
+        error.message ||
+          "Unable to change password.",
+        "error"
+      );
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  // ======================================================
   // DISPLAY VALUES
   // ======================================================
 
@@ -1039,6 +1317,7 @@ export default function TechnicianProfile({
       : "N/A";
 
   const technicianPhoto =
+    profilePhotoPreview ||
     getProfilePhoto(
       technician
         ?.profilePhoto
@@ -1452,6 +1731,30 @@ export default function TechnicianProfile({
               </div>
             </div>
 
+            <div className="mb-5">
+              <input
+                id="technician-profile-photo"
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                onChange={
+                  handleProfilePhotoChange
+                }
+                className="hidden"
+              />
+
+              <label
+                htmlFor="technician-profile-photo"
+                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-700 bg-[#0a0d14] px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-slate-300 transition hover:border-indigo-500 hover:text-white"
+              >
+                <Camera size={14} />
+                Change Photo
+              </label>
+
+              <p className="mt-2 text-[8px] text-slate-600">
+                JPG, PNG or WEBP • Max 2 MB
+              </p>
+            </div>
+
             {!isEditing ? (
               <>
                 <h2 className="text-xl font-bold text-white">
@@ -1793,6 +2096,204 @@ export default function TechnicianProfile({
                   : "Shift is currently inactive."}
               </p>
             </div>
+
+            {/* CHANGE PASSWORD */}
+
+            <div className="rounded-xl border border-slate-800 bg-[#10121b] p-5 sm:p-6">
+              <div className="mb-4">
+                <p className="text-[9px] uppercase tracking-[0.18em] text-slate-500">
+                  Security
+                </p>
+
+                <h3 className="mt-1 text-lg font-bold text-white">
+                  Change Password
+                </h3>
+
+                <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                  Replace the temporary password provided by your garage owner.
+                </p>
+              </div>
+
+              <form
+                onSubmit={changePassword}
+                autoComplete="off"
+                className="space-y-4"
+              >
+                <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+                  <div>
+                    <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                      Current Password
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type={
+                          showCurrentPassword
+                            ? "text"
+                            : "password"
+                        }
+                        value={currentPassword}
+                        onChange={(event) =>
+                          setCurrentPassword(
+                            event.target.value
+                          )
+                        }
+                        placeholder="Current password"
+                        autoComplete="off"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        disabled={isChangingPassword}
+                        className="h-10 w-full rounded-lg border border-slate-700 bg-[#0a0d14] px-3 pr-10 text-[11px] text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowCurrentPassword(
+                            (previous) => !previous
+                          )
+                        }
+                        disabled={isChangingPassword}
+                        aria-label={
+                          showCurrentPassword
+                            ? "Hide current password"
+                            : "Show current password"
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {showCurrentPassword ? (
+                          <EyeOff size={15} />
+                        ) : (
+                          <Eye size={15} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                      New Password
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type={
+                          showNewPassword
+                            ? "text"
+                            : "password"
+                        }
+                        value={newPassword}
+                        onChange={(event) =>
+                          setNewPassword(
+                            event.target.value
+                          )
+                        }
+                        placeholder="New password"
+                        autoComplete="new-password"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        disabled={isChangingPassword}
+                        className="h-10 w-full rounded-lg border border-slate-700 bg-[#0a0d14] px-3 pr-10 text-[11px] text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowNewPassword(
+                            (previous) => !previous
+                          )
+                        }
+                        disabled={isChangingPassword}
+                        aria-label={
+                          showNewPassword
+                            ? "Hide new password"
+                            : "Show new password"
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {showNewPassword ? (
+                          <EyeOff size={15} />
+                        ) : (
+                          <Eye size={15} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                      Confirm Password
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        type={
+                          showConfirmPassword
+                            ? "text"
+                            : "password"
+                        }
+                        value={confirmPassword}
+                        onChange={(event) =>
+                          setConfirmPassword(
+                            event.target.value
+                          )
+                        }
+                        placeholder="Confirm password"
+                        autoComplete="new-password"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
+                        disabled={isChangingPassword}
+                        className="h-10 w-full rounded-lg border border-slate-700 bg-[#0a0d14] px-3 pr-10 text-[11px] text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(
+                            (previous) => !previous
+                          )
+                        }
+                        disabled={isChangingPassword}
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide confirmed password"
+                            : "Show confirmed password"
+                        }
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff size={15} />
+                        ) : (
+                          <Eye size={15} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-slate-800 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                      Strong password required
+                    </p>
+
+                    <p className="mt-1 text-[9px] leading-4 text-slate-600">
+                      8+ characters • uppercase • lowercase • number • special character
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="h-9 shrink-0 rounded-lg bg-indigo-600 px-5 text-[9px] font-bold uppercase tracking-widest text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isChangingPassword
+                      ? "CHANGING..."
+                      : "CHANGE PASSWORD"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
 
@@ -1985,6 +2486,44 @@ export default function TechnicianProfile({
           </div>
         </div>
       </div>
+
+      {/* PASSWORD SUCCESS POPUP */}
+
+      {passwordSuccessPopup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-500/30 bg-[#10121b] p-7 text-center shadow-2xl">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+              <CheckCircle2
+                size={32}
+              />
+            </div>
+
+            <p className="mt-5 text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+              Security Updated
+            </p>
+
+            <h2 className="mt-2 text-xl font-bold text-white">
+              Password Changed Successfully
+            </h2>
+
+            <p className="mt-3 text-xs leading-6 text-slate-400">
+              Your password has been updated. Use your new password the next time you sign in.
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                setPasswordSuccessPopup(
+                  false
+                )
+              }
+              className="mt-6 w-full rounded-lg bg-emerald-600 py-3 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-500"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* SHIFT CONFIRMATION POPUP */}
 

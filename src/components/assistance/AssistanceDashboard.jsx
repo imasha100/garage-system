@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -18,6 +19,11 @@ import {
   CheckCircle,
   Clock,
   X,
+  Truck,
+  MapPin,
+  Route,
+  Building2,
+  ChevronRight,
 } from "lucide-react";
 
 import AssistanceSidebar from "./AssistanceSidebar";
@@ -108,6 +114,291 @@ const getStatusStyles = (status) => {
     border: "border-yellow-500/30",
     background: "bg-yellow-500/10",
   };
+};
+
+
+const normaliseTowNotification = (item) => ({
+  notificationId:
+    item?.notificationId ??
+    item?.notification_id ??
+    null,
+
+  notificationType:
+    item?.notificationType ??
+    item?.notification_type ??
+    "",
+
+  title:
+    item?.title ||
+    "Notification",
+
+  message:
+    item?.message ||
+    "",
+
+  targetPage:
+    item?.targetPage ??
+    item?.target_page ??
+    "",
+
+  referenceId:
+    item?.referenceId ??
+    item?.reference_id ??
+    null,
+
+  priority:
+    item?.priority ||
+    "MEDIUM",
+
+  isRead:
+    Boolean(
+      item?.isRead ??
+      item?.is_read
+    ),
+
+  createdDate:
+    item?.createdDate ??
+    item?.created_date ??
+    "",
+
+  createdTime:
+    item?.createdTime ??
+    item?.created_time ??
+    "",
+
+  dispatchId:
+    item?.dispatchId ??
+    item?.dispatch_id ??
+    item?.referenceId ??
+    item?.reference_id ??
+    null,
+
+  dispatchStatus:
+    item?.dispatchStatus ??
+    item?.dispatch_status ??
+    "",
+
+  requestId:
+    item?.requestId ??
+    item?.request_id ??
+    null,
+
+  ticketNumber:
+    item?.ticketNumber ??
+    item?.ticket_number ??
+    "",
+
+  customerName:
+    item?.customerName ??
+    item?.customer_name ??
+    "",
+
+  customerContact:
+    item?.customerContact ??
+    item?.customer_contact ??
+    "",
+
+  customerLocation:
+    item?.customerLocation ??
+    item?.customer_location ??
+    "",
+
+  vehicleNumber:
+    item?.vehicleNumber ??
+    item?.vehicle_number ??
+    "",
+
+  vehicleType:
+    item?.vehicleType ??
+    item?.vehicle_type ??
+    "",
+
+  truckNumber:
+    item?.truckNumber ??
+    item?.truck_number ??
+    "",
+
+  truckType:
+    item?.truckType ??
+    item?.truck_type ??
+    "",
+
+  truckModel:
+    item?.truckModel ??
+    item?.truck_model ??
+    "",
+
+  driverName:
+    item?.driverName ??
+    item?.driver_name ??
+    "",
+
+  driverContact:
+    item?.driverContact ??
+    item?.driver_contact ??
+    "",
+
+  garageName:
+    item?.garageName ??
+    item?.garage_name ??
+    "",
+
+  garageAddress:
+    item?.garageAddress ??
+    item?.garage_address ??
+    "",
+});
+
+const formatTowNotificationDateTime = (
+  notification
+) => {
+  const datePart =
+    notification?.createdDate ||
+    "";
+
+  const timePart =
+    notification?.createdTime ||
+    "";
+
+  if (!datePart) {
+    return "";
+  }
+
+  const value = new Date(
+    `${datePart}T${timePart || "00:00:00"}`
+  );
+
+  if (
+    Number.isNaN(
+      value.getTime()
+    )
+  ) {
+    return `${datePart} ${timePart}`.trim();
+  }
+
+  return value.toLocaleString(
+    "en-LK",
+    {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }
+  );
+};
+
+const getAssistanceTowNotificationIcon = (
+  type
+) => {
+  const value = String(
+    type || ""
+  ).toUpperCase();
+
+  if (
+    value.includes(
+      "EN_ROUTE_CUSTOMER"
+    )
+  ) {
+    return Truck;
+  }
+
+  if (
+    value.includes(
+      "REACHED_CUSTOMER"
+    )
+  ) {
+    return MapPin;
+  }
+
+  if (
+    value.includes(
+      "EN_ROUTE_GARAGE"
+    )
+  ) {
+    return Route;
+  }
+
+  if (
+    value.includes(
+      "REACHED_GARAGE"
+    )
+  ) {
+    return Building2;
+  }
+
+  return Bell;
+};
+
+const getAssistanceTowNotificationAccent = (
+  type
+) => {
+  const value = String(
+    type || ""
+  ).toUpperCase();
+
+  if (
+    value.includes(
+      "EN_ROUTE_CUSTOMER"
+    )
+  ) {
+    return "border-cyan-500/30 bg-cyan-500/10 text-cyan-300";
+  }
+
+  if (
+    value.includes(
+      "REACHED_CUSTOMER"
+    )
+  ) {
+    return "border-violet-500/30 bg-violet-500/10 text-violet-300";
+  }
+
+  if (
+    value.includes(
+      "EN_ROUTE_GARAGE"
+    )
+  ) {
+    return "border-sky-500/30 bg-sky-500/10 text-sky-300";
+  }
+
+  if (
+    value.includes(
+      "REACHED_GARAGE"
+    )
+  ) {
+    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+  }
+
+  return "border-blue-500/30 bg-blue-500/10 text-blue-300";
+};
+
+const formatTowDispatchStatus = (value) => {
+  const normalized = String(
+    value || ""
+  )
+    .trim()
+    .toUpperCase();
+
+  const labels = {
+    "PENDING VERIFICATION":
+      "Pending Verification",
+    APPROVED:
+      "Approved",
+    DISPATCHED:
+      "Dispatched",
+    EN_ROUTE_TO_CUSTOMER:
+      "En Route to Customer",
+    ARRIVED_AT_CUSTOMER:
+      "Arrived at Customer",
+    EN_ROUTE_TO_GARAGE:
+      "En Route to Garage",
+    ARRIVED_AT_GARAGE:
+      "Arrived at Garage",
+    COMPLETED:
+      "Completed",
+    REJECTED:
+      "Rejected",
+  };
+
+  return labels[normalized] ||
+    String(value || "Not available");
 };
 
 // ======================================================
@@ -206,6 +497,41 @@ export default function AssistanceDashboard({
   });
 
   // ====================================================
+  // TOW JOURNEY NOTIFICATION CENTER
+  // ====================================================
+
+  const [
+    towNotifications,
+    setTowNotifications,
+  ] = useState([]);
+
+  const [
+    towUnreadCount,
+    setTowUnreadCount,
+  ] = useState(0);
+
+  const [
+    towNotificationOpen,
+    setTowNotificationOpen,
+  ] = useState(false);
+
+  const [
+    towNotificationToasts,
+    setTowNotificationToasts,
+  ] = useState([]);
+
+  const [
+    selectedTowNotification,
+    setSelectedTowNotification,
+  ] = useState(null);
+
+  const shownTowNotificationIdsRef =
+    useRef(new Set());
+
+  const towToastTimersRef =
+    useRef(new Map());
+
+  // ====================================================
   // SHOW NOTIFICATION
   // ====================================================
 
@@ -230,6 +556,404 @@ export default function AssistanceDashboard({
       message: "",
     });
   };
+
+  // ====================================================
+  // TOW NOTIFICATION HELPERS
+  // ====================================================
+
+  const addTowNotificationToast =
+    useCallback(
+      (notificationItem) => {
+        const notificationId =
+          Number(
+            notificationItem
+              ?.notificationId
+          );
+
+        if (
+          !Number.isInteger(
+            notificationId
+          ) ||
+          notificationId <= 0
+        ) {
+          return;
+        }
+
+        if (
+          shownTowNotificationIdsRef
+            .current
+            .has(notificationId)
+        ) {
+          return;
+        }
+
+        shownTowNotificationIdsRef
+          .current
+          .add(notificationId);
+
+        setTowNotificationToasts(
+          (previous) => [
+            notificationItem,
+            ...previous,
+          ].slice(0, 4)
+        );
+
+        const timeoutId =
+          window.setTimeout(
+            () => {
+              setTowNotificationToasts(
+                (previous) =>
+                  previous.filter(
+                    (item) =>
+                      Number(
+                        item.notificationId
+                      ) !==
+                      notificationId
+                  )
+              );
+
+              towToastTimersRef
+                .current
+                .delete(
+                  notificationId
+                );
+            },
+            8000
+          );
+
+        towToastTimersRef
+          .current
+          .set(
+            notificationId,
+            timeoutId
+          );
+      },
+      []
+    );
+
+  const dismissTowNotificationToast =
+    useCallback(
+      (notificationId) => {
+        const id = Number(
+          notificationId
+        );
+
+        setTowNotificationToasts(
+          (previous) =>
+            previous.filter(
+              (item) =>
+                Number(
+                  item.notificationId
+                ) !== id
+            )
+        );
+
+        const timeoutId =
+          towToastTimersRef
+            .current
+            .get(id);
+
+        if (timeoutId) {
+          window.clearTimeout(
+            timeoutId
+          );
+
+          towToastTimersRef
+            .current
+            .delete(id);
+        }
+      },
+      []
+    );
+
+  const loadTowNotifications =
+    useCallback(
+      async (
+        selectedAssistanceId =
+          assistanceId,
+        showNewToasts = true
+      ) => {
+        const numericAssistanceId =
+          Number(
+            selectedAssistanceId
+          );
+
+        if (
+          !Number.isInteger(
+            numericAssistanceId
+          ) ||
+          numericAssistanceId <= 0
+        ) {
+          return;
+        }
+
+        try {
+          const response =
+            await fetch(
+              `${API_BASE_URL}/notifications/assistance/${numericAssistanceId}`
+            );
+
+          const result =
+            await response.json();
+
+          if (
+            !response.ok ||
+            result.success === false
+          ) {
+            throw new Error(
+              result.message ||
+                "Unable to load assistance notifications."
+            );
+          }
+
+          const items =
+            Array.isArray(
+              result.notifications
+            )
+              ? result.notifications.map(
+                  normaliseTowNotification
+                )
+              : [];
+
+          setTowNotifications(
+            items
+          );
+
+          setTowUnreadCount(
+            Number(
+              result.unreadCount ??
+              items.filter(
+                (item) =>
+                  !item.isRead
+              ).length
+            )
+          );
+
+          if (
+            showNewToasts
+          ) {
+            items
+              .filter(
+                (item) =>
+                  !item.isRead
+              )
+              .slice()
+              .reverse()
+              .forEach(
+                addTowNotificationToast
+              );
+          }
+        } catch (error) {
+          console.error(
+            "Load assistance tow notifications error:",
+            error
+          );
+        }
+      },
+      [
+        assistanceId,
+        addTowNotificationToast,
+      ]
+    );
+
+  const markTowNotificationRead =
+    useCallback(
+      async (
+        notificationId
+      ) => {
+        const id = Number(
+          notificationId
+        );
+
+        if (
+          !Number.isInteger(id) ||
+          id <= 0
+        ) {
+          return;
+        }
+
+        try {
+          const response =
+            await fetch(
+              `${API_BASE_URL}/notifications/${id}/read`,
+              {
+                method: "PUT",
+              }
+            );
+
+          const result =
+            await response.json();
+
+          if (
+            !response.ok ||
+            result.success === false
+          ) {
+            throw new Error(
+              result.message ||
+                "Unable to mark notification as read."
+            );
+          }
+
+          setTowNotifications(
+            (previous) =>
+              previous.map(
+                (item) =>
+                  Number(
+                    item.notificationId
+                  ) === id
+                    ? {
+                        ...item,
+                        isRead: true,
+                      }
+                    : item
+              )
+          );
+
+          setTowUnreadCount(
+            (previous) =>
+              Math.max(
+                0,
+                previous - 1
+              )
+          );
+        } catch (error) {
+          console.error(
+            "Mark assistance notification read error:",
+            error
+          );
+        }
+      },
+      []
+    );
+
+  const markAllTowNotificationsRead =
+    useCallback(
+      async () => {
+        const numericAssistanceId =
+          Number(
+            assistanceId
+          );
+
+        if (
+          !Number.isInteger(
+            numericAssistanceId
+          ) ||
+          numericAssistanceId <= 0 ||
+          towUnreadCount <= 0
+        ) {
+          return;
+        }
+
+        try {
+          const response =
+            await fetch(
+              `${API_BASE_URL}/notifications/assistance/${numericAssistanceId}/read-all`,
+              {
+                method: "PUT",
+
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+
+                body:
+                  JSON.stringify({}),
+              }
+            );
+
+          const result =
+            await response.json();
+
+          if (
+            !response.ok ||
+            result.success === false
+          ) {
+            throw new Error(
+              result.message ||
+                "Unable to mark assistance notifications as read."
+            );
+          }
+
+          setTowNotifications(
+            (previous) =>
+              previous.map(
+                (item) => ({
+                  ...item,
+                  isRead: true,
+                })
+              )
+          );
+
+          setTowUnreadCount(
+            0
+          );
+        } catch (error) {
+          console.error(
+            "Mark all assistance notifications read error:",
+            error
+          );
+        }
+      },
+      [
+        assistanceId,
+        towUnreadCount,
+      ]
+    );
+
+  const handleTowNotificationClick =
+    useCallback(
+      async (
+        notificationItem
+      ) => {
+        if (
+          !notificationItem.isRead
+        ) {
+          await markTowNotificationRead(
+            notificationItem
+              .notificationId
+          );
+        }
+
+        dismissTowNotificationToast(
+          notificationItem
+            .notificationId
+        );
+
+        setTowNotificationOpen(
+          false
+        );
+
+        setSelectedTowNotification({
+          ...notificationItem,
+          isRead: true,
+        });
+      },
+      [
+        dismissTowNotificationToast,
+        markTowNotificationRead,
+      ]
+    );
+
+  const handleViewTowDispatch =
+    useCallback(() => {
+      if (!selectedTowNotification) {
+        return;
+      }
+
+      setSelectedTowNotification(
+        null
+      );
+
+      setTowNotificationOpen(
+        false
+      );
+
+      setView(
+        "Incident Dispatch"
+      );
+
+      setSearchQuery("");
+    }, [selectedTowNotification]);
 
   // ====================================================
   // BUILD ASSISTANCE PROFILE PHOTO URL
@@ -652,6 +1376,64 @@ export default function AssistanceDashboard({
     loadLoggedInOfficer,
     loadDashboardData,
   ]);
+
+  // ====================================================
+  // TOW NOTIFICATION POLLING
+  // ====================================================
+
+  useEffect(() => {
+    if (
+      !Number.isInteger(
+        Number(assistanceId)
+      ) ||
+      Number(assistanceId) <= 0
+    ) {
+      return undefined;
+    }
+
+    loadTowNotifications(
+      assistanceId,
+      true
+    );
+
+    const intervalId =
+      window.setInterval(
+        () => {
+          loadTowNotifications(
+            assistanceId,
+            true
+          );
+        },
+        3000
+      );
+
+    return () => {
+      window.clearInterval(
+        intervalId
+      );
+    };
+  }, [
+    assistanceId,
+    loadTowNotifications,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      towToastTimersRef
+        .current
+        .forEach(
+          (timeoutId) => {
+            window.clearTimeout(
+              timeoutId
+            );
+          }
+        );
+
+      towToastTimersRef
+        .current
+        .clear();
+    };
+  }, []);
 
   // ====================================================
   // AUTO REFRESH EVERY 5 SECONDS
@@ -1622,6 +2404,95 @@ export default function AssistanceDashboard({
 
   return (
     <div className="flex h-screen w-screen bg-black text-slate-200 overflow-hidden">
+      <div className="pointer-events-none fixed right-3 top-20 z-[1300] flex w-[min(390px,calc(100vw-1.5rem))] flex-col gap-3 sm:right-5">
+        {towNotificationToasts.map(
+          (notificationItem) => {
+            const Icon =
+              getAssistanceTowNotificationIcon(
+                notificationItem.notificationType
+              );
+
+            return (
+              <div
+                key={`tow-toast-${notificationItem.notificationId}`}
+                className="pointer-events-auto overflow-hidden rounded-2xl border border-blue-900/50 bg-[#0b0e14]/95 shadow-[0_18px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+              >
+                <div className="flex items-start gap-3 p-4">
+                  <div
+                    className={`rounded-xl border p-2.5 ${getAssistanceTowNotificationAccent(
+                      notificationItem.notificationType
+                    )}`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleTowNotificationClick(
+                        notificationItem
+                      )
+                    }
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-black text-white">
+                        {notificationItem.title}
+                      </p>
+
+                      {notificationItem.referenceId && (
+                        <span className="shrink-0 rounded-full bg-slate-800 px-2 py-1 text-[9px] font-bold text-slate-400">
+                          #
+                          {notificationItem.referenceId}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-400">
+                      {notificationItem.message}
+                    </p>
+
+                    {(notificationItem.vehicleNumber ||
+                      notificationItem.truckNumber) && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {notificationItem.vehicleNumber && (
+                          <span className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[9px] font-bold text-slate-300">
+                            Vehicle: {notificationItem.vehicleNumber}
+                          </span>
+                        )}
+
+                        {notificationItem.truckNumber && (
+                          <span className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[9px] font-bold text-cyan-300">
+                            Tow: {notificationItem.truckNumber}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                      View notification details
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      dismissTowNotificationToast(
+                        notificationItem.notificationId
+                      )
+                    }
+                    className="rounded-lg p-1 text-slate-600 transition hover:bg-white/5 hover:text-white"
+                    aria-label="Dismiss notification"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          }
+        )}
+      </div>
+
       <AssistanceSidebar
         activeItem={view}
         onNavigate={
@@ -1758,15 +2629,203 @@ export default function AssistanceDashboard({
               SHIFT {isShiftOn ? "ON" : "OFF"}
             </span>
 
-            <button
-              type="button"
-              className="text-slate-400 hover:text-white transition"
-              aria-label="Notifications"
-            >
-              <Bell
-                size={17}
-              />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setTowNotificationOpen(
+                    (previous) =>
+                      !previous
+                  )
+                }
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 bg-[#0b0e14] text-slate-400 transition hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-300"
+                aria-label="Tow notifications"
+              >
+                <Bell
+                  size={17}
+                />
+
+                {towUnreadCount >
+                  0 && (
+                  <span className="absolute -right-1 -top-1 flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white">
+                    {towUnreadCount >
+                    99
+                      ? "99+"
+                      : towUnreadCount}
+                  </span>
+                )}
+              </button>
+
+              {towNotificationOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Close notifications"
+                    onClick={() =>
+                      setTowNotificationOpen(
+                        false
+                      )
+                    }
+                    className="fixed inset-0 z-[1090] cursor-default bg-transparent"
+                  />
+
+                  <div className="absolute right-0 top-12 z-[1100] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-blue-900/50 bg-[#0b0e14] shadow-[0_25px_80px_rgba(0,0,0,0.65)]">
+                    <div className="flex items-center justify-between border-b border-slate-800 p-4">
+                      <div>
+                        <p className="text-sm font-black text-white">
+                          Tow Notifications
+                        </p>
+
+                        <p className="mt-1 text-[10px] uppercase tracking-widest text-slate-500">
+                          External driver journey updates
+                        </p>
+                      </div>
+
+                      {towUnreadCount >
+                        0 && (
+                        <button
+                          type="button"
+                          onClick={
+                            markAllTowNotificationsRead
+                          }
+                          className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-blue-300 transition hover:bg-blue-500/15"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-[430px] overflow-y-auto">
+                      {towNotifications.length ===
+                      0 ? (
+                        <div className="px-6 py-12 text-center">
+                          <Bell className="mx-auto h-8 w-8 text-slate-700" />
+
+                          <p className="mt-4 text-sm font-bold text-slate-400">
+                            No tow notifications
+                          </p>
+
+                          <p className="mt-1 text-xs text-slate-600">
+                            Driver journey updates will appear here.
+                          </p>
+                        </div>
+                      ) : (
+                        towNotifications.map(
+                          (
+                            notificationItem
+                          ) => {
+                            const Icon =
+                              getAssistanceTowNotificationIcon(
+                                notificationItem.notificationType
+                              );
+
+                            return (
+                              <button
+                                key={
+                                  notificationItem.notificationId
+                                }
+                                type="button"
+                                onClick={() =>
+                                  handleTowNotificationClick(
+                                    notificationItem
+                                  )
+                                }
+                                className={`block w-full border-b border-slate-800/80 p-4 text-left transition last:border-b-0 hover:bg-white/[0.04] ${
+                                  notificationItem.isRead
+                                    ? ""
+                                    : "bg-blue-500/[0.05]"
+                                }`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div
+                                    className={`mt-0.5 rounded-xl border p-2.5 ${getAssistanceTowNotificationAccent(
+                                      notificationItem.notificationType
+                                    )}`}
+                                  >
+                                    <Icon className="h-4 w-4" />
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-start gap-2">
+                                      <p className="flex-1 text-sm font-black text-white">
+                                        {notificationItem.title}
+                                      </p>
+
+                                      {!notificationItem.isRead && (
+                                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-400" />
+                                      )}
+                                    </div>
+
+                                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">
+                                      {notificationItem.message}
+                                    </p>
+
+                                    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                                      {notificationItem.customerName && (
+                                        <p className="truncate text-slate-500">
+                                          Customer:{" "}
+                                          <span className="font-bold text-slate-300">
+                                            {notificationItem.customerName}
+                                          </span>
+                                        </p>
+                                      )}
+
+                                      {notificationItem.vehicleNumber && (
+                                        <p className="truncate text-slate-500">
+                                          Vehicle:{" "}
+                                          <span className="font-bold text-white">
+                                            {notificationItem.vehicleNumber}
+                                          </span>
+                                        </p>
+                                      )}
+
+                                      {notificationItem.truckNumber && (
+                                        <p className="truncate text-slate-500">
+                                          Tow Truck:{" "}
+                                          <span className="font-bold text-cyan-300">
+                                            {notificationItem.truckNumber}
+                                          </span>
+                                        </p>
+                                      )}
+
+                                      {notificationItem.driverName && (
+                                        <p className="truncate text-slate-500">
+                                          Driver:{" "}
+                                          <span className="font-bold text-slate-300">
+                                            {notificationItem.driverName}
+                                          </span>
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    <div className="mt-2 flex items-center justify-between gap-3">
+                                      <span className="text-[10px] text-slate-600">
+                                        {formatTowNotificationDateTime(
+                                          notificationItem
+                                        )}
+                                      </span>
+
+                                      {notificationItem.referenceId && (
+                                        <span className="text-[10px] font-bold text-blue-400">
+                                          Dispatch #
+                                          {notificationItem.referenceId}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-slate-600" />
+                                </div>
+                              </button>
+                            );
+                          }
+                        )
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             <button
               type="button"
@@ -1809,6 +2868,220 @@ export default function AssistanceDashboard({
           {renderContent()}
         </div>
       </div>
+
+      {/* ASSISTANCE TOW NOTIFICATION DETAILS */}
+
+      {selectedTowNotification && (
+        <div className="fixed inset-0 z-[5000] overflow-y-auto bg-black/85 p-4 backdrop-blur-md">
+          <div className="flex min-h-full items-center justify-center py-4">
+            <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-blue-900/60 bg-[#0b0e14] shadow-[0_30px_100px_rgba(0,0,0,0.8)]">
+              <div className="h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
+
+              <div className="p-5 sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    {(() => {
+                      const DetailIcon =
+                        getAssistanceTowNotificationIcon(
+                          selectedTowNotification.notificationType
+                        );
+
+                      return (
+                        <div
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${getAssistanceTowNotificationAccent(
+                            selectedTowNotification.notificationType
+                          )}`}
+                        >
+                          <DetailIcon className="h-5 w-5" />
+                        </div>
+                      );
+                    })()}
+
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">
+                        Tow Journey Update
+                      </p>
+
+                      <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">
+                        {selectedTowNotification.title}
+                      </h2>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTowNotification(
+                        null
+                      )
+                    }
+                    className="rounded-xl border border-slate-800 bg-slate-900 p-2 text-slate-500 transition hover:text-white"
+                    aria-label="Close tow notification details"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <p className="mt-4 text-sm leading-6 text-slate-400">
+                  {selectedTowNotification.message}
+                </p>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-800 bg-black/25 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-600">
+                      Customer
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-white">
+                      {selectedTowNotification.customerName ||
+                        "Not available"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-black/25 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-600">
+                      Vehicle
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-white">
+                      {selectedTowNotification.vehicleNumber ||
+                        "Not available"}
+                    </p>
+
+                    {selectedTowNotification.vehicleType && (
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        {selectedTowNotification.vehicleType}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.05] p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-cyan-600">
+                      Tow Truck
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-cyan-300">
+                      {selectedTowNotification.truckNumber ||
+                        "Not available"}
+                    </p>
+
+                    {(selectedTowNotification.truckType ||
+                      selectedTowNotification.truckModel) && (
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        {[
+                          selectedTowNotification.truckType,
+                          selectedTowNotification.truckModel,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-black/25 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-600">
+                      Driver
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-white">
+                      {selectedTowNotification.driverName ||
+                        "Not available"}
+                    </p>
+
+                    {selectedTowNotification.driverContact && (
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        {selectedTowNotification.driverContact}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 overflow-hidden rounded-xl border border-slate-800 bg-black/25">
+                  <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-4 py-3">
+                    <span className="text-xs text-slate-500">
+                      Dispatch
+                    </span>
+
+                    <span className="text-xs font-black text-blue-400">
+                      #
+                      {selectedTowNotification.dispatchId ||
+                        selectedTowNotification.referenceId ||
+                        "N/A"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-4 py-3">
+                    <span className="text-xs text-slate-500">
+                      Current Status
+                    </span>
+
+                    <span className="text-right text-xs font-bold text-emerald-400">
+                      {formatTowDispatchStatus(
+                        selectedTowNotification.dispatchStatus
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 px-4 py-3">
+                    <span className="text-xs text-slate-500">
+                      Update Time
+                    </span>
+
+                    <span className="text-right text-xs font-bold text-white">
+                      {formatTowNotificationDateTime(
+                        selectedTowNotification
+                      ) || "Not available"}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedTowNotification.garageName && (
+                  <div className="mt-3 rounded-xl border border-slate-800 bg-black/25 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-600">
+                      Destination Garage
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-white">
+                      {selectedTowNotification.garageName}
+                    </p>
+
+                    {selectedTowNotification.garageAddress && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {selectedTowNotification.garageAddress}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={
+                      handleViewTowDispatch
+                    }
+                    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-black text-white transition hover:bg-blue-500"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                    View Dispatch
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTowNotification(
+                        null
+                      )
+                    }
+                    className="rounded-xl border border-slate-700 bg-slate-900 py-3.5 text-sm font-bold text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SHIFT OFF POPUP */}
 

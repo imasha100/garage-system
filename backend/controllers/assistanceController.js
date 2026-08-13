@@ -431,10 +431,6 @@ const registerAssistance = async (
 
     await connection.commit();
 
-    // ==================================================
-    // SUCCESS
-    // ==================================================
-
     return res.status(201).json({
       success: true,
 
@@ -477,7 +473,6 @@ const registerAssistance = async (
 
       loginDetails: {
         username,
-
         temporaryPassword,
       },
     });
@@ -494,31 +489,8 @@ const registerAssistance = async (
     }
 
     console.error(
-      "========== REGISTER ASSISTANCE ERROR =========="
-    );
-
-    console.error(
-      "Code:",
-      error.code
-    );
-
-    console.error(
-      "Message:",
-      error.message
-    );
-
-    console.error(
-      "SQL Message:",
-      error.sqlMessage
-    );
-
-    console.error(
-      "SQL:",
-      error.sql
-    );
-
-    console.error(
-      "================================================"
+      "REGISTER ASSISTANCE ERROR:",
+      error
     );
 
     if (
@@ -530,18 +502,6 @@ const registerAssistance = async (
 
         message:
           "Username, email, contact number or NIC already exists.",
-      });
-    }
-
-    if (
-      error.code ===
-      "ER_NO_REFERENCED_ROW_2"
-    ) {
-      return res.status(400).json({
-        success: false,
-
-        message:
-          "The assistance officer could not be linked to the selected garage.",
       });
     }
 
@@ -559,7 +519,6 @@ const registerAssistance = async (
     }
   }
 };
-
 // ======================================================
 // GET ALL ASSISTANCE OFFICERS
 //
@@ -611,7 +570,6 @@ const getAllAssistances = async (
       ) {
         return res.status(400).json({
           success: false,
-
           message:
             "A valid garage ID is required.",
         });
@@ -638,7 +596,6 @@ const getAllAssistances = async (
 
     return res.status(200).json({
       success: true,
-
       assistances:
         rows.map(
           formatAssistance
@@ -661,13 +618,13 @@ const getAllAssistances = async (
 
     return res.status(500).json({
       success: false,
-
       message:
         error.sqlMessage ||
         "Unable to fetch assistance officers.",
     });
   }
 };
+
 
 // ======================================================
 // GET SINGLE ASSISTANCE OFFICER
@@ -691,7 +648,6 @@ const getAssistanceById = async (
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "A valid assistance ID is required.",
       });
@@ -726,7 +682,6 @@ const getAssistanceById = async (
     ) {
       return res.status(404).json({
         success: false,
-
         message:
           "Assistance officer not found.",
       });
@@ -734,7 +689,6 @@ const getAssistanceById = async (
 
     return res.status(200).json({
       success: true,
-
       assistance:
         formatAssistance(
           rows[0]
@@ -757,13 +711,13 @@ const getAssistanceById = async (
 
     return res.status(500).json({
       success: false,
-
       message:
         error.sqlMessage ||
         "Unable to fetch assistance officer details.",
     });
   }
 };
+
 
 // ======================================================
 // GET LOGGED-IN ASSISTANCE PROFILE
@@ -787,7 +741,6 @@ const getAssistanceProfileByLoginId =
       ) {
         return res.status(400).json({
           success: false,
-
           message:
             "A valid login ID is required.",
         });
@@ -830,7 +783,6 @@ const getAssistanceProfileByLoginId =
       ) {
         return res.status(404).json({
           success: false,
-
           message:
             "Assistance officer profile was not found.",
         });
@@ -927,6 +879,7 @@ const getAssistanceProfileByLoginId =
     }
   };
 
+
 // ======================================================
 // UPDATE ASSISTANCE OFFICER
 //
@@ -950,10 +903,6 @@ const updateAssistance = async (
       nic,
     } = req.body;
 
-    // ==================================================
-    // VALIDATE
-    // ==================================================
-
     if (
       !Number.isInteger(
         assistanceId
@@ -966,7 +915,6 @@ const updateAssistance = async (
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "Please fill in all required fields.",
       });
@@ -1007,7 +955,6 @@ const updateAssistance = async (
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "Please enter a valid full name.",
       });
@@ -1020,7 +967,6 @@ const updateAssistance = async (
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "Please enter a valid email address.",
       });
@@ -1033,7 +979,6 @@ const updateAssistance = async (
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "Contact number must contain exactly 10 digits and start with 0.",
       });
@@ -1046,24 +991,15 @@ const updateAssistance = async (
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "NIC must contain 9 digits followed by V/X or exactly 12 digits.",
       });
     }
 
-    // ==================================================
-    // TRANSACTION
-    // ==================================================
-
     connection =
       await db.getConnection();
 
     await connection.beginTransaction();
-
-    // ==================================================
-    // EXISTING ASSISTANCE
-    // ==================================================
 
     const [existingRows] =
       await connection.query(
@@ -1092,7 +1028,6 @@ const updateAssistance = async (
 
       return res.status(404).json({
         success: false,
-
         message:
           "Assistance officer not found.",
       });
@@ -1104,10 +1039,6 @@ const updateAssistance = async (
     const loginId =
       existingAssistance
         .login_login_id;
-
-    // ==================================================
-    // DUPLICATE ASSISTANCE DETAILS
-    // ==================================================
 
     const [duplicateRows] =
       await connection.query(
@@ -1122,7 +1053,6 @@ const updateAssistance = async (
 
         WHERE
           assistance_id <> ?
-
           AND (
             email = ?
             OR contact_number = ?
@@ -1144,87 +1074,46 @@ const updateAssistance = async (
     ) {
       await connection.rollback();
 
-      const duplicate =
-        duplicateRows[0];
+      return res.status(409).json({
+        success: false,
+        message:
+          "Another assistance officer already uses this email, contact number or NIC.",
+      });
+    }
 
-      let duplicateField =
-        "details";
+    if (loginId) {
+      const [loginRows] =
+        await connection.query(
+          `
+          SELECT
+            login_id
+
+          FROM login
+
+          WHERE
+            user_name = ?
+            AND login_id <> ?
+
+          LIMIT 1
+          `,
+          [
+            cleanNic,
+            loginId,
+          ]
+        );
 
       if (
-        String(
-          duplicate.email
-        ).toLowerCase() ===
-        cleanEmail
+        loginRows.length > 0
       ) {
-        duplicateField =
-          "email address";
-      } else if (
-        String(
-          duplicate.contact_number
-        ) ===
-        cleanContactNumber
-      ) {
-        duplicateField =
-          "contact number";
-      } else if (
-        String(
-          duplicate.nic
-        ).toUpperCase() ===
-        cleanNic
-      ) {
-        duplicateField =
-          "NIC number";
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+          message:
+            "This NIC number is already used as another system username.",
+        });
       }
-
-      return res.status(409).json({
-        success: false,
-
-        message:
-          `Another assistance officer already uses this ${duplicateField}.`,
-      });
     }
-
-    // ==================================================
-    // DUPLICATE LOGIN USERNAME
-    // ==================================================
-
-    const [duplicateLoginRows] =
-      await connection.query(
-        `
-        SELECT
-          login_id
-
-        FROM login
-
-        WHERE
-          user_name = ?
-          AND login_id <> ?
-
-        LIMIT 1
-        `,
-        [
-          cleanNic,
-          loginId,
-        ]
-      );
-
-    if (
-      duplicateLoginRows.length >
-      0
-    ) {
-      await connection.rollback();
-
-      return res.status(409).json({
-        success: false,
-
-        message:
-          "This NIC number is already used as another system username.",
-      });
-    }
-
-    // ==================================================
-    // UPDATE ASSISTANCE
-    // ==================================================
 
     await connection.query(
       `
@@ -1236,7 +1125,8 @@ const updateAssistance = async (
         contact_number = ?,
         nic = ?
 
-      WHERE assistance_id = ?
+      WHERE
+        assistance_id = ?
       `,
       [
         cleanFullName,
@@ -1247,76 +1137,60 @@ const updateAssistance = async (
       ]
     );
 
-    // ==================================================
-    // UPDATE LOGIN USERNAME
-    // ==================================================
+    if (loginId) {
+      await connection.query(
+        `
+        UPDATE login
 
-    await connection.query(
-      `
-      UPDATE login
+        SET
+          user_name = ?
 
-      SET
-        user_name = ?
+        WHERE
+          login_id = ?
+        `,
+        [
+          cleanNic,
+          loginId,
+        ]
+      );
+    }
 
-      WHERE
-        login_id = ?
-      `,
-      [
-        cleanNic,
-        loginId,
-      ]
-    );
+    const [updatedRows] =
+      await connection.query(
+        `
+        SELECT
+          assistance_id,
+          full_name,
+          email,
+          contact_number,
+          nic,
+          profile_photo,
+          shift_status,
+          role,
+          login_login_id,
+          garage_garage_id
+
+        FROM assistance
+
+        WHERE
+          assistance_id = ?
+
+        LIMIT 1
+        `,
+        [assistanceId]
+      );
 
     await connection.commit();
 
-    // ==================================================
-    // SUCCESS
-    // ==================================================
-
     return res.status(200).json({
       success: true,
-
       message:
-        "Assistance officer details updated successfully.",
+        "Assistance officer updated successfully.",
 
-      assistance: {
-        assistanceId,
-
-        formattedAssistanceId:
-          formatAssistanceId(
-            assistanceId
-          ),
-
-        fullName:
-          cleanFullName,
-
-        email:
-          cleanEmail,
-
-        contactNumber:
-          cleanContactNumber,
-
-        nic:
-          cleanNic,
-
-        profilePhoto:
-          existingAssistance
-            .profile_photo ||
-          null,
-
-        shiftStatus:
-          existingAssistance
-            .shift_status,
-
-        role:
-          existingAssistance.role,
-
-        loginId,
-
-        garageId:
-          existingAssistance
-            .garage_garage_id,
-      },
+      assistance:
+        formatAssistance(
+          updatedRows[0]
+        ),
     });
   } catch (error) {
     if (connection) {
@@ -1364,15 +1238,13 @@ const updateAssistance = async (
     ) {
       return res.status(409).json({
         success: false,
-
         message:
-          "This username, email, contact number or NIC is already used.",
+          "Email, contact number, NIC or username already exists.",
       });
     }
 
     return res.status(500).json({
       success: false,
-
       message:
         error.sqlMessage ||
         error.message ||
@@ -1385,10 +1257,11 @@ const updateAssistance = async (
   }
 };
 
+
 // ======================================================
 // UPDATE ASSISTANCE SHIFT STATUS
 //
-// PUT /api/assistances/:id/shift
+// PUT /api/assistances/:id/shift-status
 // ======================================================
 
 const updateAssistanceShiftStatus =
@@ -1397,17 +1270,9 @@ const updateAssistanceShiftStatus =
       const assistanceId =
         Number(req.params.id);
 
-      const normalizedShiftStatus =
-        String(
-          req.body
-            ?.shiftStatus || ""
-        )
-          .trim()
-          .toUpperCase();
-
-      // ==================================================
-      // VALIDATE
-      // ==================================================
+      const {
+        shiftStatus,
+      } = req.body;
 
       if (
         !Number.isInteger(
@@ -1417,48 +1282,43 @@ const updateAssistanceShiftStatus =
       ) {
         return res.status(400).json({
           success: false,
-
           message:
             "A valid assistance ID is required.",
         });
       }
 
+      const normalizedShiftStatus =
+        String(
+          shiftStatus || ""
+        )
+          .trim()
+          .toUpperCase();
+
       if (
-        normalizedShiftStatus !==
-          "ON" &&
-        normalizedShiftStatus !==
-          "OFF"
+        ![
+          "ON",
+          "OFF",
+        ].includes(
+          normalizedShiftStatus
+        )
       ) {
         return res.status(400).json({
           success: false,
-
           message:
             "Shift status must be ON or OFF.",
         });
       }
 
-      // ==================================================
-      // GET ASSISTANCE
-      // ==================================================
-
       const [existingRows] =
         await db.query(
           `
           SELECT
-            assistance_id,
-            full_name,
-            email,
-            contact_number,
-            nic,
-            profile_photo,
-            shift_status,
-            role,
-            login_login_id,
-            garage_garage_id
+            assistance_id
 
           FROM assistance
 
-          WHERE assistance_id = ?
+          WHERE
+            assistance_id = ?
 
           LIMIT 1
           `,
@@ -1470,15 +1330,10 @@ const updateAssistanceShiftStatus =
       ) {
         return res.status(404).json({
           success: false,
-
           message:
             "Assistance officer not found.",
         });
       }
-
-      // ==================================================
-      // UPDATE SHIFT
-      // ==================================================
 
       await db.query(
         `
@@ -1496,22 +1351,40 @@ const updateAssistanceShiftStatus =
         ]
       );
 
-      const updatedAssistance = {
-        ...existingRows[0],
+      const [updatedRows] =
+        await db.query(
+          `
+          SELECT
+            assistance_id,
+            full_name,
+            email,
+            contact_number,
+            nic,
+            profile_photo,
+            shift_status,
+            role,
+            login_login_id,
+            garage_garage_id
 
-        shift_status:
-          normalizedShiftStatus,
-      };
+          FROM assistance
+
+          WHERE
+            assistance_id = ?
+
+          LIMIT 1
+          `,
+          [assistanceId]
+        );
 
       return res.status(200).json({
         success: true,
 
         message:
-          "Shift status updated successfully.",
+          "Assistance shift status updated successfully.",
 
         assistance:
           formatAssistance(
-            updatedAssistance
+            updatedRows[0]
           ),
       });
     } catch (error) {
@@ -1545,13 +1418,13 @@ const updateAssistanceShiftStatus =
 
       return res.status(500).json({
         success: false,
-
         message:
           error.sqlMessage ||
           "Unable to update assistance shift status.",
       });
     }
   };
+
 
 // ======================================================
 // UPLOAD ASSISTANCE PROFILE PHOTO
@@ -1567,10 +1440,6 @@ const uploadAssistanceProfilePhoto =
     try {
       const assistanceId =
         Number(req.params.id);
-
-      // ==================================================
-      // VALIDATE ID
-      // ==================================================
 
       if (
         !Number.isInteger(
@@ -1591,28 +1460,18 @@ const uploadAssistanceProfilePhoto =
 
         return res.status(400).json({
           success: false,
-
           message:
             "A valid assistance ID is required.",
         });
       }
 
-      // ==================================================
-      // VALIDATE FILE
-      // ==================================================
-
       if (!req.file) {
         return res.status(400).json({
           success: false,
-
           message:
             "Please select a profile photo.",
         });
       }
-
-      // ==================================================
-      // GET CURRENT ASSISTANCE
-      // ==================================================
 
       const [rows] =
         await db.query(
@@ -1646,7 +1505,6 @@ const uploadAssistanceProfilePhoto =
 
         return res.status(404).json({
           success: false,
-
           message:
             "Assistance officer was not found.",
         });
@@ -1655,16 +1513,8 @@ const uploadAssistanceProfilePhoto =
       const currentAssistance =
         rows[0];
 
-      // ==================================================
-      // PUBLIC PHOTO PATH
-      // ==================================================
-
       const profilePhotoPath =
         `/uploads/assistance-profiles/${req.file.filename}`;
-
-      // ==================================================
-      // SAVE TO DATABASE
-      // ==================================================
 
       await db.query(
         `
@@ -1681,10 +1531,6 @@ const uploadAssistanceProfilePhoto =
           assistanceId,
         ]
       );
-
-      // ==================================================
-      // DELETE OLD PHOTO
-      // ==================================================
 
       const oldPhoto =
         currentAssistance
@@ -1724,10 +1570,6 @@ const uploadAssistanceProfilePhoto =
         }
       }
 
-      // ==================================================
-      // SUCCESS
-      // ==================================================
-
       return res.status(200).json({
         success: true,
 
@@ -1739,16 +1581,11 @@ const uploadAssistanceProfilePhoto =
 
         assistance: {
           assistanceId,
-
           profilePhoto:
             profilePhotoPath,
         },
       });
     } catch (error) {
-      // ==================================================
-      // REMOVE FAILED NEW FILE
-      // ==================================================
-
       if (
         req.file?.path &&
         fs.existsSync(
@@ -1806,6 +1643,197 @@ const uploadAssistanceProfilePhoto =
     }
   };
 
+
+// ======================================================
+// CHANGE ASSISTANCE PASSWORD
+//
+// PUT /api/assistances/:id/change-password
+// ======================================================
+
+const changeAssistancePassword = async (
+  req,
+  res
+) => {
+  try {
+    const assistanceId =
+      Number(req.params.id);
+
+    const {
+      currentPassword,
+      newPassword,
+    } = req.body;
+
+    if (
+      !Number.isInteger(
+        assistanceId
+      ) ||
+      assistanceId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid assistance officer ID is required.",
+      });
+    }
+
+    if (
+      !String(
+        currentPassword || ""
+      ).trim() ||
+      !String(
+        newPassword || ""
+      ).trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Current password and new password are required.",
+      });
+    }
+
+    const cleanedCurrentPassword =
+      String(currentPassword);
+
+    const cleanedNewPassword =
+      String(newPassword);
+
+    const strongPasswordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
+    if (
+      !strongPasswordRegex.test(
+        cleanedNewPassword
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password must be at least 8 characters and include uppercase, lowercase, number and special character.",
+      });
+    }
+
+    if (
+      cleanedCurrentPassword ===
+      cleanedNewPassword
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be different from the current password.",
+      });
+    }
+
+    const [rows] =
+      await db.query(
+        `
+          SELECT
+            a.assistance_id,
+            a.login_login_id,
+            l.password
+
+          FROM assistance a
+
+          INNER JOIN login l
+            ON l.login_id =
+               a.login_login_id
+
+          WHERE
+            a.assistance_id = ?
+
+          LIMIT 1
+        `,
+        [assistanceId]
+      );
+
+    if (
+      rows.length === 0
+    ) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Assistance login account was not found.",
+      });
+    }
+
+    const loginAccount =
+      rows[0];
+
+    if (
+      String(
+        loginAccount.password
+      ) !==
+      cleanedCurrentPassword
+    ) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Current password is incorrect.",
+      });
+    }
+
+    await db.query(
+      `
+        UPDATE login
+
+        SET
+          password = ?
+
+        WHERE
+          login_id = ?
+      `,
+      [
+        cleanedNewPassword,
+        loginAccount
+          .login_login_id,
+      ]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Password changed successfully.",
+    });
+  } catch (error) {
+    console.error(
+      "========== CHANGE ASSISTANCE PASSWORD ERROR =========="
+    );
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
+    console.error(
+      "SQL Message:",
+      error.sqlMessage
+    );
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
+    console.error(
+      "======================================================"
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        error.sqlMessage ||
+        error.message ||
+        "Unable to change assistance password.",
+    });
+  }
+};
+
+
 // ======================================================
 // EXPORTS
 // ======================================================
@@ -1818,4 +1846,5 @@ module.exports = {
   updateAssistance,
   updateAssistanceShiftStatus,
   uploadAssistanceProfilePhoto,
+  changeAssistancePassword,
 };

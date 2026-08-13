@@ -44,6 +44,14 @@ const externalTruckRequestRoutes = require(
   "./routes/externalTruckRequestRoutes"
 );
 
+// ==============================
+// External Driver
+// ==============================
+
+const externalDriverRoutes = require(
+  "./routes/externalDriverRoutes"
+);
+
 // Customer Service Requests
 const serviceRequestRoutes = require(
   "./routes/serviceRequestRoutes"
@@ -202,6 +210,15 @@ app.use(
 app.use(
   "/api",
   externalTruckRequestRoutes
+);
+
+// ==============================
+// External Driver
+// ==============================
+
+app.use(
+  "/api",
+  externalDriverRoutes
 );
 
 // Customer Service Requests

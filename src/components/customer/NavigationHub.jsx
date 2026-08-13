@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Bell, User, Menu, X, Truck, MapPin, Clock, Phone } from "lucide-react";
+import {
+  User,
+  Menu,
+  X,
+  MapPin,
+} from "lucide-react";
 
 import {
   MapContainer,
@@ -21,6 +26,7 @@ import TrackMyTowTruck from "./TrackMyTowTruck";
 import LiveProgress from "./LiveProgress";
 import InvoiceLedger from "./InvoiceLedger";
 import ExperienceAudit from "./ExperienceAudit";
+import CustomerNotificationBell from "./CustomerNotificationBell";
 
 delete L.Icon.Default.prototype._getIconUrl;
 
@@ -38,6 +44,14 @@ const carIcon = new L.Icon({
   iconSize: [38, 38],
   iconAnchor: [19, 19],
 });
+
+const safeJsonParse = (value, fallback = null) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 function RoutingMachine({
   customerLocation,
@@ -191,9 +205,28 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
     useState(false);
   const [towRequestError, setTowRequestError] = useState("");
 
-  const savedRequest = JSON.parse(
-  sessionStorage.getItem("latestServiceRequest") || "null"
-);
+  // ======================================================
+  // CUSTOMER DATA USED BY THE SHARED NOTIFICATION BELL
+  // ======================================================
+
+  const savedRequest = safeJsonParse(
+    sessionStorage.getItem("latestServiceRequest"),
+    null
+  );
+
+  const currentCustomerRequest = safeJsonParse(
+    localStorage.getItem("currentCustomerRequest"),
+    {}
+  );
+
+  const customerId = Number(
+    savedRequest?.customerId ??
+      savedRequest?.customer_id ??
+      savedRequest?.customer_customer_id ??
+      currentCustomerRequest?.customerId ??
+      currentCustomerRequest?.customer_id ??
+      currentCustomerRequest?.customer_customer_id
+  );
 
   const latestCompletedJob = (() => {
     try {
@@ -627,10 +660,13 @@ const customerLocation =
   }, [activeTab]);
 
   const canContinueWithoutSelectedGarage =
-    activeTab === "progress" ||
-    activeTab === "invoice" ||
-    activeTab === "audit" ||
-    isFinalCustomerFlow;
+  activeTab === "mobility" ||
+  activeTab === "track-tow" ||
+  activeTab === "arrived-at-garage" ||
+  activeTab === "progress" ||
+  activeTab === "invoice" ||
+  activeTab === "audit" ||
+  isFinalCustomerFlow;
 
   if (
     !selectedGarage &&
@@ -713,7 +749,49 @@ const customerLocation =
           </button>
 
           <div className="ml-auto flex items-center gap-5">
-            <Bell className="w-5 h-5 text-slate-400 cursor-pointer hover:text-white transition" />
+            <CustomerNotificationBell
+  customerId={customerId}
+  onNavigateTarget={(targetPage) => {
+    if (
+      targetPage === "mobility-recovery" ||
+      targetPage === "mobility"
+    ) {
+      handleCustomerTabChange("mobility");
+      return;
+    }
+
+    if (
+      targetPage === "track-tow" ||
+      targetPage === "tow-assignments"
+    ) {
+      handleCustomerTabChange("track-tow");
+      return;
+    }
+
+    if (
+      targetPage === "live-progress" ||
+      targetPage === "progress"
+    ) {
+      handleCustomerTabChange("progress");
+      return;
+    }
+
+    if (
+      targetPage === "invoice" ||
+      targetPage === "invoice-ledger"
+    ) {
+      handleCustomerTabChange("invoice");
+      return;
+    }
+
+    if (
+      targetPage === "audit" ||
+      targetPage === "feedback"
+    ) {
+      handleCustomerTabChange("audit");
+    }
+  }}
+/>
 
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">

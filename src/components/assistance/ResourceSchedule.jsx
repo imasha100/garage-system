@@ -452,6 +452,11 @@ const [
     setGarageId,
   ] = useState(null);
 
+  const [
+    readyForTechnicianVehicles,
+    setReadyForTechnicianVehicles,
+  ] = useState([]);
+
   const [availableTechs, setAvailableTechs] = useState([]);
 
 const [activeTechs, setActiveTechs] = useState([]);
@@ -734,6 +739,38 @@ if (
   );
 }
 
+// ======================================================
+// LOAD VEHICLES READY FOR TECHNICIAN ASSIGNMENT
+// ======================================================
+
+const readyVehiclesResponse = await fetch(
+  `http://localhost:5000/api/service-requests/garage/${relatedGarageId}/ready-for-technician`
+);
+
+const readyVehiclesResult =
+  await readyVehiclesResponse.json();
+
+if (
+  !readyVehiclesResponse.ok ||
+  readyVehiclesResult.success === false
+) {
+  throw new Error(
+    readyVehiclesResult.message ||
+      "Unable to load vehicles ready for technician assignment."
+  );
+}
+
+const readyVehicles = (
+  Array.isArray(readyVehiclesResult.vehicles)
+    ? readyVehiclesResult.vehicles
+    : []
+).map(normalizeRequest);
+
+setReadyForTechnicianVehicles(
+  readyVehicles
+);
+
+
 // ==========================================
 // LOAD TECHNICIANS FOR THIS GARAGE
 // ==========================================
@@ -997,6 +1034,7 @@ setCurrentCapacity(
 
       setEmergencyRequests([]);
       setAcceptedRequests([]);
+      setReadyForTechnicianVehicles([]);
       setSelectedReq(null);
 
       setRequestsError(
@@ -1089,9 +1127,11 @@ setCurrentCapacity(
       return;
     }
 
-    const selectedRequest = acceptedRequests.find(
-      (request) => request.vNo === vehicleNumber
-    );
+    const selectedRequest =
+      readyForTechnicianVehicles.find(
+        (request) =>
+          request.vNo === vehicleNumber
+      );
 
     if (!selectedRequest) {
       setPopup({
@@ -2641,7 +2681,7 @@ setCurrentCapacity(
             Select Vehicle
           </option>
 
-          {acceptedRequests.map(
+          {readyForTechnicianVehicles.map(
             (request) => (
               <option
                 key={request.id}

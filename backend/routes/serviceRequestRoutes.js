@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
+
 const {
   createServiceRequest,
   getServiceRequests,
@@ -9,7 +10,9 @@ const {
   rejectServiceRequest,
   getLatestCustomerRequest,
   updateCustomerStage,
+  getVehiclesReadyForTechnician,
 } = require("../controllers/serviceRequestController");
+
 
 // ======================================================
 // CREATE CUSTOMER SERVICE REQUEST
@@ -21,6 +24,7 @@ router.post(
   createServiceRequest
 );
 
+
 // ======================================================
 // GET SERVICE REQUESTS
 // ======================================================
@@ -29,6 +33,7 @@ router.get(
   "/service-requests",
   getServiceRequests
 );
+
 
 // ======================================================
 // GET LATEST REQUEST OF CUSTOMER
@@ -41,6 +46,24 @@ router.get(
   getLatestCustomerRequest
 );
 
+
+// ======================================================
+// GET VEHICLES READY FOR TECHNICIAN ASSIGNMENT
+//
+// GET /api/service-requests/garage/:garageId/ready-for-technician
+//
+// Returns only:
+// - Accepted requests
+// - Vehicle has arrived at garage
+// - Technician/service job is not assigned yet
+// ======================================================
+
+router.get(
+  "/service-requests/garage/:garageId/ready-for-technician",
+  getVehiclesReadyForTechnician
+);
+
+
 // ======================================================
 // GET SINGLE SERVICE REQUEST
 // ======================================================
@@ -49,6 +72,7 @@ router.get(
   "/service-requests/:id",
   getServiceRequestById
 );
+
 
 // ======================================================
 // ACCEPT SERVICE REQUEST
@@ -59,6 +83,7 @@ router.put(
   acceptServiceRequest
 );
 
+
 // ======================================================
 // REJECT SERVICE REQUEST
 // ======================================================
@@ -67,6 +92,7 @@ router.put(
   "/service-requests/:id/reject",
   rejectServiceRequest
 );
+
 
 // ======================================================
 // UPDATE CUSTOMER FLOW STAGE
@@ -83,5 +109,6 @@ router.put(
   "/service-requests/:id/customer-stage",
   updateCustomerStage
 );
+
 
 module.exports = router;

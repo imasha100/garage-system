@@ -1067,6 +1067,157 @@ const updateTechnicianShiftStatus = async (
 };
 
 // ======================================================
+// CHANGE TECHNICIAN PASSWORD
+// ======================================================
+
+const changeTechnicianPassword = async (req, res) => {
+  try {
+    const technicianId = Number(req.params.id);
+
+    const {
+      currentPassword,
+      newPassword,
+    } = req.body;
+
+    if (
+      !Number.isInteger(technicianId) ||
+      technicianId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid technician ID is required.",
+      });
+    }
+
+    if (
+      !String(currentPassword || "").trim() ||
+      !String(newPassword || "").trim()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Current password and new password are required.",
+      });
+    }
+
+    const cleanedCurrentPassword =
+      String(currentPassword);
+
+    const cleanedNewPassword =
+      String(newPassword);
+
+    if (cleanedNewPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must contain at least 6 characters.",
+      });
+    }
+
+    if (
+      cleanedCurrentPassword ===
+      cleanedNewPassword
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be different from the current password.",
+      });
+    }
+
+    const [rows] = await db.query(
+      `
+        SELECT
+          t.technician_id,
+          t.login_login_id,
+          l.password
+        FROM technician t
+        INNER JOIN login l
+          ON l.login_id = t.login_login_id
+        WHERE t.technician_id = ?
+        LIMIT 1
+      `,
+      [technicianId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Technician login account was not found.",
+      });
+    }
+
+    const loginAccount = rows[0];
+
+    if (
+      String(loginAccount.password) !==
+      cleanedCurrentPassword
+    ) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Current password is incorrect.",
+      });
+    }
+
+    await db.query(
+      `
+        UPDATE login
+        SET password = ?
+        WHERE login_id = ?
+      `,
+      [
+        cleanedNewPassword,
+        loginAccount.login_login_id,
+      ]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Password changed successfully.",
+    });
+  } catch (error) {
+    console.error(
+      "========== CHANGE TECHNICIAN PASSWORD ERROR =========="
+    );
+
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
+    console.error(
+      "SQL Message:",
+      error.sqlMessage
+    );
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
+
+    console.error(
+      "======================================================"
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.sqlMessage ||
+        "Unable to change technician password.",
+    });
+  }
+};
+
+// ======================================================
 // EXPORT CONTROLLER FUNCTIONS
 // ======================================================
 
@@ -1077,4 +1228,5 @@ module.exports = {
   getTechnicianById,
   updateTechnician,
   updateTechnicianShiftStatus,
+  changeTechnicianPassword,
 };

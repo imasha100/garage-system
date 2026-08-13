@@ -137,6 +137,50 @@ const createInvoiceAndPayment = async (req, res) => {
     const job = jobRows[0];
 
     // ==================================================
+    // GET TOW TRUCK CHARGE (NON-DRIVEABLE ONLY)
+    //
+    // Driveable requests do not have a tow dispatch, so
+    // towCharge remains 0.
+    // ==================================================
+
+    let towCharge = 0;
+
+    if (job.service_request_request_id) {
+      const [towRows] = await connection.query(
+        `
+        SELECT
+          tow_charge
+        FROM tow_dispatch
+        WHERE service_request_request_id = ?
+          AND tow_charge IS NOT NULL
+          AND UPPER(
+            TRIM(
+              COALESCE(
+                dispatch_status,
+                ''
+              )
+            )
+          ) <> 'REJECTED'
+        ORDER BY
+          dispatch_id DESC
+        LIMIT 1
+        `,
+        [
+          job.service_request_request_id,
+        ]
+      );
+
+      if (towRows.length > 0) {
+        towCharge = Math.max(
+          0,
+          Number(
+            towRows[0].tow_charge
+          ) || 0
+        );
+      }
+    }
+
+    // ==================================================
     // ONLY COMPLETED JOBS CAN BE BILLED
     // ==================================================
 
@@ -367,13 +411,17 @@ const createInvoiceAndPayment = async (req, res) => {
     // CALCULATE TOTALS
     // ==================================================
 
-    const totalAmount =
+    const stockItemsTotal =
       validatedItems.reduce(
         (total, item) =>
           total +
           item.lineTotal,
         0
       );
+
+    const totalAmount =
+      stockItemsTotal +
+      towCharge;
 
     const numericTaxAmount =
       Math.max(
@@ -515,6 +563,41 @@ const createInvoiceAndPayment = async (req, res) => {
     }
 
     // ==================================================
+    // ADD TOW TRUCK CHARGE AS A NON-STOCK INVOICE ITEM
+    //
+    // stock_batch_id is NULL because towing is a service
+    // charge, not a stock item.
+    // ==================================================
+
+    if (towCharge > 0) {
+      await connection.query(
+        `
+        INSERT INTO invoice_item (
+          item_name,
+          invoice_invoice_id,
+          stock_batch_id,
+          quantity,
+          unit_price,
+          line_total
+        )
+        VALUES (
+          'Tow Truck Charge',
+          ?,
+          NULL,
+          1,
+          ?,
+          ?
+        )
+        `,
+        [
+          invoiceId,
+          towCharge,
+          towCharge,
+        ]
+      );
+    }
+
+    // ==================================================
     // CREATE PAYMENT
     // ==================================================
 
@@ -598,6 +681,26 @@ const createInvoiceAndPayment = async (req, res) => {
         })
       );
 
+    if (towCharge > 0) {
+      invoiceItems.push({
+        itemId: null,
+        itemName:
+          "Tow Truck Charge",
+        stockId: null,
+        batchId: null,
+        batchNumber: null,
+        quantity: 1,
+        unitPrice:
+          towCharge,
+        lineTotal:
+          towCharge,
+        availableBefore: null,
+        availableAfter: null,
+        reorderLevel: null,
+        lowStock: false,
+      });
+    }
+
     // ==================================================
     // SUCCESS RESPONSE
     // ==================================================
@@ -618,6 +721,8 @@ const createInvoiceAndPayment = async (req, res) => {
           currentDate,
 
         totalAmount,
+
+        towCharge,
 
         taxAmount:
           numericTaxAmount,

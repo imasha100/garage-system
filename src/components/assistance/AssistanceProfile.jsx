@@ -14,6 +14,10 @@ import {
   Phone,
   RefreshCw,
   AlertCircle,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  CheckCircle2,
 } from "lucide-react";
 
 import { motion } from "framer-motion";
@@ -75,6 +79,51 @@ const AssistanceProfile = ({
     errorMessage,
     setErrorMessage,
   ] = useState("");
+
+  const [
+    currentPassword,
+    setCurrentPassword,
+  ] = useState("");
+
+  const [
+    newPassword,
+    setNewPassword,
+  ] = useState("");
+
+  const [
+    confirmPassword,
+    setConfirmPassword,
+  ] = useState("");
+
+  const [
+    showCurrentPassword,
+    setShowCurrentPassword,
+  ] = useState(false);
+
+  const [
+    showNewPassword,
+    setShowNewPassword,
+  ] = useState(false);
+
+  const [
+    showConfirmPassword,
+    setShowConfirmPassword,
+  ] = useState(false);
+
+  const [
+    isChangingPassword,
+    setIsChangingPassword,
+  ] = useState(false);
+
+  const [
+    passwordError,
+    setPasswordError,
+  ] = useState("");
+
+  const [
+    passwordSuccessPopup,
+    setPasswordSuccessPopup,
+  ] = useState(false);
 
   // ======================================================
   // GET LOGGED-IN ASSISTANCE OFFICER
@@ -753,6 +802,177 @@ const AssistanceProfile = ({
     };
 
   // ======================================================
+  // CHANGE PASSWORD
+  // ======================================================
+
+  const isStrongPassword = (
+    password
+  ) => {
+    return (
+      password.length >= 8 &&
+      /[A-Z]/.test(password) &&
+      /[a-z]/.test(password) &&
+      /\d/.test(password) &&
+      /[^A-Za-z0-9]/.test(
+        password
+      )
+    );
+  };
+
+  const changePassword =
+    async (event) => {
+      event.preventDefault();
+
+      setPasswordError("");
+
+      const staffUser =
+        getLoggedInAssistance();
+
+      const assistanceId =
+        Number(
+          profile.assistanceId ||
+            staffUser?.staffId
+        );
+
+      if (
+        !staffUser ||
+        !Number.isInteger(
+          assistanceId
+        ) ||
+        assistanceId <= 0
+      ) {
+        setPasswordError(
+          "A valid assistance officer ID was not found. Please sign in again."
+        );
+        return;
+      }
+
+      if (
+        !currentPassword ||
+        !newPassword ||
+        !confirmPassword
+      ) {
+        setPasswordError(
+          "Please complete all password fields."
+        );
+        return;
+      }
+
+      if (
+        !isStrongPassword(
+          newPassword
+        )
+      ) {
+        setPasswordError(
+          "New password must contain at least 8 characters, including uppercase, lowercase, a number and a special character."
+        );
+        return;
+      }
+
+      if (
+        newPassword !==
+        confirmPassword
+      ) {
+        setPasswordError(
+          "New password and confirm password do not match."
+        );
+        return;
+      }
+
+      if (
+        currentPassword ===
+        newPassword
+      ) {
+        setPasswordError(
+          "New password must be different from the current password."
+        );
+        return;
+      }
+
+      setIsChangingPassword(
+        true
+      );
+
+      try {
+        const response =
+          await fetch(
+            `${API_BASE_URL}/assistances/${assistanceId}/change-password`,
+            {
+              method: "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  currentPassword,
+                  newPassword,
+                }),
+            }
+          );
+
+        let data = {};
+
+        try {
+          data =
+            await response.json();
+        } catch {
+          data = {};
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+              (response.status === 404
+                ? "Password change API route was not found."
+                : "Unable to change password.")
+          );
+        }
+
+        if (
+          data.success === false
+        ) {
+          throw new Error(
+            data.message ||
+              "Unable to change password."
+          );
+        }
+
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+
+        setShowCurrentPassword(
+          false
+        );
+        setShowNewPassword(false);
+        setShowConfirmPassword(
+          false
+        );
+
+        setPasswordSuccessPopup(
+          true
+        );
+      } catch (error) {
+        console.error(
+          "Change assistance password error:",
+          error
+        );
+
+        setPasswordError(
+          error.message ||
+            "Unable to change password."
+        );
+      } finally {
+        setIsChangingPassword(
+          false
+        );
+      }
+    };
+
+  // ======================================================
   // SHIFT STATUS
   // ======================================================
 
@@ -880,32 +1100,44 @@ const AssistanceProfile = ({
 
       {/* PROFILE CONTENT */}
 
-      <div className="flex min-h-full w-full items-start justify-center p-4 py-8 md:p-6 md:py-10">
-
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
         <motion.div
           initial={{
             opacity: 0,
-            y: 30,
+            y: 24,
           }}
           animate={{
             opacity: 1,
             y: 0,
           }}
-          className="mb-8 w-full max-w-md rounded-2xl border border-[#1f2a36] bg-[#0b0e14] p-6 shadow-2xl"
+          className="w-full"
         >
+          {/* PAGE HEADER */}
+
+          <div className="mb-7">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400">
+              Assistance Workspace
+            </p>
+
+            <h1 className="mt-2 text-3xl font-black text-white">
+              Assistance Profile
+            </h1>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Manage your profile details, shift status, profile photo and account security.
+            </p>
+          </div>
 
           {/* ERROR MESSAGE */}
 
           {errorMessage && (
-            <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-
+            <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
               <AlertCircle
                 size={19}
                 className="mt-0.5 shrink-0"
               />
 
               <div className="flex-1">
-
                 <p>
                   {errorMessage}
                 </p>
@@ -921,20 +1153,15 @@ const AssistanceProfile = ({
                     <RefreshCw
                       size={15}
                     />
-
                     Retry
                   </button>
                 )}
-
               </div>
-
             </div>
           )}
 
           {isLoading ? (
-
-            <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-
+            <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-[#1f2a36] bg-[#0b0e14] text-center">
               <RefreshCw
                 size={36}
                 className="animate-spin text-cyan-400"
@@ -943,291 +1170,635 @@ const AssistanceProfile = ({
               <p className="mt-4 text-sm text-slate-400">
                 Loading assistance profile...
               </p>
+            </div>
+          ) : (
+            <>
+              {/* TOP GRID */}
 
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {/* PROFILE CARD */}
+
+                <div className="rounded-2xl border border-[#1f2a36] bg-[#0b0e14] p-6">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-2 border-cyan-400 bg-[#111] shadow-lg shadow-cyan-500/10">
+                      {preview ? (
+                        <img
+                          src={
+                            preview
+                          }
+                          alt="Assistance Profile"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <User
+                          size={44}
+                          className="text-gray-500"
+                        />
+                      )}
+                    </div>
+
+                    <label className="mt-4 flex cursor-pointer items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-cyan-400 transition hover:bg-cyan-500/10">
+                      <Upload
+                        size={15}
+                      />
+
+                      Change Photo
+
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        hidden
+                        disabled={
+                          isSaving
+                        }
+                        onChange={
+                          handleImageUpload
+                        }
+                      />
+                    </label>
+
+                    <p className="mt-2 text-[9px] text-slate-600">
+                      JPG, PNG or WEBP • Max 5 MB
+                    </p>
+
+                    {profile.selectedPhoto && (
+                      <p className="mt-2 text-[9px] font-bold uppercase tracking-wider text-amber-400">
+                        New photo selected — click Save Profile
+                      </p>
+                    )}
+
+                    <h2 className="mt-5 text-xl font-bold text-white">
+                      {profile.name || "Assistance Officer"}
+                    </h2>
+
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-cyan-400">
+                      Assistance Officer
+                    </p>
+
+                    {profile.garageName && (
+                      <div className="mt-5 w-full rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3">
+                        <p className="text-[9px] uppercase tracking-[0.18em] text-gray-500">
+                          Assigned Garage
+                        </p>
+
+                        <p className="mt-1 text-sm font-bold text-cyan-400">
+                          {profile.garageName}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mt-5 w-full rounded-xl border border-[#1f2a36] bg-[#050608] p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="text-left">
+                          <p className="text-[9px] uppercase tracking-widest text-slate-500">
+                            Shift Status
+                          </p>
+
+                          <p
+                            className={`mt-1 text-sm font-bold ${
+                              profile.shiftOn
+                                ? "text-green-400"
+                                : "text-red-400"
+                            }`}
+                          >
+                            {profile.shiftOn
+                              ? "Currently On-Shift"
+                              : "Currently Off-Shift"}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={
+                            openShiftConfirm
+                          }
+                          disabled={
+                            isUpdatingShift
+                          }
+                          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                            profile.shiftOn
+                              ? "bg-green-600 hover:bg-green-700"
+                              : "bg-red-600 hover:bg-red-700"
+                          }`}
+                        >
+                          {profile.shiftOn ? (
+                            <>
+                              <Power
+                                size={15}
+                              />
+                              ON
+                            </>
+                          ) : (
+                            <>
+                              <PowerOff
+                                size={15}
+                              />
+                              OFF
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN */}
+
+                <div className="space-y-6 lg:col-span-2">
+                  {/* PROFILE DETAILS */}
+
+                  <div className="rounded-2xl border border-[#1f2a36] bg-[#0b0e14] p-6">
+                    <div className="mb-5">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                        Profile Information
+                      </p>
+
+                      <h3 className="mt-1 text-xl font-bold text-white">
+                        Personal Details
+                      </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          Full Name
+                        </label>
+
+                        <div className="relative">
+                          <User
+                            size={17}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+                          />
+
+                          <input
+                            type="text"
+                            name="name"
+                            value={
+                              profile.name
+                            }
+                            onChange={
+                              handleProfileChange
+                            }
+                            disabled={
+                              isSaving
+                            }
+                            className="h-11 w-full rounded-lg border border-[#1f2a36] bg-[#050608] pl-10 pr-3 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                            placeholder="Name"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          Email
+                        </label>
+
+                        <div className="relative">
+                          <Mail
+                            size={17}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+                          />
+
+                          <input
+                            type="email"
+                            name="email"
+                            value={
+                              profile.email
+                            }
+                            onChange={
+                              handleProfileChange
+                            }
+                            disabled={
+                              isSaving
+                            }
+                            className="h-11 w-full rounded-lg border border-[#1f2a36] bg-[#050608] pl-10 pr-3 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                            placeholder="Email"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          Contact Number
+                        </label>
+
+                        <div className="relative">
+                          <Phone
+                            size={17}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+                          />
+
+                          <input
+                            type="tel"
+                            name="contactNumber"
+                            value={
+                              profile.contactNumber
+                            }
+                            onChange={
+                              handleProfileChange
+                            }
+                            disabled={
+                              isSaving
+                            }
+                            className="h-11 w-full rounded-lg border border-[#1f2a36] bg-[#050608] pl-10 pr-3 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                            placeholder="Contact Number"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          NIC
+                        </label>
+
+                        <div className="relative">
+                          <User
+                            size={17}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
+                          />
+
+                          <input
+                            type="text"
+                            name="nic"
+                            value={
+                              profile.nic
+                            }
+                            onChange={
+                              handleProfileChange
+                            }
+                            disabled={
+                              isSaving
+                            }
+                            className="h-11 w-full rounded-lg border border-[#1f2a36] bg-[#050608] pl-10 pr-3 text-sm uppercase outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                            placeholder="NIC"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-col gap-3 border-t border-[#1f2a36] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-[10px] leading-5 text-slate-500">
+                        Update your personal details and selected profile photo together.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={
+                          handleSave
+                        }
+                        disabled={
+                          isSaving
+                        }
+                        className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-6 py-3 text-xs font-bold uppercase tracking-wider text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isSaving ? (
+                          <>
+                            <RefreshCw
+                              size={16}
+                              className="animate-spin"
+                            />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save
+                              size={16}
+                            />
+                            Save Profile
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {saved && (
+                      <motion.p
+                        initial={{
+                          opacity: 0,
+                        }}
+                        animate={{
+                          opacity: 1,
+                        }}
+                        className="mt-3 text-right text-xs font-bold text-green-400"
+                      >
+                        Profile updated successfully ✔
+                      </motion.p>
+                    )}
+                  </div>
+
+                  {/* SECURITY */}
+
+                  <div className="rounded-2xl border border-[#1f2a36] bg-[#0b0e14] p-6">
+                    <div className="mb-4">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-400">
+                        Security
+                      </p>
+
+                      <h3 className="mt-1 text-xl font-bold text-white">
+                        Change Password
+                      </h3>
+
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Replace the temporary password provided by your garage owner.
+                      </p>
+                    </div>
+
+                    {passwordError && (
+                      <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+                        <AlertCircle
+                          size={16}
+                          className="mt-0.5 shrink-0"
+                        />
+
+                        <span>
+                          {passwordError}
+                        </span>
+                      </div>
+                    )}
+
+                    <form
+                      onSubmit={
+                        changePassword
+                      }
+                      autoComplete="off"
+                    >
+                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                        <div>
+                          <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                            Current Password
+                          </label>
+
+                          <div className="relative">
+                            <LockKeyhole
+                              size={16}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                            />
+
+                            <input
+                              type={
+                                showCurrentPassword
+                                  ? "text"
+                                  : "password"
+                              }
+                              value={
+                                currentPassword
+                              }
+                              onChange={(
+                                event
+                              ) => {
+                                setCurrentPassword(
+                                  event.target.value
+                                );
+                                setPasswordError(
+                                  ""
+                                );
+                              }}
+                              autoComplete="off"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              disabled={
+                                isChangingPassword
+                              }
+                              className="h-11 w-full rounded-lg border border-[#1f2a36] bg-[#050608] pl-10 pr-11 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                              placeholder="Current password"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowCurrentPassword(
+                                  (value) =>
+                                    !value
+                                )
+                              }
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-cyan-400"
+                              aria-label="Show or hide current password"
+                            >
+                              {showCurrentPassword ? (
+                                <EyeOff
+                                  size={17}
+                                />
+                              ) : (
+                                <Eye
+                                  size={17}
+                                />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                            New Password
+                          </label>
+
+                          <div className="relative">
+                            <input
+                              type={
+                                showNewPassword
+                                  ? "text"
+                                  : "password"
+                              }
+                              value={
+                                newPassword
+                              }
+                              onChange={(
+                                event
+                              ) => {
+                                setNewPassword(
+                                  event.target.value
+                                );
+                                setPasswordError(
+                                  ""
+                                );
+                              }}
+                              autoComplete="new-password"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              disabled={
+                                isChangingPassword
+                              }
+                              className="h-11 w-full rounded-lg border border-[#1f2a36] bg-[#050608] px-3 pr-11 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                              placeholder="New password"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowNewPassword(
+                                  (value) =>
+                                    !value
+                                )
+                              }
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-cyan-400"
+                              aria-label="Show or hide new password"
+                            >
+                              {showNewPassword ? (
+                                <EyeOff
+                                  size={17}
+                                />
+                              ) : (
+                                <Eye
+                                  size={17}
+                                />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-1.5 block text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                            Confirm Password
+                          </label>
+
+                          <div className="relative">
+                            <input
+                              type={
+                                showConfirmPassword
+                                  ? "text"
+                                  : "password"
+                              }
+                              value={
+                                confirmPassword
+                              }
+                              onChange={(
+                                event
+                              ) => {
+                                setConfirmPassword(
+                                  event.target.value
+                                );
+                                setPasswordError(
+                                  ""
+                                );
+                              }}
+                              autoComplete="new-password"
+                              data-lpignore="true"
+                              data-1p-ignore="true"
+                              disabled={
+                                isChangingPassword
+                              }
+                              className="h-11 w-full rounded-lg border border-[#1f2a36] bg-[#050608] px-3 pr-11 text-sm outline-none transition focus:border-cyan-400 disabled:opacity-60"
+                              placeholder="Confirm password"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowConfirmPassword(
+                                  (value) =>
+                                    !value
+                                )
+                              }
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-cyan-400"
+                              aria-label="Show or hide confirm password"
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff
+                                  size={17}
+                                />
+                              ) : (
+                                <Eye
+                                  size={17}
+                                />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-3 border-t border-[#1f2a36] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                            Strong Password Required
+                          </p>
+
+                          <p className="mt-1 text-[9px] leading-4 text-slate-600">
+                            8+ characters • uppercase • lowercase • number • special character
+                          </p>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={
+                            isChangingPassword
+                          }
+                          className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isChangingPassword ? (
+                            <>
+                              <RefreshCw
+                                size={15}
+                                className="animate-spin"
+                              />
+                              Changing...
+                            </>
+                          ) : (
+                            <>
+                              <LockKeyhole
+                                size={15}
+                              />
+                              Change Password
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </motion.div>
+      </div>
+
+      {/* PASSWORD SUCCESS POPUP */}
+
+      {passwordSuccessPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{
+              opacity: 0,
+              scale: 0.9,
+              y: 15,
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: 0,
+            }}
+            className="w-full max-w-sm rounded-2xl border border-green-500/30 bg-[#0b0e14] p-6 text-center shadow-2xl"
+          >
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-green-500/30 bg-green-500/10 text-green-400">
+              <CheckCircle2
+                size={32}
+              />
             </div>
 
-          ) : (
+            <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-green-400">
+              Security Updated
+            </p>
 
-            <>
+            <h3 className="mt-2 text-xl font-bold text-white">
+              Password Changed Successfully
+            </h3>
 
-              {/* PROFILE IMAGE */}
+            <p className="mt-3 text-xs leading-6 text-slate-400">
+              Your password has been updated. Use your new password the next time you sign in.
+            </p>
 
-              <div className="mb-6 flex flex-col items-center">
-
-                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-cyan-400 bg-[#111] shadow-lg">
-
-                  {preview ? (
-                    <img
-                      src={
-                        preview
-                      }
-                      alt="Assistance Profile"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <User
-                      size={40}
-                      className="text-gray-500"
-                    />
-                  )}
-
-                </div>
-
-                <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-bold text-cyan-400 transition hover:text-cyan-300">
-
-                  <Upload
-                    size={16}
-                  />
-
-                  Upload Photo
-
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                    hidden
-                    disabled={
-                      isSaving
-                    }
-                    onChange={
-                      handleImageUpload
-                    }
-                  />
-
-                </label>
-
-                {profile.selectedPhoto && (
-                  <p className="mt-2 text-[10px] uppercase tracking-wider text-amber-400">
-                    New photo selected — click Save Profile
-                  </p>
-                )}
-
-              </div>
-
-              {/* INPUTS */}
-
-              <div className="mb-6 space-y-3">
-
-                <input
-                  type="text"
-                  name="name"
-                  value={
-                    profile.name
-                  }
-                  onChange={
-                    handleProfileChange
-                  }
-                  disabled={
-                    isSaving
-                  }
-                  className="w-full rounded border border-[#1f2a36] bg-[#050608] p-3 text-base outline-none focus:border-cyan-400 disabled:opacity-60"
-                  placeholder="Name"
-                />
-
-                <div className="relative">
-
-                  <Mail
-                    size={18}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
-                  />
-
-                  <input
-                    type="email"
-                    name="email"
-                    value={
-                      profile.email
-                    }
-                    onChange={
-                      handleProfileChange
-                    }
-                    disabled={
-                      isSaving
-                    }
-                    className="w-full rounded border border-[#1f2a36] bg-[#050608] p-3 pl-10 text-base outline-none focus:border-cyan-400 disabled:opacity-60"
-                    placeholder="Email"
-                  />
-
-                </div>
-
-                <div className="relative">
-
-                  <Phone
-                    size={18}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
-                  />
-
-                  <input
-                    type="tel"
-                    name="contactNumber"
-                    value={
-                      profile.contactNumber
-                    }
-                    onChange={
-                      handleProfileChange
-                    }
-                    disabled={
-                      isSaving
-                    }
-                    className="w-full rounded border border-[#1f2a36] bg-[#050608] p-3 pl-10 text-base outline-none focus:border-cyan-400 disabled:opacity-60"
-                    placeholder="Contact Number"
-                  />
-
-                </div>
-
-                <div className="relative">
-
-                  <User
-                    size={18}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400"
-                  />
-
-                  <input
-                    type="text"
-                    name="nic"
-                    value={
-                      profile.nic
-                    }
-                    onChange={
-                      handleProfileChange
-                    }
-                    disabled={
-                      isSaving
-                    }
-                    className="w-full rounded border border-[#1f2a36] bg-[#050608] p-3 pl-10 text-base uppercase outline-none focus:border-cyan-400 disabled:opacity-60"
-                    placeholder="NIC"
-                  />
-
-                </div>
-
-              </div>
-
-              {/* GARAGE */}
-
-              {profile.garageName && (
-                <div className="mb-5 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-3 text-center">
-
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">
-                    Assigned Garage
-                  </p>
-
-                  <p className="mt-1 text-sm font-bold text-cyan-400">
-                    {profile.garageName}
-                  </p>
-
-                </div>
-              )}
-
-              {/* SHIFT STATUS */}
-
-              <div className="mb-7 flex items-center justify-between rounded-lg border border-[#1f2a36] bg-[#050608] p-4">
-
-                <p className="text-base font-semibold">
-
-                  Shift Status:{" "}
-
-                  <span
-                    className={
-                      profile.shiftOn
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }
-                  >
-                    {profile.shiftOn
-                      ? "ON"
-                      : "OFF"}
-                  </span>
-
-                </p>
-
-                <button
-                  type="button"
-                  onClick={
-                    openShiftConfirm
-                  }
-                  disabled={
-                    isUpdatingShift
-                  }
-                  className={`flex cursor-pointer items-center gap-2 rounded px-4 py-2 text-base font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                    profile.shiftOn
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-red-600 hover:bg-red-700"
-                  }`}
-                >
-
-                  {profile.shiftOn ? (
-                    <>
-                      <Power
-                        size={16}
-                      />
-                      ON
-                    </>
-                  ) : (
-                    <>
-                      <PowerOff
-                        size={16}
-                      />
-                      OFF
-                    </>
-                  )}
-
-                </button>
-
-              </div>
-
-              {/* SAVE BUTTON */}
-
-              <button
-                type="button"
-                onClick={
-                  handleSave
-                }
-                disabled={
-                  isSaving
-                }
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-cyan-500 py-3 text-base font-bold text-black transition hover:bg-cyan-600 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-
-                {isSaving ? (
-                  <>
-                    <RefreshCw
-                      size={20}
-                      className="animate-spin"
-                    />
-
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save
-                      size={20}
-                    />
-
-                    Save Profile
-                  </>
-                )}
-
-              </button>
-
-              {saved && (
-                <motion.p
-                  initial={{
-                    opacity: 0,
-                  }}
-                  animate={{
-                    opacity: 1,
-                  }}
-                  className="mt-3 text-center text-base text-green-400"
-                >
-                  Profile updated successfully ✔
-                </motion.p>
-              )}
-
-            </>
-
-          )}
-
-        </motion.div>
-
-      </div>
+            <button
+              type="button"
+              onClick={() =>
+                setPasswordSuccessPopup(
+                  false
+                )
+              }
+              className="mt-5 w-full rounded-lg bg-green-600 py-3 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-green-500"
+            >
+              OK
+            </button>
+          </motion.div>
+        </div>
+      )}
 
       {/* CUSTOM CONFIRM POPUP */}
 
