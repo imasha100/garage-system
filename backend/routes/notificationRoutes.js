@@ -11,6 +11,9 @@ const {
   getCustomerNotifications,
   getCustomerUnreadNotificationCount,
 
+  getTechnicianNotifications,
+  getTechnicianUnreadNotificationCount,
+
   getAssistanceNotifications,
   getAssistanceUnreadNotificationCount,
 
@@ -18,6 +21,7 @@ const {
   markAllNotificationsAsRead,
   markDriverNotificationsAsRead,
   markCustomerNotificationsAsRead,
+  markTechnicianNotificationsAsRead,
   markAssistanceNotificationsAsRead,
 
   deleteNotification,
@@ -27,6 +31,7 @@ const {
 // GARAGE NOTIFICATIONS
 // ======================================================
 
+// ======================================================
 // GET GARAGE NOTIFICATIONS
 //
 // GET /api/notifications/garage/:garageId
@@ -75,6 +80,7 @@ router.put(
 // EXTERNAL DRIVER NOTIFICATIONS
 // ======================================================
 
+// ======================================================
 // GET EXTERNAL DRIVER NOTIFICATIONS
 //
 // GET /api/notifications/driver/:driverId
@@ -123,6 +129,7 @@ router.put(
 // CUSTOMER NOTIFICATIONS
 // ======================================================
 
+// ======================================================
 // GET CUSTOMER NOTIFICATIONS
 //
 // GET /api/notifications/customer/:customerId
@@ -168,9 +175,59 @@ router.put(
 );
 
 // ======================================================
+// TECHNICIAN NOTIFICATIONS
+// ======================================================
+
+// ======================================================
+// GET TECHNICIAN NOTIFICATIONS
+//
+// GET /api/notifications/technician/:technicianId
+//
+// Optional:
+// ?targetPage=technician-intake
+// ?unreadOnly=true
+// ======================================================
+
+router.get(
+  "/notifications/technician/:technicianId",
+  getTechnicianNotifications
+);
+
+// ======================================================
+// GET TECHNICIAN UNREAD COUNT
+//
+// GET /api/notifications/technician/:technicianId/unread-count
+//
+// Optional:
+// ?targetPage=technician-intake
+// ======================================================
+
+router.get(
+  "/notifications/technician/:technicianId/unread-count",
+  getTechnicianUnreadNotificationCount
+);
+
+// ======================================================
+// MARK ALL TECHNICIAN NOTIFICATIONS AS READ
+//
+// PUT /api/notifications/technician/:technicianId/read-all
+//
+// Optional Body:
+// {
+//   "targetPage": "technician-intake"
+// }
+// ======================================================
+
+router.put(
+  "/notifications/technician/:technicianId/read-all",
+  markTechnicianNotificationsAsRead
+);
+
+// ======================================================
 // ASSISTANCE NOTIFICATIONS
 // ======================================================
 
+// ======================================================
 // GET ASSISTANCE NOTIFICATIONS
 //
 // GET /api/notifications/assistance/:assistanceId
@@ -219,6 +276,7 @@ router.put(
 // COMMON NOTIFICATION ROUTES
 // ======================================================
 
+// ======================================================
 // MARK ONE NOTIFICATION AS READ
 //
 // PUT /api/notifications/:notificationId/read

@@ -9,6 +9,7 @@ const db = require("../config/db");
 // - External Driver notifications
 // - Customer notifications
 // - Assistance Officer notifications
+// - Technician notifications
 // ======================================================
 
 const createNotification = async ({
@@ -16,6 +17,7 @@ const createNotification = async ({
   driverId = null,
   customerId = null,
   assistanceId = null,
+  technicianId = null,
   notificationType,
   title,
   message,
@@ -47,6 +49,13 @@ const createNotification = async ({
       assistanceId === ""
         ? null
         : Number(assistanceId);
+
+    const numericTechnicianId =
+      technicianId === null ||
+      technicianId === undefined ||
+      technicianId === ""
+        ? null
+        : Number(technicianId);
 
     // ==================================================
     // GARAGE VALIDATION
@@ -110,6 +119,20 @@ const createNotification = async ({
       );
     }
 
+    if (
+      numericTechnicianId !== null &&
+      (
+        !Number.isInteger(
+          numericTechnicianId
+        ) ||
+        numericTechnicianId <= 0
+      )
+    ) {
+      throw new Error(
+        "A valid technician ID is required."
+      );
+    }
+
     // Prevent one notification row from being assigned
     // to multiple individual recipient types at once.
 
@@ -117,6 +140,7 @@ const createNotification = async ({
       numericDriverId,
       numericCustomerId,
       numericAssistanceId,
+      numericTechnicianId,
     ].filter(
       (value) => value !== null
     ).length;
@@ -165,6 +189,7 @@ const createNotification = async ({
           truck_driver_driver_id,
           customer_customer_id,
           assistance_assistance_id,
+          technician_technician_id,
           notification_type,
           title,
           message,
@@ -186,6 +211,7 @@ const createNotification = async ({
           ?,
           ?,
           ?,
+          ?,
           FALSE,
           CURDATE(),
           CURTIME()
@@ -196,6 +222,7 @@ const createNotification = async ({
           numericDriverId,
           numericCustomerId,
           numericAssistanceId,
+          numericTechnicianId,
           String(
             notificationType || ""
           ).trim(),
@@ -250,7 +277,7 @@ const createNotification = async ({
 //
 // NOTE:
 // Garage notifications exclude notifications
-// targeted to Driver / Customer / Assistance.
+// targeted to Driver / Customer / Assistance / Technician.
 // ======================================================
 
 const getGarageNotifications =
@@ -299,6 +326,8 @@ const getGarageNotifications =
         "customer_customer_id IS NULL",
 
         "assistance_assistance_id IS NULL",
+
+        "technician_technician_id IS NULL",
       ];
 
       const values = [
@@ -516,6 +545,8 @@ const getUnreadNotificationCount =
 
         "assistance_assistance_id IS NULL",
 
+        "technician_technician_id IS NULL",
+
         "is_read = FALSE",
       ];
 
@@ -584,7 +615,8 @@ const getUnreadNotificationCount =
         });
     }
   };
-  // ======================================================
+
+// ======================================================
 // GET EXTERNAL DRIVER NOTIFICATIONS
 //
 // GET /api/notifications/driver/:driverId
@@ -909,8 +941,7 @@ const getDriverUnreadNotificationCount =
         });
     }
   };
-
-// ======================================================
+  // ======================================================
 // GET CUSTOMER NOTIFICATIONS
 //
 // GET /api/notifications/customer/:customerId
@@ -991,6 +1022,7 @@ const getCustomerNotifications =
             truck_driver_driver_id,
             customer_customer_id,
             assistance_assistance_id,
+            technician_technician_id,
             notification_type,
             title,
             message,
@@ -1034,6 +1066,9 @@ const getCustomerNotifications =
 
           assistanceId:
             row.assistance_assistance_id,
+
+          technicianId:
+            row.technician_technician_id,
 
           notificationType:
             row.notification_type,
@@ -1214,6 +1249,336 @@ const getCustomerUnreadNotificationCount =
   };
 
 // ======================================================
+// GET TECHNICIAN NOTIFICATIONS
+//
+// GET /api/notifications/technician/:technicianId
+//
+// Optional:
+// ?targetPage=technician-intake
+// ?unreadOnly=true
+// ======================================================
+
+const getTechnicianNotifications =
+  async (req, res) => {
+    try {
+      const technicianId = Number(
+        req.params.technicianId
+      );
+
+      if (
+        !Number.isInteger(
+          technicianId
+        ) ||
+        technicianId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "A valid technician ID is required.",
+          });
+      }
+
+      const targetPage =
+        String(
+          req.query.targetPage ||
+            ""
+        ).trim();
+
+      const unreadOnly =
+        String(
+          req.query.unreadOnly ||
+            ""
+        )
+          .trim()
+          .toLowerCase() ===
+        "true";
+
+      const conditions = [
+        "technician_technician_id = ?",
+      ];
+
+      const values = [
+        technicianId,
+      ];
+
+      if (targetPage) {
+        conditions.push(
+          "target_page = ?"
+        );
+
+        values.push(
+          targetPage
+        );
+      }
+
+      if (unreadOnly) {
+        conditions.push(
+          "is_read = FALSE"
+        );
+      }
+
+      const [rows] =
+        await db.query(
+          `
+          SELECT
+            notification_id,
+            garage_id,
+            truck_driver_driver_id,
+            customer_customer_id,
+            assistance_assistance_id,
+            technician_technician_id,
+            notification_type,
+            title,
+            message,
+            target_page,
+            reference_id,
+            priority,
+            is_read,
+            created_date,
+            created_time
+
+          FROM notification
+
+          WHERE
+            ${conditions.join(
+              " AND "
+            )}
+
+          ORDER BY
+            created_date DESC,
+            created_time DESC,
+            notification_id DESC
+
+          LIMIT 100
+          `,
+          values
+        );
+
+      const notifications =
+        rows.map((row) => ({
+          notificationId:
+            row.notification_id,
+
+          garageId:
+            row.garage_id,
+
+          driverId:
+            row.truck_driver_driver_id,
+
+          customerId:
+            row.customer_customer_id,
+
+          assistanceId:
+            row.assistance_assistance_id,
+
+          technicianId:
+            row.technician_technician_id,
+
+          notificationType:
+            row.notification_type,
+
+          title:
+            row.title,
+
+          message:
+            row.message,
+
+          targetPage:
+            row.target_page,
+
+          referenceId:
+            row.reference_id,
+
+          priority:
+            row.priority,
+
+          isRead:
+            Boolean(
+              row.is_read
+            ),
+
+          createdDate:
+            row.created_date,
+
+          createdTime:
+            row.created_time,
+        }));
+
+      const unreadCount =
+        notifications.filter(
+          (item) =>
+            !item.isRead
+        ).length;
+
+      return res
+        .status(200)
+        .json({
+          success: true,
+
+          technicianId,
+
+          targetPage:
+            targetPage ||
+            null,
+
+          unreadCount,
+
+          count:
+            notifications.length,
+
+          notifications,
+        });
+    } catch (error) {
+      console.error(
+        "========== GET TECHNICIAN NOTIFICATIONS ERROR =========="
+      );
+
+      console.error(
+        "Code:",
+        error.code
+      );
+
+      console.error(
+        "Message:",
+        error.message
+      );
+
+      console.error(
+        "SQL Message:",
+        error.sqlMessage
+      );
+
+      console.error(
+        "SQL:",
+        error.sql
+      );
+
+      console.error(
+        "========================================================"
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            error.sqlMessage ||
+            "Unable to load technician notifications.",
+        });
+    }
+  };
+
+// ======================================================
+// GET TECHNICIAN UNREAD COUNT
+//
+// GET /api/notifications/technician/:technicianId/unread-count
+// ======================================================
+
+const getTechnicianUnreadNotificationCount =
+  async (req, res) => {
+    try {
+      const technicianId = Number(
+        req.params.technicianId
+      );
+
+      if (
+        !Number.isInteger(
+          technicianId
+        ) ||
+        technicianId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "A valid technician ID is required.",
+          });
+      }
+
+      const targetPage =
+        String(
+          req.query.targetPage ||
+            ""
+        ).trim();
+
+      const conditions = [
+        "technician_technician_id = ?",
+        "is_read = FALSE",
+      ];
+
+      const values = [
+        technicianId,
+      ];
+
+      if (targetPage) {
+        conditions.push(
+          "target_page = ?"
+        );
+
+        values.push(
+          targetPage
+        );
+      }
+
+      const [rows] =
+        await db.query(
+          `
+          SELECT
+            COUNT(*) AS unread_count
+
+          FROM notification
+
+          WHERE
+            ${conditions.join(
+              " AND "
+            )}
+          `,
+          values
+        );
+
+      return res
+        .status(200)
+        .json({
+          success: true,
+
+          technicianId,
+
+          targetPage:
+            targetPage ||
+            null,
+
+          unreadCount:
+            Number(
+              rows[0]
+                ?.unread_count ||
+                0
+            ),
+        });
+    } catch (error) {
+      console.error(
+        "Get technician unread notification count error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            error.sqlMessage ||
+            "Unable to load technician unread notification count.",
+        });
+    }
+  };
+
+// ======================================================
 // GET ASSISTANCE NOTIFICATIONS
 //
 // GET /api/notifications/assistance/:assistanceId
@@ -1240,6 +1605,7 @@ const getAssistanceNotifications =
           .status(400)
           .json({
             success: false,
+
             message:
               "A valid assistance officer ID is required.",
           });
@@ -1287,103 +1653,104 @@ const getAssistanceNotifications =
       const [rows] =
         await db.query(
           `
-            SELECT
-              n.notification_id,
-              n.garage_id,
-              n.truck_driver_driver_id,
-              n.customer_customer_id,
-              n.assistance_assistance_id,
-              n.notification_type,
-              n.title,
-              n.message,
-              n.target_page,
-              n.reference_id,
-              n.priority,
-              n.is_read,
-              n.created_date,
-              n.created_time,
+          SELECT
+            n.notification_id,
+            n.garage_id,
+            n.truck_driver_driver_id,
+            n.customer_customer_id,
+            n.assistance_assistance_id,
+            n.technician_technician_id,
+            n.notification_type,
+            n.title,
+            n.message,
+            n.target_page,
+            n.reference_id,
+            n.priority,
+            n.is_read,
+            n.created_date,
+            n.created_time,
 
-              td.dispatch_id
-                AS dispatch_id,
+            td.dispatch_id
+              AS dispatch_id,
 
-              td.dispatch_status
-                AS dispatch_status,
+            td.dispatch_status
+              AS dispatch_status,
 
-              td.service_request_request_id
-                AS request_id,
+            td.service_request_request_id
+              AS request_id,
 
-              sr.ticket_number
-                AS ticket_number,
+            sr.ticket_number
+              AS ticket_number,
 
-              sr.customer_name
-                AS customer_name,
+            sr.customer_name
+              AS customer_name,
 
-              sr.contact_number
-                AS customer_contact,
+            sr.contact_number
+              AS customer_contact,
 
-              sr.vehicle_number
-                AS vehicle_number,
+            sr.vehicle_number
+              AS vehicle_number,
 
-              sr.vehicle_type
-                AS vehicle_type,
+            sr.vehicle_type
+              AS vehicle_type,
 
-              sr.location
-                AS customer_location,
+            sr.location
+              AS customer_location,
 
-              t.truck_number
-                AS truck_number,
+            t.truck_number
+              AS truck_number,
 
-              t.truck_type
-                AS truck_type,
+            t.truck_type
+              AS truck_type,
 
-              t.truck_model
-                AS truck_model,
+            t.truck_model
+              AS truck_model,
 
-              d.full_name
-                AS driver_name,
+            d.full_name
+              AS driver_name,
 
-              d.contact_number
-                AS driver_contact,
+            d.contact_number
+              AS driver_contact,
 
-              g.garage_name
-                AS garage_name,
+            g.garage_name
+              AS garage_name,
 
-              g.address
-                AS garage_address
+            g.address
+              AS garage_address
 
-            FROM notification n
+          FROM notification n
 
-            LEFT JOIN tow_dispatch td
-              ON td.dispatch_id =
-                 n.reference_id
+          LEFT JOIN tow_dispatch td
+            ON td.dispatch_id =
+               n.reference_id
 
-            LEFT JOIN service_request sr
-              ON sr.request_id =
-                 td.service_request_request_id
+          LEFT JOIN service_request sr
+            ON sr.request_id =
+               td.service_request_request_id
 
-            LEFT JOIN tow_truck t
-              ON t.truck_id =
-                 td.tow_truck_truck_id
+          LEFT JOIN tow_truck t
+            ON t.truck_id =
+               td.tow_truck_truck_id
 
-            LEFT JOIN truck_driver d
-              ON d.driver_id =
-                 td.truck_driver_driver_id
+          LEFT JOIN truck_driver d
+            ON d.driver_id =
+               td.truck_driver_driver_id
 
-            LEFT JOIN garage g
-              ON g.garage_id =
-                 sr.garage_garage_id
+          LEFT JOIN garage g
+            ON g.garage_id =
+               sr.garage_garage_id
 
-            WHERE
-              ${conditions.join(
-                " AND "
-              )}
+          WHERE
+            ${conditions.join(
+              " AND "
+            )}
 
-            ORDER BY
-              n.created_date DESC,
-              n.created_time DESC,
-              n.notification_id DESC
+          ORDER BY
+            n.created_date DESC,
+            n.created_time DESC,
+            n.notification_id DESC
 
-            LIMIT 100
+          LIMIT 100
           `,
           values
         );
@@ -1404,6 +1771,9 @@ const getAssistanceNotifications =
 
           assistanceId:
             row.assistance_assistance_id,
+
+          technicianId:
+            row.technician_technician_id,
 
           notificationType:
             row.notification_type,
@@ -1716,8 +2086,7 @@ const markNotificationAsRead =
     try {
       const notificationId =
         Number(
-          req.params
-            .notificationId
+          req.params.notificationId
         );
 
       if (
@@ -1736,24 +2105,25 @@ const markNotificationAsRead =
           });
       }
 
-      const [result] =
+      // ==================================================
+      // CHECK NOTIFICATION
+      // ==================================================
+
+      const [notificationRows] =
         await db.query(
           `
-          UPDATE notification
-
-          SET
-            is_read = TRUE
-
-          WHERE
-            notification_id = ?
+          SELECT
+            notification_id,
+            is_read
+          FROM notification
+          WHERE notification_id = ?
+          LIMIT 1
           `,
-          [
-            notificationId,
-          ]
+          [notificationId]
         );
 
       if (
-        result.affectedRows ===
+        notificationRows.length ===
         0
       ) {
         return res
@@ -1762,9 +2132,22 @@ const markNotificationAsRead =
             success: false,
 
             message:
-              "Notification was not found.",
+              "Notification not found.",
           });
       }
+
+      // ==================================================
+      // MARK AS READ
+      // ==================================================
+
+      await db.query(
+        `
+        UPDATE notification
+        SET is_read = TRUE
+        WHERE notification_id = ?
+        `,
+        [notificationId]
+      );
 
       return res
         .status(200)
@@ -1778,7 +2161,7 @@ const markNotificationAsRead =
         });
     } catch (error) {
       console.error(
-        "Mark notification read error:",
+        "Mark notification as read error:",
         error
       );
 
@@ -1803,14 +2186,19 @@ const markNotificationAsRead =
 // {
 //   "targetPage": "stock-management"
 // }
+//
+// IMPORTANT:
+// Garage notifications exclude individual notifications
+// for Driver / Customer / Assistance / Technician.
 // ======================================================
 
 const markAllNotificationsAsRead =
   async (req, res) => {
     try {
-      const garageId = Number(
-        req.params.garageId
-      );
+      const garageId =
+        Number(
+          req.params.garageId
+        );
 
       if (
         !Number.isInteger(
@@ -1830,8 +2218,8 @@ const markAllNotificationsAsRead =
 
       const targetPage =
         String(
-          req.body
-            ?.targetPage || ""
+          req.body?.targetPage ||
+            ""
         ).trim();
 
       const conditions = [
@@ -1839,6 +2227,7 @@ const markAllNotificationsAsRead =
         "truck_driver_driver_id IS NULL",
         "customer_customer_id IS NULL",
         "assistance_assistance_id IS NULL",
+        "technician_technician_id IS NULL",
         "is_read = FALSE",
       ];
 
@@ -1878,7 +2267,7 @@ const markAllNotificationsAsRead =
           success: true,
 
           message:
-            "Notifications marked as read.",
+            "Garage notifications marked as read.",
 
           updatedCount:
             result.affectedRows,
@@ -1891,7 +2280,7 @@ const markAllNotificationsAsRead =
         });
     } catch (error) {
       console.error(
-        "Mark all notifications read error:",
+        "Mark garage notifications as read error:",
         error
       );
 
@@ -1902,7 +2291,7 @@ const markAllNotificationsAsRead =
 
           message:
             error.sqlMessage ||
-            "Unable to mark notifications as read.",
+            "Unable to mark garage notifications as read.",
         });
     }
   };
@@ -1921,9 +2310,10 @@ const markAllNotificationsAsRead =
 const markDriverNotificationsAsRead =
   async (req, res) => {
     try {
-      const driverId = Number(
-        req.params.driverId
-      );
+      const driverId =
+        Number(
+          req.params.driverId
+        );
 
       if (
         !Number.isInteger(
@@ -1943,8 +2333,8 @@ const markDriverNotificationsAsRead =
 
       const targetPage =
         String(
-          req.body
-            ?.targetPage || ""
+          req.body?.targetPage ||
+            ""
         ).trim();
 
       const conditions = [
@@ -2001,7 +2391,7 @@ const markDriverNotificationsAsRead =
         });
     } catch (error) {
       console.error(
-        "Mark driver notifications read error:",
+        "Mark driver notifications as read error:",
         error
       );
 
@@ -2024,16 +2414,17 @@ const markDriverNotificationsAsRead =
 //
 // Optional body:
 // {
-//   "targetPage": "mobility-recovery"
+//   "targetPage": "progress"
 // }
 // ======================================================
 
 const markCustomerNotificationsAsRead =
   async (req, res) => {
     try {
-      const customerId = Number(
-        req.params.customerId
-      );
+      const customerId =
+        Number(
+          req.params.customerId
+        );
 
       if (
         !Number.isInteger(
@@ -2053,8 +2444,8 @@ const markCustomerNotificationsAsRead =
 
       const targetPage =
         String(
-          req.body
-            ?.targetPage || ""
+          req.body?.targetPage ||
+            ""
         ).trim();
 
       const conditions = [
@@ -2111,7 +2502,7 @@ const markCustomerNotificationsAsRead =
         });
     } catch (error) {
       console.error(
-        "Mark customer notifications read error:",
+        "Mark customer notifications as read error:",
         error
       );
 
@@ -2141,9 +2532,10 @@ const markCustomerNotificationsAsRead =
 const markAssistanceNotificationsAsRead =
   async (req, res) => {
     try {
-      const assistanceId = Number(
-        req.params.assistanceId
-      );
+      const assistanceId =
+        Number(
+          req.params.assistanceId
+        );
 
       if (
         !Number.isInteger(
@@ -2163,8 +2555,8 @@ const markAssistanceNotificationsAsRead =
 
       const targetPage =
         String(
-          req.body
-            ?.targetPage || ""
+          req.body?.targetPage ||
+            ""
         ).trim();
 
       const conditions = [
@@ -2221,7 +2613,7 @@ const markAssistanceNotificationsAsRead =
         });
     } catch (error) {
       console.error(
-        "Mark assistance notifications read error:",
+        "Mark assistance notifications as read error:",
         error
       );
 
@@ -2236,6 +2628,117 @@ const markAssistanceNotificationsAsRead =
         });
     }
   };
+
+// ======================================================
+// MARK ALL TECHNICIAN NOTIFICATIONS AS READ
+//
+// PUT /api/notifications/technician/:technicianId/read-all
+//
+// Optional body:
+// {
+//   "targetPage": "technician-intake"
+// }
+// ======================================================
+
+const markTechnicianNotificationsAsRead =
+  async (req, res) => {
+    try {
+      const technicianId =
+        Number(
+          req.params.technicianId
+        );
+
+      if (
+        !Number.isInteger(
+          technicianId
+        ) ||
+        technicianId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "A valid technician ID is required.",
+          });
+      }
+
+      const targetPage =
+        String(
+          req.body?.targetPage ||
+            ""
+        ).trim();
+
+      const conditions = [
+        "technician_technician_id = ?",
+        "is_read = FALSE",
+      ];
+
+      const values = [
+        technicianId,
+      ];
+
+      if (targetPage) {
+        conditions.push(
+          "target_page = ?"
+        );
+
+        values.push(
+          targetPage
+        );
+      }
+
+      const [result] =
+        await db.query(
+          `
+          UPDATE notification
+
+          SET
+            is_read = TRUE
+
+          WHERE
+            ${conditions.join(
+              " AND "
+            )}
+          `,
+          values
+        );
+
+      return res
+        .status(200)
+        .json({
+          success: true,
+
+          message:
+            "Technician notifications marked as read.",
+
+          updatedCount:
+            result.affectedRows,
+
+          technicianId,
+
+          targetPage:
+            targetPage ||
+            null,
+        });
+    } catch (error) {
+      console.error(
+        "Mark technician notifications as read error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            error.sqlMessage ||
+            "Unable to mark technician notifications as read.",
+        });
+    }
+  };
   // ======================================================
 // DELETE ONE NOTIFICATION
 //
@@ -2247,8 +2750,7 @@ const deleteNotification =
     try {
       const notificationId =
         Number(
-          req.params
-            .notificationId
+          req.params.notificationId
         );
 
       if (
@@ -2338,13 +2840,18 @@ module.exports = {
   getCustomerNotifications,
   getCustomerUnreadNotificationCount,
 
+  getTechnicianNotifications,
+  getTechnicianUnreadNotificationCount,
+
   getAssistanceNotifications,
   getAssistanceUnreadNotificationCount,
 
   markNotificationAsRead,
+
   markAllNotificationsAsRead,
   markDriverNotificationsAsRead,
   markCustomerNotificationsAsRead,
+  markTechnicianNotificationsAsRead,
   markAssistanceNotificationsAsRead,
 
   deleteNotification,

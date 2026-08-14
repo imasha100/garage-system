@@ -763,7 +763,9 @@ export default function MobilityRecovery({
         throw new Error("The selected garage ID is unavailable.");
       }
 
-      const towCharge = getTowChargeByTruck(selectedTruck);
+      const towCharge = calculateTowPrice(
+        Number(selectedTruck?.distanceKm || 0)
+      );
 
       const requestBody = {
         requestId,
@@ -774,6 +776,7 @@ export default function MobilityRecovery({
         customerLatitude: customerLocation[0],
         customerLongitude: customerLocation[1],
         estimatedArrivalTime: `${selectedTruck.etaMins} Minutes`,
+        towCharge,
       };
 
       const response = await fetch(

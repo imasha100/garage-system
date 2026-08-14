@@ -39,8 +39,19 @@ router.post(
 );
 
 // ======================================================
-// MARK CUSTOMER MESSAGES AS READ
+// MARK RECEIVED MESSAGES AS READ
 // PUT /api/chats/:requestId/read
+//
+// Body:
+// {
+//   "readerType": "Customer"
+// }
+//
+// OR
+//
+// {
+//   "readerType": "Assistance"
+// }
 // ======================================================
 
 router.put(

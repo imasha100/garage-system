@@ -586,7 +586,7 @@ export default function ServiceFeedback() {
   // ======================================================
 
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center py-10 px-4 bg-[#0a0c14]">
+    <div className="w-full min-h-full flex flex-col items-center py-10 px-4 bg-[#0a0c14]">
       <h1 className="text-center font-bold tracking-[0.18em] uppercase mb-8 text-[#e8ecf0] text-[1.55rem] leading-[1.5]">
         CUSTOMER SATISFACTION AUDIT & SERVICE
         <br />

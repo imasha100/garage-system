@@ -1,5 +1,9 @@
 const db = require("../config/db");
 
+const {
+  createNotification,
+} = require("./notificationController");
+
 // ======================================================
 // HELPER FUNCTIONS
 // ======================================================
@@ -61,36 +65,49 @@ const formatServiceRequest = (row) => ({
       ? Number(row.customer_longitude)
       : null,
 
-  requestDate: formatDateValue(row.request_date),
+  requestDate:
+    formatDateValue(row.request_date),
 
-  requestTime: formatTimeValue(row.request_time),
+  requestTime:
+    formatTimeValue(row.request_time),
 
-  requestType: row.request_type || "Garage Service",
+  requestType:
+    row.request_type || "Garage Service",
 
-  requestStatus: row.request_status || "Pending",
+  requestStatus:
+    row.request_status || "Pending",
 
-  customerStage: row.customer_stage || "",
+  customerStage:
+    row.customer_stage || "",
 
-  customerId: row.customer_customer_id || null,
+  customerId:
+    row.customer_customer_id || null,
 
-  vehicleId: row.vehicle_vehicle_id || null,
+  vehicleId:
+    row.vehicle_vehicle_id || null,
 
-  assistanceId: row.assistance_assistance_id || null,
+  assistanceId:
+    row.assistance_assistance_id || null,
 
-  assistanceName: row.assistance_name || "",
+  assistanceName:
+    row.assistance_name || "",
 
   garageId:
     row.garage_garage_id ??
     row.garage_id ??
     null,
 
-  garageName: row.garage_name || "",
+  garageName:
+    row.garage_name || "",
 
-  garageCode: row.garage_code || "",
+  garageCode:
+    row.garage_code || "",
 
-  garageAddress: row.garage_address || "",
+  garageAddress:
+    row.garage_address || "",
 
-  garageContact: row.garage_contact || "",
+  garageContact:
+    row.garage_contact || "",
 
   garageLatitude:
     row.garage_latitude !== null &&
@@ -104,9 +121,11 @@ const formatServiceRequest = (row) => ({
       ? Number(row.garage_longitude)
       : null,
 
-  estimatedDistance: row.estimated_distance || "",
+  estimatedDistance:
+    row.estimated_distance || "",
 
-  estimatedTime: row.estimated_time || "",
+  estimatedTime:
+    row.estimated_time || "",
 });
 
 // ======================================================
@@ -277,13 +296,15 @@ const validateCreateRequest = (body) => {
       customerLatitude,
       customerLongitude,
 
-      estimatedDistance: String(
-        body.estimatedDistance || ""
-      ).trim(),
+      estimatedDistance:
+        String(
+          body.estimatedDistance || ""
+        ).trim(),
 
-      estimatedTime: String(
-        body.estimatedTime || ""
-      ).trim(),
+      estimatedTime:
+        String(
+          body.estimatedTime || ""
+        ).trim(),
     },
   };
 };
@@ -430,10 +451,13 @@ const createServiceRequest = async (
 
       return res.status(409).json({
         success: false,
+
         code:
           "ACTIVE_REQUEST_EXISTS",
+
         message:
           "An active service request already exists for this vehicle.",
+
         activeRequest: {
           requestId:
             activeRequestRows[0]
@@ -553,7 +577,6 @@ const createServiceRequest = async (
         [normalizedContact]
       );
 
-    // EXISTING CUSTOMER
     if (
       customerRows.length > 0
     ) {
@@ -566,10 +589,7 @@ const createServiceRequest = async (
         "Existing customer found:",
         customerId
       );
-    }
-
-    // NEW CUSTOMER
-    else {
+    } else {
       const [newCustomerResult] =
         await connection.query(
           `
@@ -603,10 +623,6 @@ const createServiceRequest = async (
         customerId
       );
     }
-
-    // ==================================================
-    // VERIFY CUSTOMER ID
-    // ==================================================
 
     if (
       !Number.isInteger(customerId) ||
@@ -658,7 +674,6 @@ const createServiceRequest = async (
         ]
       );
 
-    // EXISTING VEHICLE
     if (
       vehicleRows.length > 0
     ) {
@@ -682,10 +697,7 @@ const createServiceRequest = async (
         "Existing vehicle found:",
         vehicleId
       );
-    }
-
-    // NEW VEHICLE
-    else {
+    } else {
       const [newVehicleResult] =
         await connection.query(
           `
@@ -719,10 +731,6 @@ const createServiceRequest = async (
         vehicleId
       );
     }
-
-    // ==================================================
-    // VERIFY VEHICLE ID
-    // ==================================================
 
     if (
       !Number.isInteger(vehicleId) ||
@@ -832,6 +840,116 @@ const createServiceRequest = async (
     }
 
     await connection.commit();
+
+    // ==================================================
+    // NOTIFY ON-SHIFT ASSISTANCE OFFICERS
+    // ==================================================
+
+    try {
+      const [assistanceRows] =
+        await db.query(
+          `
+            SELECT
+              assistance_id
+            FROM assistance
+            WHERE garage_garage_id = ?
+              AND UPPER(
+                    TRIM(
+                      COALESCE(
+                        shift_status,
+                        'OFF'
+                      )
+                    )
+                  ) = 'ON'
+          `,
+          [garageId]
+        );
+
+      if (
+        Array.isArray(
+          assistanceRows
+        ) &&
+        assistanceRows.length > 0
+      ) {
+        const notificationMessage =
+          `${customerName} submitted a service request for ${vehicleNumber}.`;
+
+        const notificationResults =
+          await Promise.all(
+            assistanceRows.map(
+              async (
+                assistanceRow
+              ) => {
+                const resolvedAssistanceId =
+                  Number(
+                    assistanceRow
+                      .assistance_id
+                  );
+
+                if (
+                  !Number.isInteger(
+                    resolvedAssistanceId
+                  ) ||
+                  resolvedAssistanceId <= 0
+                ) {
+                  return null;
+                }
+
+                return createNotification({
+                  garageId,
+
+                  assistanceId:
+                    resolvedAssistanceId,
+
+                  notificationType:
+                    "NEW_SERVICE_REQUEST",
+
+                  title:
+                    "New Service Request",
+
+                  message:
+                    notificationMessage,
+
+                  targetPage:
+                    "resource-schedule",
+
+                  referenceId:
+                    newRequestId,
+                });
+              }
+            )
+          );
+
+        notificationResults.forEach(
+          (
+            notificationResult
+          ) => {
+            if (
+              notificationResult &&
+              notificationResult.success ===
+                false
+            ) {
+              console.error(
+                "New service request notification error:",
+                notificationResult.error
+              );
+            }
+          }
+        );
+      } else {
+        console.warn(
+          "No ON-shift assistance officers found for garage:",
+          garageId
+        );
+      }
+    } catch (
+      notificationError
+    ) {
+      console.error(
+        "Create service request assistance notification error:",
+        notificationError
+      );
+    }
 
     return res.status(201).json({
       success: true,
@@ -1355,7 +1473,7 @@ const acceptServiceRequest = async (
       String(
         assistanceRows[0]
           .shift_status ||
-          "OFF"
+        "OFF"
       )
         .trim()
         .toUpperCase();
@@ -1558,7 +1676,7 @@ const rejectServiceRequest = async (
       String(
         assistanceRows[0]
           .shift_status ||
-          "OFF"
+        "OFF"
       )
         .trim()
         .toUpperCase();
@@ -1698,7 +1816,7 @@ const getLatestCustomerRequest =
     try {
       const contact = String(
         req.params.customerId ||
-          ""
+        ""
       )
         .trim()
         .replace(/\s+/g, "");
@@ -1706,7 +1824,7 @@ const getLatestCustomerRequest =
       const vehicleNumber =
         String(
           req.query.vehicleNumber ||
-            ""
+          ""
         )
           .trim()
           .toUpperCase();
@@ -1784,7 +1902,7 @@ const getLatestCustomerRequest =
                   td.dispatch_id DESC
                 LIMIT 1
               )
-              AS latest_dispatch_id,
+                AS latest_dispatch_id,
 
               (
                 SELECT
@@ -1797,7 +1915,7 @@ const getLatestCustomerRequest =
                   td.dispatch_id DESC
                 LIMIT 1
               )
-              AS latest_dispatch_status
+                AS latest_dispatch_status
 
             FROM service_request sr
 
@@ -1872,7 +1990,7 @@ const getLatestCustomerRequest =
       const requestStatus =
         String(
           row.request_status ||
-            ""
+          ""
         )
           .trim()
           .toUpperCase();
@@ -1880,7 +1998,7 @@ const getLatestCustomerRequest =
       const jobStatus =
         String(
           row.service_job_status ||
-            ""
+          ""
         )
           .trim()
           .toUpperCase();
@@ -1888,7 +2006,7 @@ const getLatestCustomerRequest =
       const towDispatchStatus =
         String(
           row.latest_dispatch_status ||
-            ""
+          ""
         )
           .trim()
           .toUpperCase();
@@ -1896,7 +2014,7 @@ const getLatestCustomerRequest =
       const customerStage =
         String(
           row.customer_stage ||
-            ""
+          ""
         )
           .trim()
           .toUpperCase();
@@ -2171,7 +2289,7 @@ const updateCustomerStage = async (
       String(
         requestRows[0]
           .request_status ||
-          ""
+        ""
       )
         .trim()
         .toUpperCase();
@@ -2192,25 +2310,61 @@ const updateCustomerStage = async (
       });
     }
 
-    await db.query(
-      `
-        UPDATE service_request
-        SET
-          customer_stage = ?
-        WHERE
-          request_id = ?
-      `,
-      [
-        stage,
-        requestId,
-      ]
-    );
+    // ==================================================
+    // SAVE GARAGE ARRIVAL DATE + TIME
+    // ==================================================
+
+    if (
+      stage ===
+      "ARRIVED_AT_GARAGE"
+    ) {
+      await db.query(
+        `
+          UPDATE service_request
+          SET
+            customer_stage = ?,
+            arrived_at_garage_date =
+              COALESCE(
+                arrived_at_garage_date,
+                CURRENT_DATE()
+              ),
+            arrived_at_garage_time =
+              COALESCE(
+                arrived_at_garage_time,
+                CURRENT_TIME()
+              )
+          WHERE
+            request_id = ?
+        `,
+        [
+          stage,
+          requestId,
+        ]
+      );
+    } else {
+      await db.query(
+        `
+          UPDATE service_request
+          SET
+            customer_stage = ?
+          WHERE
+            request_id = ?
+        `,
+        [
+          stage,
+          requestId,
+        ]
+      );
+    }
 
     return res.status(200).json({
       success: true,
 
       message:
-        "Customer flow stage updated successfully.",
+        stage ===
+        "ARRIVED_AT_GARAGE"
+          ? "Customer arrived at the garage successfully. Arrival date and time were recorded."
+          : "Customer flow stage updated successfully.",
 
       request: {
         requestId,
@@ -2237,14 +2391,7 @@ const updateCustomerStage = async (
 
 // ======================================================
 // GET VEHICLES READY FOR TECHNICIAN ASSIGNMENT
-//
 // GET /api/service-requests/garage/:garageId/ready-for-technician
-//
-// Only returns:
-// 1. Requests belonging to the selected garage
-// 2. Accepted service requests
-// 3. Vehicles physically arrived at the garage
-// 4. Requests that do NOT already have a service job
 // ======================================================
 
 const getVehiclesReadyForTechnician = async (
@@ -2257,7 +2404,9 @@ const getVehiclesReadyForTechnician = async (
     );
 
     if (
-      !Number.isInteger(garageId) ||
+      !Number.isInteger(
+        garageId
+      ) ||
       garageId <= 0
     ) {
       return res.status(400).json({
@@ -2337,7 +2486,7 @@ const getVehiclesReadyForTechnician = async (
             AND UPPER(
               TRIM(
                 sr.request_status
-             )
+              )
             ) IN (
               'ACCEPTED',
               'ARRIVED AT GARAGE'

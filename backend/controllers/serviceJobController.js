@@ -1,5 +1,9 @@
 const db = require("../config/db");
 
+const {
+  createNotification,
+} = require("./notificationController");
+
 // ======================================================
 // ASSIGN TECHNICIAN TO SERVICE REQUEST
 // POST /api/service-jobs/assign
@@ -88,7 +92,10 @@ const assignTechnicianToJob = async (req, res) => {
         SELECT
           request_id,
           request_status,
-          garage_garage_id
+          garage_garage_id,
+          customer_customer_id,
+          customer_name,
+          vehicle_number
         FROM service_request
         WHERE request_id = ?
         LIMIT 1
@@ -347,6 +354,162 @@ const assignTechnicianToJob = async (req, res) => {
     );
 
     await connection.commit();
+
+    // ==================================================
+    // NOTIFY CUSTOMER - TECHNICIAN ASSIGNED
+    // ==================================================
+    // Customer notification click target:
+    // Live Progress
+    // ==================================================
+
+    try {
+      const customerId =
+        Number(
+          serviceRequest.customer_customer_id
+        );
+
+      const jobId =
+        Number(
+          jobResult.insertId
+        );
+
+      if (
+        Number.isInteger(customerId) &&
+        customerId > 0
+      ) {
+        const vehicleNumber =
+          String(
+            serviceRequest.vehicle_number || ""
+          ).trim();
+
+        const technicianName =
+          String(
+            technician.full_name ||
+            "Assigned technician"
+          ).trim();
+
+        const notificationMessage =
+          vehicleNumber
+            ? `${technicianName} has been assigned to your vehicle ${vehicleNumber}.`
+            : `${technicianName} has been assigned to your vehicle.`;
+
+        const notificationResult =
+          await createNotification({
+            garageId:
+              numericGarageId,
+
+            customerId,
+
+            notificationType:
+              "TECHNICIAN_ASSIGNED",
+
+            title:
+              "Technician Assigned",
+
+            message:
+              notificationMessage,
+
+            targetPage:
+              "progress",
+
+            referenceId:
+              jobId,
+          });
+
+        if (
+          !notificationResult.success
+        ) {
+          console.error(
+            "Customer technician assignment notification failed:",
+            notificationResult.error
+          );
+        }
+      } else {
+        console.warn(
+          "Technician assigned, but no valid customer ID was found for notification. Request ID:",
+          numericRequestId
+        );
+      }
+    } catch (
+      notificationError
+    ) {
+      console.error(
+        "Technician assignment customer notification error:",
+        notificationError
+      );
+    }
+
+    // ==================================================
+    // NOTIFY TECHNICIAN - NEW VEHICLE ASSIGNED
+    // ==================================================
+    // Technician notification click target:
+    // Vehicle Intake
+    // ==================================================
+
+    try {
+      const jobId =
+        Number(
+          jobResult.insertId
+        );
+
+      const vehicleNumber =
+        String(
+          serviceRequest.vehicle_number ||
+          "Vehicle"
+        ).trim();
+
+      const customerName =
+        String(
+          serviceRequest.customer_name ||
+          "Customer"
+        ).trim();
+
+      const technicianNotificationMessage =
+        `${vehicleNumber} has been assigned to you for ${customerName}.`;
+
+      const technicianNotificationResult =
+        await createNotification({
+          garageId:
+            numericGarageId,
+
+          technicianId:
+            numericTechnicianId,
+
+          notificationType:
+            "NEW_JOB_ASSIGNED",
+
+          title:
+            "New Vehicle Assigned",
+
+          message:
+            technicianNotificationMessage,
+
+          targetPage:
+            "technician-intake",
+
+          referenceId:
+            jobId,
+
+          priority:
+            "HIGH",
+        });
+
+      if (
+        !technicianNotificationResult.success
+      ) {
+        console.error(
+          "Technician job assignment notification failed:",
+          technicianNotificationResult.error
+        );
+      }
+    } catch (
+      technicianNotificationError
+    ) {
+      console.error(
+        "Technician job assignment notification error:",
+        technicianNotificationError
+      );
+    }
 
     return res.status(201).json({
       success: true,
@@ -685,7 +848,7 @@ const getTechnicianJobs = async (
           END,
 
           sj.job_id DESC
-        `,
+                  `,
         [technicianId]
       );
 
@@ -796,9 +959,9 @@ const getTechnicianJobs = async (
             // ==========================================
 
             timeExtended:
-              totalExtensionMinutes >
-              0,
-                        totalExtensionMinutes,
+              totalExtensionMinutes > 0,
+
+            totalExtensionMinutes,
 
             latestExtensionReason:
               row.latest_extension_reason ||
@@ -1445,16 +1608,21 @@ const clearCompletedVehicle = async (req, res) => {
   let connection;
 
   try {
-    const jobId = Number(req.params.jobId);
+    const jobId =
+      Number(req.params.jobId);
 
     // ==================================================
     // VALIDATE JOB ID
     // ==================================================
 
-    if (!Number.isInteger(jobId) || jobId <= 0) {
+    if (
+      !Number.isInteger(jobId) ||
+      jobId <= 0
+    ) {
       return res.status(400).json({
         success: false,
-        message: "A valid job ID is required.",
+        message:
+          "A valid job ID is required.",
       });
     }
 
@@ -1462,7 +1630,8 @@ const clearCompletedVehicle = async (req, res) => {
     // START TRANSACTION
     // ==================================================
 
-    connection = await db.getConnection();
+    connection =
+      await db.getConnection();
 
     await connection.beginTransaction();
 
@@ -1470,8 +1639,9 @@ const clearCompletedVehicle = async (req, res) => {
     // CHECK SERVICE JOB
     // ==================================================
 
-    const [jobRows] = await connection.query(
-      `
+    const [jobRows] =
+      await connection.query(
+        `
         SELECT
           job_id,
           job_status,
@@ -1480,32 +1650,40 @@ const clearCompletedVehicle = async (req, res) => {
         FROM service_job
         WHERE job_id = ?
         LIMIT 1
-      `,
-      [jobId]
-    );
+        `,
+        [jobId]
+      );
 
-    if (jobRows.length === 0) {
+    if (
+      jobRows.length === 0
+    ) {
       await connection.rollback();
 
       return res.status(404).json({
         success: false,
-        message: "Service job not found.",
+        message:
+          "Service job not found.",
       });
     }
 
-    const job = jobRows[0];
+    const job =
+      jobRows[0];
 
-    const currentStatus = String(
-      job.job_status || ""
-    )
-      .trim()
-      .toUpperCase();
+    const currentStatus =
+      String(
+        job.job_status || ""
+      )
+        .trim()
+        .toUpperCase();
 
     // ==================================================
     // ONLY COMPLETED JOBS CAN BE CLEARED
     // ==================================================
 
-    if (currentStatus !== "COMPLETED") {
+    if (
+      currentStatus !==
+      "COMPLETED"
+    ) {
       await connection.rollback();
 
       return res.status(409).json({
@@ -1521,9 +1699,9 @@ const clearCompletedVehicle = async (req, res) => {
 
     await connection.query(
       `
-        UPDATE service_job
-        SET job_status = 'CLEARED'
-        WHERE job_id = ?
+      UPDATE service_job
+      SET job_status = 'CLEARED'
+      WHERE job_id = ?
       `,
       [jobId]
     );
@@ -1532,14 +1710,18 @@ const clearCompletedVehicle = async (req, res) => {
     // UPDATE SERVICE REQUEST
     // ==================================================
 
-    if (job.service_request_request_id) {
+    if (
+      job.service_request_request_id
+    ) {
       await connection.query(
         `
-          UPDATE service_request
-          SET request_status = 'COMPLETED'
-          WHERE request_id = ?
+        UPDATE service_request
+        SET request_status = 'COMPLETED'
+        WHERE request_id = ?
         `,
-        [job.service_request_request_id]
+        [
+          job.service_request_request_id,
+        ]
       );
     }
 
@@ -1547,8 +1729,9 @@ const clearCompletedVehicle = async (req, res) => {
     // GET UPDATED JOB
     // ==================================================
 
-    const [updatedRows] = await connection.query(
-      `
+    const [updatedRows] =
+      await connection.query(
+        `
         SELECT
           job_id,
           job_status,
@@ -1560,13 +1743,14 @@ const clearCompletedVehicle = async (req, res) => {
         FROM service_job
         WHERE job_id = ?
         LIMIT 1
-      `,
-      [jobId]
-    );
+        `,
+        [jobId]
+      );
 
     await connection.commit();
 
-    const clearedJob = updatedRows[0];
+    const clearedJob =
+      updatedRows[0];
 
     // ==================================================
     // SUCCESS RESPONSE
@@ -1592,20 +1776,22 @@ const clearCompletedVehicle = async (req, res) => {
           clearedJob.garage_garage_id,
 
         completedDate:
-  clearedJob.end_date,
+          clearedJob.end_date,
 
-completedTime:
-  clearedJob.end_time,
+        completedTime:
+          clearedJob.end_time,
 
-actualCompletionTime:
-  clearedJob.actual_completion_time,
-},
-});
+        actualCompletionTime:
+          clearedJob.actual_completion_time,
+      },
+    });
   } catch (error) {
     if (connection) {
       try {
         await connection.rollback();
-      } catch (rollbackError) {
+      } catch (
+        rollbackError
+      ) {
         console.error(
           "Clear vehicle rollback error:",
           rollbackError
@@ -1699,7 +1885,8 @@ const getGarageLiveDashboard = async (req, res) => {
     if (garageRows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Garage not found.",
+        message:
+          "Garage not found.",
       });
     }
 
@@ -2036,8 +2223,7 @@ const getGarageLiveDashboard = async (req, res) => {
           row.garage_garage_id,
 
         timeExtended:
-          totalExtensionMinutes >
-          0,
+          totalExtensionMinutes > 0,
 
         totalExtensionMinutes,
 
@@ -2052,6 +2238,275 @@ const getGarageLiveDashboard = async (req, res) => {
         workloadMinutes,
       };
     });
+
+    // ==================================================
+    // TODAY'S VEHICLE ARRIVALS
+    // ==================================================
+
+    const [arrivalRows] =
+      await db.query(
+        `
+        SELECT
+          sr.request_id,
+          sr.ticket_number,
+          sr.customer_customer_id,
+          sr.vehicle_vehicle_id,
+          sr.request_status,
+          sr.customer_stage,
+          sr.arrived_at_garage_date,
+          sr.arrived_at_garage_time,
+
+          COALESCE(
+            v.vehicle_number,
+            sr.vehicle_number,
+            ''
+          ) AS vehicle_number,
+
+          COALESCE(
+            v.vehicle_type,
+            sr.vehicle_type,
+            ''
+          ) AS vehicle_type,
+
+          COALESCE(
+            v.vehicle_model,
+            ''
+          ) AS vehicle_model,
+
+          COALESCE(
+            c.full_name,
+            sr.customer_name,
+            'Customer'
+          ) AS customer_name,
+
+          COALESCE(
+            c.contact_number,
+            sr.contact_number,
+            ''
+          ) AS customer_contact,
+
+          sj.job_id,
+          sj.job_status,
+          sj.technician_technician_id,
+
+          COALESCE(
+            t.full_name,
+            'Not Assigned'
+          ) AS technician_name,
+
+          (
+            SELECT
+              td.dispatch_id
+            FROM tow_dispatch td
+            WHERE
+              td.service_request_request_id =
+                sr.request_id
+            ORDER BY
+              td.dispatch_id DESC
+            LIMIT 1
+          ) AS latest_dispatch_id,
+
+          (
+            SELECT
+              td.dispatch_status
+            FROM tow_dispatch td
+            WHERE
+              td.service_request_request_id =
+                sr.request_id
+            ORDER BY
+              td.dispatch_id DESC
+            LIMIT 1
+          ) AS latest_dispatch_status
+
+        FROM service_request sr
+
+        LEFT JOIN customer c
+          ON c.customer_id =
+             sr.customer_customer_id
+
+        LEFT JOIN vehicle v
+          ON v.vehicle_id =
+             sr.vehicle_vehicle_id
+
+        LEFT JOIN service_job sj
+          ON sj.job_id = (
+            SELECT
+              sj2.job_id
+            FROM service_job sj2
+            WHERE
+              sj2.service_request_request_id =
+                sr.request_id
+            ORDER BY
+              sj2.job_id DESC
+            LIMIT 1
+          )
+
+        LEFT JOIN technician t
+          ON t.technician_id =
+             sj.technician_technician_id
+
+        WHERE
+          sr.garage_garage_id = ?
+          AND sr.arrived_at_garage_date =
+              CURRENT_DATE()
+
+        ORDER BY
+          sr.arrived_at_garage_time DESC,
+          sr.request_id DESC
+        `,
+        [garageId]
+      );
+
+    const todayArrivals =
+      arrivalRows.map((row) => {
+        const dispatchStatus =
+          String(
+            row.latest_dispatch_status ||
+            ""
+          )
+            .trim()
+            .toUpperCase();
+
+        const jobStatus =
+          String(
+            row.job_status ||
+            ""
+          )
+            .trim()
+            .toUpperCase();
+
+        const hasTowDispatch =
+          row.latest_dispatch_id !==
+            null &&
+          row.latest_dispatch_id !==
+            undefined;
+
+        const arrivalMethod =
+          hasTowDispatch
+            ? "TOW TRUCK"
+            : "DRIVE-IN";
+
+        let arrivalStatus =
+          "READY FOR TECHNICIAN";
+
+        if (
+          jobStatus ===
+          "IN_PROGRESS"
+        ) {
+          arrivalStatus =
+            "IN SERVICE";
+        } else if (
+          jobStatus ===
+          "ASSIGNED"
+        ) {
+          arrivalStatus =
+            "TECHNICIAN ASSIGNED";
+        } else if (
+          jobStatus ===
+          "COMPLETED"
+        ) {
+          arrivalStatus =
+            "SERVICE COMPLETED";
+        } else if (
+          jobStatus ===
+          "CLEARED"
+        ) {
+          arrivalStatus =
+            "CLEARED";
+        } else if (
+          hasTowDispatch &&
+          dispatchStatus ===
+            "ARRIVED_AT_GARAGE"
+        ) {
+          arrivalStatus =
+            "TOW HANDOVER PENDING";
+        } else if (
+          hasTowDispatch &&
+          dispatchStatus ===
+            "COMPLETED"
+        ) {
+          arrivalStatus =
+            "READY FOR TECHNICIAN";
+        }
+
+        return {
+          requestId:
+            row.request_id,
+
+          ticketNumber:
+            row.ticket_number ||
+            "",
+
+          customerId:
+            row.customer_customer_id ??
+            null,
+
+          customerName:
+            row.customer_name ||
+            "Customer",
+
+          customerContact:
+            row.customer_contact ||
+            "",
+
+          vehicleId:
+            row.vehicle_vehicle_id ??
+            null,
+
+          vehicleNumber:
+            row.vehicle_number ||
+            "",
+
+          vehicleType:
+            row.vehicle_type ||
+            "",
+
+          vehicleModel:
+            row.vehicle_model ||
+            "",
+
+          arrivalDate:
+            row.arrived_at_garage_date,
+
+          arrivalTime:
+            row.arrived_at_garage_time,
+
+          arrivalMethod,
+          arrivalStatus,
+
+          requestStatus:
+            row.request_status ||
+            "",
+
+          customerStage:
+            row.customer_stage ||
+            "",
+
+          jobId:
+            row.job_id ??
+            null,
+
+          jobStatus:
+            row.job_status ||
+            null,
+
+          technicianId:
+            row.technician_technician_id ??
+            null,
+
+          technicianName:
+            row.technician_name ||
+            "Not Assigned",
+
+          towDispatchId:
+            row.latest_dispatch_id ??
+            null,
+
+          towDispatchStatus:
+            row.latest_dispatch_status ||
+            null,
+        };
+      });
 
     // ==================================================
     // DASHBOARD SUMMARY
@@ -2133,7 +2588,6 @@ const getGarageLiveDashboard = async (req, res) => {
 
       summary: {
         globalWorkloadMinutes,
-
         activeVehicles,
 
         assignedVehicles:
@@ -2143,12 +2597,16 @@ const getGarageLiveDashboard = async (req, res) => {
           jobs.length,
 
         totalBays,
-
         occupancyPercentage,
+
+        todayArrivalCount:
+          todayArrivals.length,
       },
 
       vehicles:
         jobs,
+
+      todayArrivals,
     });
   } catch (error) {
     console.error(
@@ -2208,7 +2666,8 @@ const getGaragePerformanceAudit = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "A valid garage ID is required.",
+        message:
+          "A valid garage ID is required.",
       });
     }
 
@@ -2231,7 +2690,8 @@ const getGaragePerformanceAudit = async (req, res) => {
     if (garageRows.length === 0) {
       return res.status(404).json({
         success: false,
-        message: "Garage not found.",
+        message:
+          "Garage not found.",
       });
     }
 
@@ -2347,7 +2807,9 @@ const getGaragePerformanceAudit = async (req, res) => {
       const avgTimeErrorMinutes =
         row.avg_time_error_minutes === null
           ? null
-          : Number(row.avg_time_error_minutes);
+          : Number(
+              row.avg_time_error_minutes
+            );
 
       // ==================================================
       // FORMAT AVERAGE TIME ERROR
@@ -2355,15 +2817,23 @@ const getGaragePerformanceAudit = async (req, res) => {
 
       let avgTimeError = "N/A";
 
-      if (avgTimeErrorMinutes !== null) {
-        if (avgTimeErrorMinutes > 0) {
+      if (
+        avgTimeErrorMinutes !==
+        null
+      ) {
+        if (
+          avgTimeErrorMinutes > 0
+        ) {
           avgTimeError =
             `+${avgTimeErrorMinutes} mins`;
-        } else if (avgTimeErrorMinutes < 0) {
+        } else if (
+          avgTimeErrorMinutes < 0
+        ) {
           avgTimeError =
             `${avgTimeErrorMinutes} mins`;
         } else {
-          avgTimeError = "0 mins";
+          avgTimeError =
+            "0 mins";
         }
       }
 
@@ -2381,16 +2851,19 @@ const getGaragePerformanceAudit = async (req, res) => {
         // ----------------------------------------------
 
         if (
-          avgTimeErrorMinutes !== null &&
+          avgTimeErrorMinutes !==
+            null &&
           avgTimeErrorMinutes > 0
         ) {
           const latePenalty =
             Math.min(
               40,
-              avgTimeErrorMinutes * 1.5
+              avgTimeErrorMinutes *
+                1.5
             );
 
-          score -= latePenalty;
+          score -=
+            latePenalty;
         }
 
         // ----------------------------------------------
@@ -2398,7 +2871,8 @@ const getGaragePerformanceAudit = async (req, res) => {
         // ----------------------------------------------
 
         const extensionRate =
-          extensionRequests / jobsDone;
+          extensionRequests /
+          jobsDone;
 
         const extensionPenalty =
           Math.min(
@@ -2406,14 +2880,17 @@ const getGaragePerformanceAudit = async (req, res) => {
             extensionRate * 20
           );
 
-        score -= extensionPenalty;
+        score -=
+          extensionPenalty;
 
         efficiencyIndex =
           Math.max(
             0,
             Math.min(
               100,
-              Math.round(score)
+              Math.round(
+                score
+              )
             )
           );
       }
@@ -2422,16 +2899,28 @@ const getGaragePerformanceAudit = async (req, res) => {
       // PERFORMANCE LEVEL
       // ==================================================
 
-      let performanceLevel = "NO DATA";
-            if (jobsDone > 0) {
-        if (efficiencyIndex >= 90) {
-          performanceLevel = "EXCELLENT";
-        } else if (efficiencyIndex >= 75) {
-          performanceLevel = "GOOD";
-        } else if (efficiencyIndex >= 60) {
-          performanceLevel = "AVERAGE";
+      let performanceLevel =
+        "NO DATA";
+
+      if (jobsDone > 0) {
+        if (
+          efficiencyIndex >= 90
+        ) {
+          performanceLevel =
+            "EXCELLENT";
+        } else if (
+          efficiencyIndex >= 75
+        ) {
+          performanceLevel =
+            "GOOD";
+        } else if (
+          efficiencyIndex >= 60
+        ) {
+          performanceLevel =
+            "AVERAGE";
         } else {
-          performanceLevel = "LOW";
+          performanceLevel =
+            "LOW";
         }
       }
 
@@ -2478,7 +2967,10 @@ const getGaragePerformanceAudit = async (req, res) => {
 
     const totalJobsDone =
       technicians.reduce(
-        (total, technician) =>
+        (
+          total,
+          technician
+        ) =>
           total +
           technician.jobsDone,
         0
@@ -2486,7 +2978,10 @@ const getGaragePerformanceAudit = async (req, res) => {
 
     const totalExtensionRequests =
       technicians.reduce(
-        (total, technician) =>
+        (
+          total,
+          technician
+        ) =>
           total +
           technician.extensionRequests,
         0
@@ -2495,14 +2990,19 @@ const getGaragePerformanceAudit = async (req, res) => {
     const techniciansWithCompletedJobs =
       technicians.filter(
         (technician) =>
-          technician.jobsDone > 0
+          technician.jobsDone >
+          0
       );
 
     const averageEfficiency =
-      techniciansWithCompletedJobs.length > 0
+      techniciansWithCompletedJobs.length >
+      0
         ? Math.round(
             techniciansWithCompletedJobs.reduce(
-              (total, technician) =>
+              (
+                total,
+                technician
+              ) =>
                 total +
                 technician.efficiencyIndex,
               0

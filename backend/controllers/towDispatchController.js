@@ -116,6 +116,154 @@ const createTowTruckRequest = async (req, res) => {
       ]
     );
 
+    const newDispatchId =
+      Number(result.insertId);
+
+    // ==================================================
+    // NOTIFY ON-SHIFT ASSISTANCE OFFICERS
+    // ==================================================
+
+    try {
+      const numericGarageId =
+        Number(garageId);
+
+      const numericRequestId =
+        Number(requestId);
+
+      const [requestRows] =
+        await db.query(
+          `
+          SELECT
+            request_id,
+            customer_name,
+            vehicle_number,
+            garage_garage_id
+          FROM service_request
+          WHERE request_id = ?
+          LIMIT 1
+          `,
+          [numericRequestId]
+        );
+
+      const serviceRequest =
+        requestRows[0] || null;
+
+      const customerName =
+        serviceRequest?.customer_name ||
+        "Customer";
+
+      const vehicleNumber =
+        serviceRequest?.vehicle_number ||
+        "the selected vehicle";
+
+      const resolvedGarageId =
+        Number(
+          serviceRequest?.garage_garage_id ??
+          numericGarageId
+        );
+
+      if (
+        Number.isInteger(resolvedGarageId) &&
+        resolvedGarageId > 0
+      ) {
+        const [assistanceRows] =
+          await db.query(
+            `
+            SELECT
+              assistance_id
+            FROM assistance
+            WHERE garage_garage_id = ?
+              AND UPPER(
+                TRIM(
+                  COALESCE(
+                    shift_status,
+                    'OFF'
+                  )
+                )
+              ) = 'ON'
+            `,
+            [resolvedGarageId]
+          );
+
+        if (
+          Array.isArray(assistanceRows) &&
+          assistanceRows.length > 0
+        ) {
+          const notificationMessage =
+            `${customerName} requested a tow truck for ${vehicleNumber}.`;
+
+          const notificationResults =
+            await Promise.all(
+              assistanceRows.map(
+                async (assistanceRow) => {
+                  const resolvedAssistanceId =
+                    Number(
+                      assistanceRow.assistance_id
+                    );
+
+                  if (
+                    !Number.isInteger(
+                      resolvedAssistanceId
+                    ) ||
+                    resolvedAssistanceId <= 0
+                  ) {
+                    return null;
+                  }
+
+                  return createNotification({
+                    garageId:
+                      resolvedGarageId,
+
+                    assistanceId:
+                      resolvedAssistanceId,
+
+                    notificationType:
+                      "NEW_TOW_REQUEST",
+
+                    title:
+                      "New Tow Request",
+
+                    message:
+                      notificationMessage,
+
+                    targetPage:
+                      "incident-dispatch",
+
+                    referenceId:
+                      newDispatchId,
+                  });
+                }
+              )
+            );
+
+          notificationResults.forEach(
+            (notificationResult) => {
+              if (
+                notificationResult &&
+                notificationResult.success ===
+                  false
+              ) {
+                console.error(
+                  "New tow request notification error:",
+                  notificationResult.error
+                );
+              }
+            }
+          );
+        } else {
+          console.warn(
+            "No ON-shift assistance officers found for tow request garage:",
+            resolvedGarageId
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error(
+        "Create tow request assistance notification error:",
+        notificationError
+      );
+    }
+
     return res.status(201).json({
       success: true,
 
@@ -123,7 +271,9 @@ const createTowTruckRequest = async (req, res) => {
         "Tow truck request submitted successfully.",
 
       dispatch: {
-        dispatchId: result.insertId,
+        dispatchId:
+          newDispatchId,
+
         requestId,
         truckId,
         driverId,
@@ -157,19 +307,6 @@ const createTowTruckRequest = async (req, res) => {
 
 // ======================================================
 // COMMON SELECT QUERY
-//
-// Includes:
-// - Customer details
-// - Breakdown vehicle GPS
-// - Tow truck details
-// - Driver details
-// - Selected garage details
-// - Selected garage GPS
-//
-// Used by:
-// - Assistance
-// - Customer
-// - External Driver Dashboard
 // ======================================================
 
 const dispatchSelectQuery = `
@@ -335,9 +472,6 @@ const dispatchSelectQuery = `
 
 // ======================================================
 // GET ALL PENDING TOW TRUCK REQUESTS
-//
-// Used by Assistance Incident Dispatch
-//
 // GET /api/tow-dispatches/pending
 // ======================================================
 
@@ -381,7 +515,6 @@ const getPendingTowTruckRequests = async (
 
 // ======================================================
 // GET TOW TRUCK HISTORY
-//
 // GET /api/tow-dispatches/history?assistanceId=1
 // ======================================================
 
@@ -444,7 +577,6 @@ const getTowTruckHistory = async (
 
 // ======================================================
 // GET SINGLE TOW TRUCK REQUEST
-//
 // GET /api/tow-dispatches/:id
 // ======================================================
 
@@ -514,7 +646,6 @@ const getTowTruckRequestById = async (
 
 // ======================================================
 // GET LATEST TOW REQUEST BY SERVICE REQUEST ID
-//
 // GET /api/tow-dispatches/request/:requestId/latest
 // ======================================================
 
@@ -595,6 +726,7 @@ const getLatestTowTruckRequestByServiceRequestId =
         });
     }
   };
+    
 
 // ======================================================
 // GET EXTERNAL DRIVER TOW ASSIGNMENTS
@@ -747,10 +879,7 @@ const getExternalDriverTowAssignments =
       }
 
       // ==================================================
-      // LOAD ACTIVE DRIVER ASSIGNMENTS
-      //
-      // Completed jobs are intentionally NOT included.
-      // They belong to Tow History, not active jobs.
+      // GET DRIVER ASSIGNMENTS
       // ==================================================
 
       const [assignments] =
@@ -772,49 +901,37 @@ const getExternalDriverTowAssignments =
 
           ORDER BY
             CASE
+              WHEN td.dispatch_status =
+                   'Approved'
+                THEN 1
 
-              WHEN
-                td.dispatch_status =
-                'Approved'
-              THEN 1
+              WHEN td.dispatch_status =
+                   'Dispatched'
+                THEN 2
 
-              WHEN
-                td.dispatch_status =
-                'Dispatched'
-              THEN 2
+              WHEN td.dispatch_status =
+                   'EN_ROUTE_TO_CUSTOMER'
+                THEN 3
 
-              WHEN
-                td.dispatch_status =
-                'EN_ROUTE_TO_CUSTOMER'
-              THEN 3
+              WHEN td.dispatch_status =
+                   'ARRIVED_AT_CUSTOMER'
+                THEN 4
 
-              WHEN
-                td.dispatch_status =
-                'ARRIVED_AT_CUSTOMER'
-              THEN 4
+              WHEN td.dispatch_status =
+                   'EN_ROUTE_TO_GARAGE'
+                THEN 5
 
-              WHEN
-                td.dispatch_status =
-                'EN_ROUTE_TO_GARAGE'
-              THEN 5
-
-              WHEN
-                td.dispatch_status =
-                'ARRIVED_AT_GARAGE'
-              THEN 6
+              WHEN td.dispatch_status =
+                   'ARRIVED_AT_GARAGE'
+                THEN 6
 
               ELSE 7
-
             END ASC,
 
             td.dispatch_id DESC
           `,
           [driverId]
         );
-
-      // ==================================================
-      // FIND CURRENT ACTIVE ASSIGNMENT
-      // ==================================================
 
       const activeAssignment =
         assignments.find(
@@ -847,7 +964,7 @@ const getExternalDriverTowAssignments =
 
           assignments,
         });
-            } catch (error) {
+    } catch (error) {
       console.error(
         "Get external driver tow assignments error:",
         error
@@ -868,20 +985,9 @@ const getExternalDriverTowAssignments =
 // ======================================================
 // UPDATE TOW TRUCK REQUEST STATUS
 //
-// Assistance:
+// Assistance approves/rejects/dispatches request
+//
 // PUT /api/tow-dispatches/:id/status
-//
-// Body:
-// {
-//   "status": "Approved",
-//   "assistanceId": 1
-// }
-//
-// Supported:
-// Approved
-// Rejected
-// Dispatched
-// Completed
 // ======================================================
 
 const updateTowTruckRequestStatus =
@@ -965,7 +1071,7 @@ const updateTowTruckRequestStatus =
       }
 
       // ==================================================
-      // LOAD CURRENT REQUEST
+      // LOAD CURRENT DISPATCH DETAILS
       // ==================================================
 
       const [currentRows] =
@@ -1049,7 +1155,39 @@ const updateTowTruckRequestStatus =
         currentRows[0];
 
       // ==================================================
-      // UPDATE DISPATCH
+      // IMPORTANT LOCK
+      //
+      // External driver journey completion must happen
+      // through updateExternalDriverJourneyStage().
+      //
+      // Assistance must NOT manually mark an external
+      // driver's tow dispatch as Completed.
+      // ==================================================
+
+      const isExternalDriver =
+        String(
+          currentRequest
+            .driver_status ||
+            ""
+        )
+          .trim()
+          .toLowerCase() ===
+        "external";
+
+      if (
+        status === "Completed" &&
+        isExternalDriver
+      ) {
+        return res.status(409).json({
+          success: false,
+
+          message:
+            "External tow jobs can only be completed by the assigned driver after arriving at the garage.",
+        });
+      }
+
+      // ==================================================
+      // UPDATE TOW DISPATCH
       // ==================================================
 
       await db.query(
@@ -1131,8 +1269,7 @@ const updateTowTruckRequestStatus =
       }
 
       // ==================================================
-      // APPROVED:
-      // SEND NOTIFICATION TO EXTERNAL DRIVER
+      // NOTIFICATION RESULT OBJECTS
       // ==================================================
 
       let driverNotification = {
@@ -1145,15 +1282,10 @@ const updateTowTruckRequestStatus =
         notificationId: null,
       };
 
-      const isExternalDriver =
-        String(
-          currentRequest
-            .driver_status ||
-            ""
-        )
-          .trim()
-          .toLowerCase() ===
-        "external";
+      // ==================================================
+      // APPROVED EXTERNAL TOW REQUEST
+      // SEND NOTIFICATION TO EXTERNAL DRIVER
+      // ==================================================
 
       if (
         status ===
@@ -1195,7 +1327,11 @@ const updateTowTruckRequestStatus =
                 "New Tow Assignment",
 
               message:
-                `A tow request for ${currentRequest.vehicle_number || "a customer vehicle"} has been approved and assigned to you.`,
+                `A tow request for ${
+                  currentRequest
+                    .vehicle_number ||
+                  "a customer vehicle"
+                } has been approved and assigned to you.`,
 
               targetPage:
                 "tow-assignments",
@@ -1227,7 +1363,7 @@ const updateTowTruckRequestStatus =
       }
 
       // ==================================================
-      // APPROVED:
+      // APPROVED EXTERNAL TOW REQUEST
       // SEND NOTIFICATION TO CUSTOMER
       // ==================================================
 
@@ -1316,6 +1452,10 @@ const updateTowTruckRequestStatus =
         }
       }
 
+      // ==================================================
+      // RESPONSE
+      // ==================================================
+
       return res
         .status(200)
         .json({
@@ -1369,43 +1509,35 @@ const updateTowTruckRequestStatus =
         });
     }
   };
-
-// ======================================================
+  // ======================================================
 // UPDATE EXTERNAL DRIVER JOURNEY STAGE
 //
 // PUT /api/tow-dispatches/:id/journey-stage
 //
 // Body:
 // {
-//   "driverId": 18,
-//   "stage": "EN_ROUTE_TO_CUSTOMER"
+//   driverId,
+//   stage
 // }
 //
 // Allowed stages:
-// - EN_ROUTE_TO_CUSTOMER
-// - ARRIVED_AT_CUSTOMER
-// - EN_ROUTE_TO_GARAGE
-// - ARRIVED_AT_GARAGE
-// - COMPLETED
 //
-// Journey:
-//
-// Approved
-//    ↓
 // EN_ROUTE_TO_CUSTOMER
-//    ↓
 // ARRIVED_AT_CUSTOMER
-//    ↓
 // EN_ROUTE_TO_GARAGE
-//    ↓
 // ARRIVED_AT_GARAGE
-//    ↓
 // COMPLETED
 //
-// COMPLETED:
-// - Removes job from active Tow Assignments
-// - Keeps dispatch in database for Tow History
-// - Does NOT complete the repair/service request
+// IMPORTANT:
+//
+// ARRIVED_AT_GARAGE does NOT unlock technician assignment.
+//
+// Only COMPLETED changes the service request to
+// "Arrived at Garage", which allows Assistance
+// to assign a technician.
+//
+// ARRIVED_AT_GARAGE also records the physical
+// garage arrival date and time.
 // ======================================================
 
 const updateExternalDriverJourneyStage =
@@ -1434,7 +1566,7 @@ const updateExternalDriverJourneyStage =
       ];
 
       // ==================================================
-      // VALIDATE DISPATCH ID
+      // VALIDATION
       // ==================================================
 
       if (
@@ -1453,10 +1585,6 @@ const updateExternalDriverJourneyStage =
           });
       }
 
-      // ==================================================
-      // VALIDATE DRIVER ID
-      // ==================================================
-
       if (
         !Number.isInteger(
           driverId
@@ -1472,10 +1600,6 @@ const updateExternalDriverJourneyStage =
               "A valid external driver ID is required.",
           });
       }
-
-      // ==================================================
-      // VALIDATE JOURNEY STAGE
-      // ==================================================
 
       if (
         !allowedStages.includes(
@@ -1493,7 +1617,7 @@ const updateExternalDriverJourneyStage =
       }
 
       // ==================================================
-      // LOAD DISPATCH DETAILS
+      // LOAD DISPATCH
       // ==================================================
 
       const [rows] =
@@ -1599,7 +1723,7 @@ const updateExternalDriverJourneyStage =
         rows[0];
 
       // ==================================================
-      // VERIFY ASSIGNED DRIVER
+      // VERIFY DRIVER
       // ==================================================
 
       if (
@@ -1616,10 +1740,6 @@ const updateExternalDriverJourneyStage =
               "This tow dispatch is not assigned to the logged-in external driver.",
           });
       }
-
-      // ==================================================
-      // VERIFY EXTERNAL DRIVER
-      // ==================================================
 
       const isExternalDriver =
         String(
@@ -1643,15 +1763,15 @@ const updateExternalDriverJourneyStage =
           });
       }
 
+      // ==================================================
+      // VALIDATE JOURNEY ORDER
+      // ==================================================
+
       const currentStatus =
         String(
           dispatch.dispatch_status ||
             ""
         ).trim();
-
-      // ==================================================
-      // VALID JOURNEY ORDER
-      // ==================================================
 
       const validPreviousStatuses = {
         EN_ROUTE_TO_CUSTOMER: [
@@ -1698,8 +1818,6 @@ const updateExternalDriverJourneyStage =
 
       // ==================================================
       // SELECT TIMESTAMP COLUMN
-      //
-      // COMPLETED does not need a new DB timestamp column.
       // ==================================================
 
       let timestampColumn =
@@ -1772,15 +1890,25 @@ const updateExternalDriverJourneyStage =
           ]
         );
       }
-            // ==================================================
-      // SERVICE REQUEST STATUS + CUSTOMER RESUME STAGE
+
+      // ==================================================
+      // UPDATE SERVICE REQUEST
+      // ==================================================
       //
-      // IMPORTANT:
-      // COMPLETED here means ONLY the tow job is completed.
+      // CRITICAL LOCK:
       //
-      // The repair/service request must NOT be completed.
-      // The vehicle is now at the garage and still needs
-      // technician/service processing.
+      // ARRIVED_AT_GARAGE:
+      // request_status = "Tow Arrived at Garage"
+      //
+      // Technician assignment is still BLOCKED.
+      //
+      // Physical arrival date/time is recorded here.
+      //
+      // COMPLETED:
+      // request_status = "Arrived at Garage"
+      //
+      // This is the point where technician assignment
+      // becomes available.
       // ==================================================
 
       let serviceRequestStatus =
@@ -1820,51 +1948,106 @@ const updateExternalDriverJourneyStage =
         stage ===
         "ARRIVED_AT_GARAGE"
       ) {
+        // ================================================
+        // VEHICLE PHYSICALLY ARRIVED AT GARAGE
+        //
+        // DRIVER HAS NOT COMPLETED TOW HANDOVER YET.
+        //
+        // DO NOT use "Arrived at Garage" here.
+        // ================================================
+
+        serviceRequestStatus =
+          "Tow Arrived at Garage";
+
+        customerStage =
+          "ARRIVED_AT_GARAGE";
+      } else if (
+        stage ===
+        "COMPLETED"
+      ) {
+        // ================================================
+        // DRIVER CONFIRMED JOURNEY COMPLETE.
+        //
+        // NOW the vehicle becomes ready for Assistance
+        // to assign a technician.
+        // ================================================
+
         serviceRequestStatus =
           "Arrived at Garage";
 
         customerStage =
-          "ARRIVED_AT_GARAGE";
+          "COMPLETED";
       }
-
-      // ==================================================
-      // UPDATE SERVICE REQUEST
-      //
-      // COMPLETED intentionally does NOT enter this block.
-      // Therefore:
-      //
-      // tow_dispatch = Completed
-      //
-      // service_request remains:
-      // request_status = Arrived at Garage
-      // customer_stage = ARRIVED_AT_GARAGE
-      // ==================================================
 
       if (
         serviceRequestStatus &&
         customerStage
       ) {
-        await db.query(
-          `
-          UPDATE service_request
+        // ================================================
+        // EXTERNAL TOW PHYSICAL GARAGE ARRIVAL
+        // ================================================
 
-          SET
-            request_status = ?,
-            customer_stage = ?
+        if (
+          stage ===
+          "ARRIVED_AT_GARAGE"
+        ) {
+          await db.query(
+            `
+            UPDATE service_request
 
-          WHERE
-            request_id = ?
-          `,
-          [
-            serviceRequestStatus,
-            customerStage,
-            dispatch.request_id,
-          ]
-        );
+            SET
+              request_status = ?,
+
+              customer_stage = ?,
+
+              arrived_at_garage_date =
+                COALESCE(
+                  arrived_at_garage_date,
+                  CURRENT_DATE()
+                ),
+
+              arrived_at_garage_time =
+                COALESCE(
+                  arrived_at_garage_time,
+                  CURRENT_TIME()
+                )
+
+            WHERE
+              request_id = ?
+            `,
+            [
+              serviceRequestStatus,
+              customerStage,
+              dispatch.request_id,
+            ]
+          );
+        } else {
+          // ==============================================
+          // ALL OTHER JOURNEY STAGES
+          // ==============================================
+
+          await db.query(
+            `
+            UPDATE service_request
+
+            SET
+              request_status = ?,
+              customer_stage = ?
+
+            WHERE
+              request_id = ?
+            `,
+            [
+              serviceRequestStatus,
+              customerStage,
+              dispatch.request_id,
+            ]
+          );
+        }
       }
 
       // ==================================================
-      // PREPARE NOTIFICATION RESULTS
+      // NOTIFICATION RESULT OBJECTS
       // ==================================================
 
       let customerNotification = {
@@ -1876,6 +2059,10 @@ const updateExternalDriverJourneyStage =
         created: false,
         notificationId: null,
       };
+
+      // ==================================================
+      // COMMON DETAILS
+      // ==================================================
 
       const garageId =
         Number(
@@ -1917,13 +2104,7 @@ const updateExternalDriverJourneyStage =
         "Selected Garage";
 
       // ==================================================
-      // JOURNEY NOTIFICATIONS
-      //
-      // 1. EN_ROUTE_TO_CUSTOMER
-      // 2. ARRIVED_AT_CUSTOMER
-      // 3. EN_ROUTE_TO_GARAGE
-      // 4. ARRIVED_AT_GARAGE
-      // 5. COMPLETED
+      // PREPARE CUSTOMER NOTIFICATION
       // ==================================================
 
       let customerTitle =
@@ -1935,6 +2116,10 @@ const updateExternalDriverJourneyStage =
       let customerNotificationType =
         null;
 
+      // ==================================================
+      // PREPARE ASSISTANCE NOTIFICATION
+      // ==================================================
+
       let assistanceTitle =
         null;
 
@@ -1945,8 +2130,7 @@ const updateExternalDriverJourneyStage =
         null;
 
       // ==================================================
-      // STAGE 1:
-      // DRIVER STARTS JOURNEY TO CUSTOMER
+      // EN ROUTE TO CUSTOMER
       // ==================================================
 
       if (
@@ -1973,8 +2157,7 @@ const updateExternalDriverJourneyStage =
       }
 
       // ==================================================
-      // STAGE 2:
-      // DRIVER ARRIVED AT BREAKDOWN VEHICLE
+      // ARRIVED AT CUSTOMER
       // ==================================================
 
       else if (
@@ -2001,8 +2184,7 @@ const updateExternalDriverJourneyStage =
       }
 
       // ==================================================
-      // STAGE 3:
-      // DRIVER STARTS JOURNEY TO GARAGE
+      // EN ROUTE TO GARAGE
       // ==================================================
 
       else if (
@@ -2029,8 +2211,7 @@ const updateExternalDriverJourneyStage =
       }
 
       // ==================================================
-      // STAGE 4:
-      // DRIVER + VEHICLE ARRIVED AT GARAGE
+      // ARRIVED AT GARAGE
       // ==================================================
 
       else if (
@@ -2044,7 +2225,7 @@ const updateExternalDriverJourneyStage =
           "Vehicle Arrived at Garage";
 
         customerMessage =
-          `Your vehicle ${vehicleNumber} has arrived at ${garageName}.`;
+          `Your vehicle ${vehicleNumber} has arrived at ${garageName}. The external driver is completing the tow handover.`;
 
         assistanceNotificationType =
           "TOW_REACHED_GARAGE";
@@ -2053,12 +2234,11 @@ const updateExternalDriverJourneyStage =
           "Tow Truck Reached Garage";
 
         assistanceMessage =
-          `${driverName} with tow truck ${truckNumber} and customer vehicle ${vehicleNumber} has arrived at ${garageName}.`;
+          `${driverName} with tow truck ${truckNumber} and customer vehicle ${vehicleNumber} has arrived at ${garageName}. Wait for the driver to complete the tow job before assigning a technician.`;
       }
 
       // ==================================================
-      // STAGE 5:
-      // DRIVER COMPLETES THE TOW JOB
+      // COMPLETED
       // ==================================================
 
       else if (
@@ -2081,7 +2261,7 @@ const updateExternalDriverJourneyStage =
           "Tow Job Completed";
 
         assistanceMessage =
-          `${driverName} has completed the tow job for ${customerName}'s vehicle ${vehicleNumber} at ${garageName}.`;
+          `${driverName} has completed the tow job for ${customerName}'s vehicle ${vehicleNumber} at ${garageName}. The vehicle is now ready for technician assignment.`;
       }
 
       // ==================================================
@@ -2213,25 +2393,21 @@ const updateExternalDriverJourneyStage =
           "Journey to the selected garage started successfully.",
 
         ARRIVED_AT_GARAGE:
-          "Arrival at the selected garage confirmed successfully.",
+          "Arrival at the selected garage confirmed. Garage arrival date and time were recorded. Complete the tow job to hand the vehicle over for service.",
 
         COMPLETED:
-          "Tow job completed successfully.",
+          "Tow job completed successfully. The vehicle is now ready for technician assignment.",
       };
 
       // ==================================================
       // NORMALIZE FINAL STATUS
-      //
-      // Other journey statuses use UPPERCASE values.
-      // Existing system uses "Completed" for final state.
       // ==================================================
 
       const finalDispatchStatus =
         stage === "COMPLETED"
           ? "Completed"
           : stage;
-
-      // ==================================================
+                // ==================================================
       // RESPONSE
       // ==================================================
 
@@ -2297,6 +2473,18 @@ const updateExternalDriverJourneyStage =
             vehicleNumber,
 
             garageName,
+
+            // ============================================
+            // SERVICE PROCESS LOCK INFORMATION
+            // ============================================
+
+            technicianAssignmentAllowed:
+              stage ===
+              "COMPLETED",
+
+            serviceRequestStatus,
+
+            customerStage,
 
             truckLatitude:
               dispatch.truck_latitude !==

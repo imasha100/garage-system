@@ -1146,9 +1146,29 @@ setCurrentCapacity(
     }
 
     // ====================================================
-    // CUSTOMER ARRIVAL CHECK
-    // Technician allocation is allowed only after the
-    // customer reaches the selected garage.
+    // VEHICLE READY FOR TECHNICIAN CHECK
+    // ====================================================
+    //
+    // NORMAL / DRIVEABLE FLOW
+    // Customer reaches the selected garage:
+    //   customerStage = ARRIVED_AT_GARAGE
+    //   request status is not "Tow Arrived at Garage"
+    //   -> technician assignment allowed
+    //
+    // EXTERNAL TOW FLOW
+    // Driver reaches the garage but has NOT completed journey:
+    //   customerStage = ARRIVED_AT_GARAGE
+    //   request status = "Tow Arrived at Garage"
+    //   -> technician assignment blocked
+    //
+    // Driver clicks JOURNEY COMPLETE:
+    //   customerStage = COMPLETED
+    //   request status = "Arrived at Garage"
+    //   -> technician assignment allowed
+    //
+    // Backend /api/service-jobs/assign still performs the
+    // final validation, so this frontend check is an extra
+    // user-facing safety layer.
     // ====================================================
 
     const customerStage = String(
@@ -1157,13 +1177,70 @@ setCurrentCapacity(
       .trim()
       .toUpperCase();
 
-    if (customerStage !== "ARRIVED_AT_GARAGE") {
+    const requestStatus = String(
+      selectedRequest.status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const isExternalTowWaitingForCompletion =
+      customerStage === "ARRIVED_AT_GARAGE" &&
+      requestStatus === "tow arrived at garage";
+
+    const isNormalVehicleReady =
+      customerStage === "ARRIVED_AT_GARAGE" &&
+      !isExternalTowWaitingForCompletion;
+
+    const isCompletedExternalTow =
+      customerStage === "COMPLETED";
+
+    const technicianAssignmentAllowed =
+      isNormalVehicleReady ||
+      isCompletedExternalTow;
+
+    if (!technicianAssignmentAllowed) {
+      let popupTitle =
+        "VEHICLE NOT READY";
+
+      let popupMessage =
+        `Vehicle ${vehicleNumber} is not ready for technician assignment yet.`;
+
+      if (
+        isExternalTowWaitingForCompletion
+      ) {
+        popupTitle =
+          "TOW JOURNEY NOT COMPLETED";
+
+        popupMessage =
+          `Vehicle ${vehicleNumber} has arrived at the garage, ` +
+          "but the external tow driver has not completed the journey yet. " +
+          "A technician can be assigned only after the driver confirms JOURNEY COMPLETE.";
+      } else if (
+        customerStage === "EN_ROUTE_TO_CUSTOMER" ||
+        customerStage === "ARRIVED_AT_CUSTOMER" ||
+        customerStage === "EN_ROUTE_TO_GARAGE"
+      ) {
+        popupTitle =
+          "VEHICLE NOT ARRIVED";
+
+        popupMessage =
+          `Vehicle ${vehicleNumber} has not completed its journey to the garage yet. ` +
+          "Please wait until the vehicle reaches the garage and the tow journey is completed.";
+      } else if (
+        !customerStage
+      ) {
+        popupTitle =
+          "ARRIVAL STATUS NOT AVAILABLE";
+
+        popupMessage =
+          `The arrival status for vehicle ${vehicleNumber} could not be verified. ` +
+          "Please refresh the page and try again.";
+      }
+
       setPopup({
         show: true,
-        title: "CUSTOMER NOT ARRIVED",
-        message:
-          `Vehicle ${vehicleNumber} has not arrived at the garage yet. ` +
-          "A technician can be assigned only after the customer arrives at the garage.",
+        title: popupTitle,
+        message: popupMessage,
         color: "#f59e0b",
         showCancel: false,
         requestData: selectedRequest,

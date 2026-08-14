@@ -309,12 +309,30 @@ const ChatInterface = ({
         );
 
         if (markAsRead) {
-          await fetch(`${API_BASE_URL}/chats/${requestId}/read`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
+          const readResponse = await fetch(
+            `${API_BASE_URL}/chats/${requestId}/read`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                readerType: "Assistance",
+              }),
+            }
+          );
+
+          const readResult = await readResponse.json();
+
+          if (
+            !readResponse.ok ||
+            readResult.success === false
+          ) {
+            throw new Error(
+              readResult.message ||
+                "Unable to mark customer messages as read."
+            );
+          }
 
           setConversations((previousConversations) =>
             previousConversations.map((chat) =>
@@ -387,7 +405,7 @@ const ChatInterface = ({
       loadConversations(garageId, true);
 
       if (activeChatId) {
-        loadMessages(activeChatId, false);
+        loadMessages(activeChatId, true);
       }
     }, 5000);
 
@@ -466,7 +484,7 @@ const ChatInterface = ({
       setInputValue("");
       setShowMenu(false);
 
-      await loadMessages(activeChat.requestId, false);
+      await loadMessages(activeChat.requestId, true);
       await loadConversations(garageId, true);
     } catch (sendError) {
       console.error("Send message error:", sendError);
@@ -821,7 +839,7 @@ const ChatInterface = ({
                   <button
                     type="button"
                     onClick={() =>
-                      loadMessages(activeChat.requestId, false)
+                      loadMessages(activeChat.requestId, true)
                     }
                     className="text-[#aebac1] transition hover:text-white"
                     aria-label="Refresh messages"
@@ -872,8 +890,41 @@ const ChatInterface = ({
                           {message.text}
                         </p>
 
-                        <span className="absolute bottom-1.5 right-2 text-[9px] text-white/55 lg:text-[#6e7681]">
-                          {message.time}
+                        <span className="absolute bottom-1.5 right-2 flex items-center gap-1 text-[9px] text-white/55 lg:text-[#6e7681]">
+                          <span>
+                            {message.time}
+                          </span>
+
+                          {message.sender !== "user" && (
+                            <span
+                              className={
+                                String(
+                                  message.status || ""
+                                )
+                                  .trim()
+                                  .toLowerCase() === "read"
+                                  ? "font-black text-cyan-300"
+                                  : "font-black text-white/55 lg:text-[#6e7681]"
+                              }
+                              title={
+                                String(
+                                  message.status || ""
+                                )
+                                  .trim()
+                                  .toLowerCase() === "read"
+                                  ? "Read by Customer"
+                                  : "Sent"
+                              }
+                            >
+                              {String(
+                                message.status || ""
+                              )
+                                .trim()
+                                .toLowerCase() === "read"
+                                ? "✓✓"
+                                : "✓"}
+                            </span>
+                          )}
                         </span>
                       </div>
                     </div>
