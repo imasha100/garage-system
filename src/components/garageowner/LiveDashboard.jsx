@@ -72,14 +72,40 @@ export default function LiveDashboard({
     setDashboardError,
   ] = useState("");
 
-  const [clearingJobId, setClearingJobId] = useState(null);
-  const [clearVehicleMessage, setClearVehicleMessage] = useState("");
-  const [clearVehicleError, setClearVehicleError] = useState("");
+  const [
+    clearingJobId,
+    setClearingJobId,
+  ] = useState(null);
 
-  const [notificationOpen, setNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [notificationLoading, setNotificationLoading] = useState(false);
-  const [notificationError, setNotificationError] = useState("");
+  const [
+    clearVehicleMessage,
+    setClearVehicleMessage,
+  ] = useState("");
+
+  const [
+    clearVehicleError,
+    setClearVehicleError,
+  ] = useState("");
+
+  const [
+    notificationOpen,
+    setNotificationOpen,
+  ] = useState(false);
+
+  const [
+    notifications,
+    setNotifications,
+  ] = useState([]);
+
+  const [
+    notificationLoading,
+    setNotificationLoading,
+  ] = useState(false);
+
+  const [
+    notificationError,
+    setNotificationError,
+  ] = useState("");
 
   // ======================================================
   // LOAD LOGGED-IN GARAGE OWNER PROFILE
@@ -139,8 +165,7 @@ export default function LiveDashboard({
 
           if (
             !response.ok ||
-            result.success ===
-              false
+            result.success === false
           ) {
             throw new Error(
               result.message ||
@@ -160,7 +185,9 @@ export default function LiveDashboard({
           );
 
           if (isMounted) {
-            setOwnerData(null);
+            setOwnerData(
+              null
+            );
 
             setOwnerError(
               error.message ||
@@ -212,12 +239,14 @@ export default function LiveDashboard({
       .split(" ")
       .filter(Boolean)
       .slice(0, 2)
-      .map((namePart) =>
-        namePart
-          .charAt(0)
-          .toUpperCase()
+      .map(
+        (namePart) =>
+          namePart
+            .charAt(0)
+            .toUpperCase()
       )
-      .join("") || "GO";
+      .join("") ||
+    "GO";
 
   // ======================================================
   // OWNER PROFILE PHOTO
@@ -225,7 +254,8 @@ export default function LiveDashboard({
 
   const profilePhotoPath =
     ownerData?.owner
-      ?.profilePhoto || "";
+      ?.profilePhoto ||
+    "";
 
   const ownerProfilePhoto =
     profilePhotoPath
@@ -322,12 +352,15 @@ export default function LiveDashboard({
     );
 
     const interval =
-      setInterval(() => {
-        loadDashboardData(
-          garageId,
-          false
-        );
-      }, 5000);
+      setInterval(
+        () => {
+          loadDashboardData(
+            garageId,
+            false
+          );
+        },
+        5000
+      );
 
     return () => {
       clearInterval(
@@ -337,173 +370,312 @@ export default function LiveDashboard({
   }, [garageId]);
 
   // ======================================================
-  // OWNER NOTIFICATIONS - LIVE DASHBOARD ONLY
+  // OWNER NOTIFICATIONS
   // ======================================================
 
-  const loadNotifications = async () => {
-    if (!Number.isInteger(garageId) || garageId <= 0) {
-      return;
-    }
-
-    try {
-      setNotificationLoading(true);
-      setNotificationError("");
-
-      const response = await fetch(
-        `http://localhost:5000/api/notifications/garage/${garageId}?targetPage=live-dashboard`
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || result.success === false) {
-        throw new Error(
-          result.message || "Unable to load notifications."
-        );
+  const loadNotifications =
+    async () => {
+      if (
+        !Number.isInteger(
+          garageId
+        ) ||
+        garageId <= 0
+      ) {
+        return;
       }
 
-      setNotifications(
-        Array.isArray(result.notifications)
-          ? result.notifications
-          : []
-      );
-    } catch (error) {
-      console.error("Notification loading error:", error);
-      setNotificationError(
-        error.message || "Unable to load notifications."
-      );
-    } finally {
-      setNotificationLoading(false);
-    }
-  };
+      try {
+        setNotificationLoading(
+          true
+        );
+
+        setNotificationError(
+          ""
+        );
+
+        const response =
+          await fetch(
+            `http://localhost:5000/api/notifications/garage/${garageId}?targetPage=live-dashboard`
+          );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to load notifications."
+          );
+        }
+
+        setNotifications(
+          Array.isArray(
+            result.notifications
+          )
+            ? result.notifications
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "Notification loading error:",
+          error
+        );
+
+        setNotificationError(
+          error.message ||
+            "Unable to load notifications."
+        );
+      } finally {
+        setNotificationLoading(
+          false
+        );
+      }
+    };
 
   useEffect(() => {
-    if (!Number.isInteger(garageId) || garageId <= 0) {
+    if (
+      !Number.isInteger(
+        garageId
+      ) ||
+      garageId <= 0
+    ) {
       return undefined;
     }
 
     loadNotifications();
 
-    const notificationInterval = setInterval(() => {
-      loadNotifications();
-    }, 10000);
+    const notificationInterval =
+      setInterval(
+        () => {
+          loadNotifications();
+        },
+        10000
+      );
 
     return () => {
-      clearInterval(notificationInterval);
+      clearInterval(
+        notificationInterval
+      );
     };
   }, [garageId]);
 
-  const unreadNotificationCount = notifications.filter(
-    (notification) => !notification.isRead
-  ).length;
+  const unreadNotificationCount =
+    notifications.filter(
+      (notification) =>
+        !notification.isRead
+    ).length;
 
-  const handleNotificationBell = () => {
-    setNotificationOpen((previous) => !previous);
+  const handleNotificationBell =
+    () => {
+      setNotificationOpen(
+        (previous) =>
+          !previous
+      );
 
-    if (!notificationOpen) {
-      loadNotifications();
-    }
-  };
+      if (
+        !notificationOpen
+      ) {
+        loadNotifications();
+      }
+    };
 
-  const markNotificationRead = async (notification) => {
-    try {
-      if (!notification.isRead) {
-        const response = await fetch(
-          `http://localhost:5000/api/notifications/${notification.notificationId}/read`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
+  const markNotificationRead =
+    async (
+      notification
+    ) => {
+      try {
+        if (
+          !notification.isRead
+        ) {
+          const response =
+            await fetch(
+              `http://localhost:5000/api/notifications/${notification.notificationId}/read`,
+              {
+                method:
+                  "PUT",
+
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+              }
+            );
+
+          const result =
+            await response.json();
+
+          if (
+            !response.ok ||
+            result.success ===
+              false
+          ) {
+            throw new Error(
+              result.message ||
+                "Unable to mark notification as read."
+            );
           }
+
+          setNotifications(
+            (previous) =>
+              previous.map(
+                (item) =>
+                  item.notificationId ===
+                  notification.notificationId
+                    ? {
+                        ...item,
+                        isRead:
+                          true,
+                      }
+                    : item
+              )
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Notification read error:",
+          error
         );
 
-        const result = await response.json();
+        setNotificationError(
+          error.message ||
+            "Unable to update notification."
+        );
+      }
+    };
 
-        if (!response.ok || result.success === false) {
+  const markAllNotificationsRead =
+    async () => {
+      if (
+        !Number.isInteger(
+          garageId
+        ) ||
+        garageId <= 0
+      ) {
+        return;
+      }
+
+      try {
+        const response =
+          await fetch(
+            `http://localhost:5000/api/notifications/garage/${garageId}/read-all`,
+            {
+              method:
+                "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  targetPage:
+                    "live-dashboard",
+                }),
+            }
+          );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
           throw new Error(
-            result.message || "Unable to mark notification as read."
+            result.message ||
+              "Unable to mark notifications as read."
           );
         }
 
-        setNotifications((previous) =>
-          previous.map((item) =>
-            item.notificationId === notification.notificationId
-              ? { ...item, isRead: true }
-              : item
-          )
+        setNotifications(
+          (previous) =>
+            previous.map(
+              (item) => ({
+                ...item,
+                isRead:
+                  true,
+              })
+            )
+        );
+      } catch (error) {
+        console.error(
+          "Mark all notifications error:",
+          error
+        );
+
+        setNotificationError(
+          error.message ||
+            "Unable to update notifications."
         );
       }
-    } catch (error) {
-      console.error("Notification read error:", error);
-      setNotificationError(
-        error.message || "Unable to update notification."
-      );
-    }
-  };
+    };
 
-  const markAllNotificationsRead = async () => {
-    if (!Number.isInteger(garageId) || garageId <= 0) {
-      return;
-    }
+  const formatNotificationTime =
+    (
+      notification
+    ) => {
+      if (
+        !notification
+          ?.createdDate
+      ) {
+        return (
+          notification
+            ?.createdTime ||
+          ""
+        );
+      }
 
-    try {
-      const response = await fetch(
-        `http://localhost:5000/api/notifications/garage/${garageId}/read-all`,
+      const datePart =
+        String(
+          notification.createdDate
+        ).slice(
+          0,
+          10
+        );
+
+      const timePart =
+        String(
+          notification.createdTime ||
+            "00:00:00"
+        ).slice(
+          0,
+          8
+        );
+
+      const notificationDate =
+        new Date(
+          `${datePart}T${timePart}`
+        );
+
+      if (
+        Number.isNaN(
+          notificationDate.getTime()
+        )
+      ) {
+        return `${datePart} ${timePart}`;
+      }
+
+      return notificationDate.toLocaleString(
+        [],
         {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ targetPage: "live-dashboard" }),
+          month:
+            "short",
+
+          day:
+            "numeric",
+
+          hour:
+            "2-digit",
+
+          minute:
+            "2-digit",
         }
       );
-
-      const result = await response.json();
-
-      if (!response.ok || result.success === false) {
-        throw new Error(
-          result.message || "Unable to mark notifications as read."
-        );
-      }
-
-      setNotifications((previous) =>
-        previous.map((item) => ({
-          ...item,
-          isRead: true,
-        }))
-      );
-    } catch (error) {
-      console.error("Mark all notifications error:", error);
-      setNotificationError(
-        error.message || "Unable to update notifications."
-      );
-    }
-  };
-
-  const formatNotificationTime = (notification) => {
-    if (!notification?.createdDate) {
-      return notification?.createdTime || "";
-    }
-
-    const datePart = String(notification.createdDate).slice(0, 10);
-    const timePart = String(notification.createdTime || "00:00:00").slice(
-      0,
-      8
-    );
-
-    const notificationDate = new Date(`${datePart}T${timePart}`);
-
-    if (Number.isNaN(notificationDate.getTime())) {
-      return `${datePart} ${timePart}`;
-    }
-
-    return notificationDate.toLocaleString([], {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+    };
 
   // ======================================================
   // SUMMARY
@@ -543,14 +715,21 @@ export default function LiveDashboard({
       summary.occupancyPercentage
     ) || 0;
 
+  const todayArrivalCount =
+    Number(
+      summary.todayArrivalCount
+    ) || 0;
+
   const workloadPercentage =
     Math.min(
       100,
       Math.max(
         0,
         Math.round(
-          (globalWorkloadMinutes /
-            480) *
+          (
+            globalWorkloadMinutes /
+            480
+          ) *
             100
         )
       )
@@ -572,55 +751,79 @@ export default function LiveDashboard({
   // FORMAT TIME
   // ======================================================
 
-  const formatTime = (
-    value
-  ) => {
-    if (!value) {
-      return "Not Started";
-    }
+  const formatTime =
+    (value) => {
+      if (!value) {
+        return "Not Started";
+      }
 
-    const stringValue =
-      String(value);
+      const stringValue =
+        String(value);
 
-    if (
-      /^\d{1,2}:\d{2}(:\d{2})?$/.test(
-        stringValue
-      )
-    ) {
-      const [
-        hourString,
-        minuteString,
-      ] =
-        stringValue.split(
-          ":"
-        );
+      if (
+        /^\d{1,2}:\d{2}(:\d{2})?$/.test(
+          stringValue
+        )
+      ) {
+        const [
+          hourString,
+          minuteString,
+        ] =
+          stringValue.split(
+            ":"
+          );
 
-      const hour =
-        Number(hourString);
+        const hour =
+          Number(
+            hourString
+          );
 
-      const minute =
-        Number(
-          minuteString
+        const minute =
+          Number(
+            minuteString
+          );
+
+        if (
+          Number.isInteger(
+            hour
+          ) &&
+          Number.isInteger(
+            minute
+          )
+        ) {
+          const date =
+            new Date();
+
+          date.setHours(
+            hour,
+            minute,
+            0,
+            0
+          );
+
+          return date.toLocaleTimeString(
+            [],
+            {
+              hour:
+                "2-digit",
+
+              minute:
+                "2-digit",
+            }
+          );
+        }
+      }
+
+      const date =
+        new Date(
+          value
         );
 
       if (
-        Number.isInteger(
-          hour
-        ) &&
-        Number.isInteger(
-          minute
+        !Number.isNaN(
+          date.getTime()
         )
       ) {
-        const date =
-          new Date();
-
-        date.setHours(
-          hour,
-          minute,
-          0,
-          0
-        );
-
         return date.toLocaleTimeString(
           [],
           {
@@ -632,33 +835,12 @@ export default function LiveDashboard({
           }
         );
       }
-    }
 
-    const date =
-      new Date(value);
-
-    if (
-      !Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      return date.toLocaleTimeString(
-        [],
-        {
-          hour:
-            "2-digit",
-
-          minute:
-            "2-digit",
-        }
-      );
-    }
-
-    return stringValue;
-  };
+      return stringValue;
+    };
 
   // ======================================================
-  // MAP API JOBS TO EXISTING UI
+  // LIVE JOBS
   // ======================================================
 
   const vehicles =
@@ -703,7 +885,9 @@ export default function LiveDashboard({
           if (
             isTimeExtended
           ) {
-            color = "red";
+            color =
+              "red";
+
             Icon =
               AlertTriangle;
           } else if (
@@ -746,7 +930,8 @@ export default function LiveDashboard({
               job.ticketNumber ||
               "N/A",
 
-            icon: Icon,
+            icon:
+              Icon,
 
             vehicle:
               job.vehicleNumber ||
@@ -768,7 +953,9 @@ export default function LiveDashboard({
                 .filter(
                   Boolean
                 )
-                .join(" ") ||
+                .join(
+                  " "
+                ) ||
               "N/A",
 
             technician:
@@ -819,21 +1006,134 @@ export default function LiveDashboard({
           };
         }
       );
-    }, [dashboardData]);
+    }, [
+      dashboardData,
+    ]);
+
+  // ======================================================
+  // TODAY'S VEHICLE ARRIVALS
+  // ======================================================
+
+  const todayArrivals =
+    useMemo(() => {
+      const arrivals =
+        Array.isArray(
+          dashboardData
+            ?.todayArrivals
+        )
+          ? dashboardData
+              .todayArrivals
+          : [];
+
+      return arrivals.map(
+        (
+          arrival
+        ) => {
+          const arrivalStatus =
+            String(
+              arrival.arrivalStatus ||
+                "READY FOR TECHNICIAN"
+            ).toUpperCase();
+
+          let color =
+            "cyan";
+
+          if (
+            arrivalStatus ===
+            "TOW HANDOVER PENDING"
+          ) {
+            color =
+              "amber";
+          } else if (
+            arrivalStatus ===
+              "IN SERVICE" ||
+            arrivalStatus ===
+              "TECHNICIAN ASSIGNED"
+          ) {
+            color =
+              "cyan";
+          } else if (
+            arrivalStatus ===
+              "SERVICE COMPLETED" ||
+            arrivalStatus ===
+              "CLEARED"
+          ) {
+            color =
+              "green";
+          }
+
+          return {
+            requestId:
+              arrival.requestId,
+
+            ticketNumber:
+              arrival.ticketNumber ||
+              "N/A",
+
+            vehicleNumber:
+              arrival.vehicleNumber ||
+              "N/A",
+
+            customerName:
+              arrival.customerName ||
+              "Customer",
+
+            customerContact:
+              arrival.customerContact ||
+              "N/A",
+
+            vehicleType:
+              [
+                arrival.vehicleType,
+                arrival.vehicleModel,
+              ]
+                .filter(
+                  Boolean
+                )
+                .join(
+                  " "
+                ) ||
+              "N/A",
+
+            arrivalTime:
+              arrival.arrivalTime
+                ? formatTime(
+                    arrival.arrivalTime
+                  )
+                : "N/A",
+
+            arrivalMethod:
+              arrival.arrivalMethod ||
+              "DRIVE-IN",
+
+            technicianName:
+              arrival.technicianName ||
+              "Not Assigned",
+
+            arrivalStatus,
+
+            color,
+          };
+        }
+      );
+    }, [
+      dashboardData,
+    ]);
 
   // ======================================================
   // SEARCH
   // ======================================================
 
-  const normalizeText = (
-    text
-  ) =>
-    String(text)
-      .toLowerCase()
-      .replace(
-        /[^a-z0-9]/g,
-        ""
-      );
+  const normalizeText =
+    (text) =>
+      String(
+        text
+      )
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9]/g,
+          ""
+        );
 
   const filteredVehicles =
     useMemo(() => {
@@ -862,6 +1162,38 @@ export default function LiveDashboard({
       );
     }, [
       vehicles,
+      searchText,
+    ]);
+
+  const filteredTodayArrivals =
+    useMemo(() => {
+      if (
+        !searchText.trim()
+      ) {
+        return todayArrivals;
+      }
+
+      const search =
+        normalizeText(
+          searchText
+        );
+
+      return todayArrivals.filter(
+        (
+          item
+        ) => {
+          const rowData =
+            normalizeText(
+              `${item.vehicleNumber} ${item.customerName} ${item.customerContact} ${item.vehicleType} ${item.arrivalTime} ${item.arrivalMethod} ${item.technicianName} ${item.arrivalStatus} ${item.ticketNumber}`
+            );
+
+          return rowData.includes(
+            search
+          );
+        }
+      );
+    }, [
+      todayArrivals,
       searchText,
     ]);
 
@@ -902,7 +1234,9 @@ export default function LiveDashboard({
   // ======================================================
 
   const handleActionMenu =
-    (jobId) => {
+    (
+      jobId
+    ) => {
       setOpenActionMenu(
         openActionMenu ===
           jobId
@@ -912,7 +1246,9 @@ export default function LiveDashboard({
     };
 
   const handleViewDetails =
-    (vehicle) => {
+    (
+      vehicle
+    ) => {
       setSelectedVehicle(
         vehicle
       );
@@ -930,73 +1266,127 @@ export default function LiveDashboard({
     };
 
   // ======================================================
-  // CLEAR COMPLETED VEHICLE FROM GARAGE
+  // CLEAR COMPLETED VEHICLE
   // ======================================================
 
-  const handleClearVehicle = async (vehicle) => {
-    if (!vehicle?.jobId) {
-      setClearVehicleError("A valid service job was not found.");
-      return;
-    }
+  const handleClearVehicle =
+    async (
+      vehicle
+    ) => {
+      if (
+        !vehicle?.jobId
+      ) {
+        setClearVehicleError(
+          "A valid service job was not found."
+        );
 
-    if (String(vehicle.status || "").toUpperCase() !== "COMPLETED") {
-      setClearVehicleError(
-        "Only completed vehicles can be cleared from the garage."
-      );
-      return;
-    }
+        return;
+      }
 
-    const confirmed = window.confirm(
-      `Confirm that ${vehicle.vehicle} has left the garage?`
-    );
+      if (
+        String(
+          vehicle.status ||
+            ""
+        ).toUpperCase() !==
+        "COMPLETED"
+      ) {
+        setClearVehicleError(
+          "Only completed vehicles can be cleared from the garage."
+        );
 
-    if (!confirmed) {
-      return;
-    }
+        return;
+      }
 
-    try {
-      setClearingJobId(vehicle.jobId);
-      setClearVehicleError("");
-      setClearVehicleMessage("");
-      setOpenActionMenu(null);
+      const confirmed =
+        window.confirm(
+          `Confirm that ${vehicle.vehicle} has left the garage?`
+        );
 
-      const response = await fetch(
-        `http://localhost:5000/api/service-jobs/${vehicle.jobId}/clear`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
+      if (
+        !confirmed
+      ) {
+        return;
+      }
+
+      try {
+        setClearingJobId(
+          vehicle.jobId
+        );
+
+        setClearVehicleError(
+          ""
+        );
+
+        setClearVehicleMessage(
+          ""
+        );
+
+        setOpenActionMenu(
+          null
+        );
+
+        const response =
+          await fetch(
+            `http://localhost:5000/api/service-jobs/${vehicle.jobId}/clear`,
+            {
+              method:
+                "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+            }
+          );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success ===
+            false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to clear vehicle from the garage."
+          );
         }
-      );
 
-      const result = await response.json();
+        setClearVehicleMessage(
+          `${vehicle.vehicle} cleared from the garage successfully.`
+        );
 
-      if (!response.ok || result.success === false) {
-        throw new Error(
-          result.message || "Unable to clear vehicle from the garage."
+        if (
+          selectedVehicle
+            ?.jobId ===
+          vehicle.jobId
+        ) {
+          setSelectedVehicle(
+            null
+          );
+        }
+
+        await loadDashboardData(
+          garageId,
+          false
+        );
+      } catch (error) {
+        console.error(
+          "Clear vehicle error:",
+          error
+        );
+
+        setClearVehicleError(
+          error.message ||
+            "Unable to clear vehicle from the garage."
+        );
+      } finally {
+        setClearingJobId(
+          null
         );
       }
-
-      setClearVehicleMessage(
-        `${vehicle.vehicle} cleared from the garage successfully.`
-      );
-
-      if (selectedVehicle?.jobId === vehicle.jobId) {
-        setSelectedVehicle(null);
-      }
-
-      await loadDashboardData(garageId, false);
-    } catch (error) {
-      console.error("Clear vehicle error:", error);
-
-      setClearVehicleError(
-        error.message || "Unable to clear vehicle from the garage."
-      );
-    } finally {
-      setClearingJobId(null);
-    }
-  };
+    };
 
   // ======================================================
   // UI
@@ -1075,152 +1465,231 @@ export default function LiveDashboard({
         <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:justify-end md:gap-5">
 
           <div className="relative">
+
             <button
               type="button"
-              onClick={handleNotificationBell}
+              onClick={
+                handleNotificationBell
+              }
               className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-300 transition hover:bg-white/10 hover:text-white"
               aria-label="Open notifications"
             >
-              <Bell size={18} />
 
-              {unreadNotificationCount > 0 && (
+              <Bell
+                size={18}
+              />
+
+              {unreadNotificationCount >
+                0 && (
                 <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white">
-                  {unreadNotificationCount > 99
+
+                  {unreadNotificationCount >
+                  99
                     ? "99+"
                     : unreadNotificationCount}
+
                 </span>
               )}
+
             </button>
 
             {notificationOpen && (
               <div className="absolute right-0 top-12 z-[80] w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-[#191923] shadow-2xl sm:w-96">
+
                 <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+
                   <div>
+
                     <p className="text-sm font-bold text-white">
                       Notifications
                     </p>
+
                     <p className="mt-1 text-[10px] uppercase tracking-wider text-gray-500">
                       Live dashboard alerts
                     </p>
+
                   </div>
 
-                  {unreadNotificationCount > 0 && (
+                  {unreadNotificationCount >
+                    0 && (
                     <button
                       type="button"
-                      onClick={markAllNotificationsRead}
+                      onClick={
+                        markAllNotificationsRead
+                      }
                       className="text-[10px] font-bold text-cyan-400 transition hover:text-cyan-300"
                     >
                       MARK ALL READ
                     </button>
                   )}
+
                 </div>
 
                 <div className="max-h-[420px] overflow-y-auto">
-                  {notificationLoading && notifications.length === 0 ? (
+
+                  {notificationLoading &&
+                  notifications.length ===
+                    0 ? (
+
                     <div className="px-4 py-10 text-center text-xs text-gray-500">
                       Loading notifications...
                     </div>
-                  ) : notificationError && notifications.length === 0 ? (
+
+                  ) : notificationError &&
+                    notifications.length ===
+                      0 ? (
+
                     <div className="px-4 py-6 text-center text-xs text-red-300">
-                      {notificationError}
+                      {
+                        notificationError
+                      }
                     </div>
-                  ) : notifications.length === 0 ? (
+
+                  ) : notifications.length ===
+                    0 ? (
+
                     <div className="px-4 py-10 text-center text-xs text-gray-500">
                       No notifications available.
                     </div>
-                  ) : (
-                    notifications.map((notification) => (
-                      <button
-                        key={notification.notificationId}
-                        type="button"
-                        onClick={() => markNotificationRead(notification)}
-                        className={`w-full border-b border-white/5 px-4 py-4 text-left transition hover:bg-white/5 ${
-                          notification.isRead
-                            ? "bg-transparent"
-                            : "bg-cyan-500/[0.06]"
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                              notification.isRead
-                                ? "bg-gray-700"
-                                : notification.priority === "HIGH"
-                                ? "bg-red-400"
-                                : notification.priority === "LOW"
-                                ? "bg-gray-400"
-                                : "bg-amber-400"
-                            }`}
-                          />
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
-                              <p
-                                className={`text-xs ${
-                                  notification.isRead
-                                    ? "font-medium text-gray-300"
-                                    : "font-bold text-white"
-                                }`}
-                              >
-                                {notification.title}
+                  ) : (
+
+                    notifications.map(
+                      (
+                        notification
+                      ) => (
+                        <button
+                          key={
+                            notification.notificationId
+                          }
+                          type="button"
+                          onClick={() =>
+                            markNotificationRead(
+                              notification
+                            )
+                          }
+                          className={`w-full border-b border-white/5 px-4 py-4 text-left transition hover:bg-white/5 ${
+                            notification.isRead
+                              ? "bg-transparent"
+                              : "bg-cyan-500/[0.06]"
+                          }`}
+                        >
+
+                          <div className="flex items-start gap-3">
+
+                            <span
+                              className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                                notification.isRead
+                                  ? "bg-gray-700"
+                                  : notification.priority ===
+                                    "HIGH"
+                                  ? "bg-red-400"
+                                  : notification.priority ===
+                                    "LOW"
+                                  ? "bg-gray-400"
+                                  : "bg-amber-400"
+                              }`}
+                            />
+
+                            <div className="min-w-0 flex-1">
+
+                              <div className="flex items-start justify-between gap-3">
+
+                                <p
+                                  className={`text-xs ${
+                                    notification.isRead
+                                      ? "font-medium text-gray-300"
+                                      : "font-bold text-white"
+                                  }`}
+                                >
+                                  {
+                                    notification.title
+                                  }
+                                </p>
+
+                                {!notification.isRead && (
+                                  <span className="shrink-0 rounded-full bg-cyan-500/15 px-2 py-0.5 text-[8px] font-bold text-cyan-400">
+                                    NEW
+                                  </span>
+                                )}
+
+                              </div>
+
+                              <p className="mt-1.5 text-[11px] leading-5 text-gray-400">
+                                {
+                                  notification.message
+                                }
                               </p>
 
-                              {!notification.isRead && (
-                                <span className="shrink-0 rounded-full bg-cyan-500/15 px-2 py-0.5 text-[8px] font-bold text-cyan-400">
-                                  NEW
+                              <div className="mt-2 flex flex-wrap items-center gap-2">
+
+                                <span className="text-[9px] uppercase tracking-wider text-gray-600">
+                                  {
+                                    notification.notificationType
+                                  }
                                 </span>
-                              )}
+
+                                <span className="text-[9px] text-gray-700">
+                                  •
+                                </span>
+
+                                <span className="text-[9px] text-gray-600">
+                                  {formatNotificationTime(
+                                    notification
+                                  )}
+                                </span>
+
+                              </div>
+
                             </div>
 
-                            <p className="mt-1.5 text-[11px] leading-5 text-gray-400">
-                              {notification.message}
-                            </p>
-
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <span className="text-[9px] uppercase tracking-wider text-gray-600">
-                                {notification.notificationType}
-                              </span>
-
-                              <span className="text-[9px] text-gray-700">
-                                •
-                              </span>
-
-                              <span className="text-[9px] text-gray-600">
-                                {formatNotificationTime(notification)}
-                              </span>
-                            </div>
                           </div>
-                        </div>
-                      </button>
-                    ))
+
+                        </button>
+                      )
+                    )
+
                   )}
+
                 </div>
+
               </div>
             )}
+
           </div>
 
           <div className="h-8 w-px shrink-0 bg-white/10" />
 
           <div className="min-w-0 flex-1 text-right md:flex-none">
+
             <p className="truncate text-xs font-bold tracking-widest">
-              {ownerName}
+              {
+                ownerName
+              }
             </p>
 
             <p className="max-w-full truncate text-[10px] uppercase text-gray-500 md:max-w-[260px]">
-              {garageName}
+              {
+                garageName
+              }
             </p>
+
           </div>
 
           <div className="h-9 w-9 min-h-9 min-w-9 shrink-0 overflow-hidden rounded-full border border-indigo-400 bg-[#0b0b12] text-xs flex items-center justify-center">
+
             {ownerProfilePhoto ? (
               <img
-                src={ownerProfilePhoto}
+                src={
+                  ownerProfilePhoto
+                }
                 alt={`${ownerName} profile`}
                 className="h-full w-full object-cover"
               />
             ) : (
               ownerInitials
             )}
+
           </div>
 
         </div>
@@ -1296,25 +1765,33 @@ export default function LiveDashboard({
 
         {ownerError && (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {ownerError}
+            {
+              ownerError
+            }
           </div>
         )}
 
         {dashboardError && (
           <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {dashboardError}
+            {
+              dashboardError
+            }
           </div>
         )}
 
         {clearVehicleError && (
           <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {clearVehicleError}
+            {
+              clearVehicleError
+            }
           </div>
         )}
 
         {clearVehicleMessage && (
           <div className="mb-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-            {clearVehicleMessage}
+            {
+              clearVehicleMessage
+            }
           </div>
         )}
 
@@ -1323,8 +1800,6 @@ export default function LiveDashboard({
         ================================================== */}
 
         <div className="flex flex-col md:flex-row justify-center items-stretch gap-4 md:gap-8 mb-8">
-
-          {/* GLOBAL WORKLOAD */}
 
           <div className="bg-[#1b1b26] border border-white/10 p-5 md:p-8 shadow-xl rounded-lg w-full md:w-[450px]">
 
@@ -1366,21 +1841,22 @@ export default function LiveDashboard({
                 <div
                   className="h-1 bg-emerald-400 rounded transition-all duration-500"
                   style={{
-                    width: `${workloadPercentage}%`,
+                    width:
+                      `${workloadPercentage}%`,
                   }}
                 />
 
               </div>
 
               <span className="text-[10px] text-gray-400 tracking-widest whitespace-nowrap">
-                {workloadLevel}
+                {
+                  workloadLevel
+                }
               </span>
 
             </div>
 
           </div>
-
-          {/* ACTIVE VEHICLES */}
 
           <div className="bg-[#1b1b26] border border-white/10 p-5 md:p-8 shadow-xl rounded-lg w-full md:w-[450px]">
 
@@ -1399,13 +1875,11 @@ export default function LiveDashboard({
               </div>
 
               <span className="bg-cyan-500/20 text-cyan-400 text-[10px] px-2 py-1 rounded">
-
                 ●{" "}
                 {
                   occupancyPercentage
                 }
                 %
-
               </span>
 
             </div>
@@ -1423,12 +1897,14 @@ export default function LiveDashboard({
               Vehicles
             </h3>
 
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
 
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
 
                 <p className="text-lg font-mono text-cyan-400">
-                  {activeVehicles}
+                  {
+                    activeVehicles
+                  }
                 </p>
 
                 <p className="mt-1 text-[9px] uppercase tracking-wider text-gray-600">
@@ -1440,7 +1916,9 @@ export default function LiveDashboard({
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
 
                 <p className="text-lg font-mono text-amber-400">
-                  {assignedVehicles}
+                  {
+                    assignedVehicles
+                  }
                 </p>
 
                 <p className="mt-1 text-[9px] uppercase tracking-wider text-gray-600">
@@ -1452,11 +1930,27 @@ export default function LiveDashboard({
               <div className="rounded-lg border border-white/10 bg-black/20 p-3">
 
                 <p className="text-lg font-mono text-white">
-                  {totalLiveJobs}
+                  {
+                    totalLiveJobs
+                  }
                 </p>
 
                 <p className="mt-1 text-[9px] uppercase tracking-wider text-gray-600">
                   Live Jobs
+                </p>
+
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+
+                <p className="text-lg font-mono text-emerald-400">
+                  {
+                    todayArrivalCount
+                  }
+                </p>
+
+                <p className="mt-1 text-[9px] uppercase tracking-wider text-gray-600">
+                  Today Arrivals
                 </p>
 
               </div>
@@ -1468,7 +1962,212 @@ export default function LiveDashboard({
         </div>
 
         {/* ==================================================
-            TABLE
+            TODAY'S VEHICLE ARRIVALS
+        ================================================== */}
+
+        <div className="mb-8 rounded-lg border border-white/10 bg-[#191923] overflow-hidden max-w-6xl">
+
+          <div className="flex flex-col gap-3 border-b border-white/10 bg-gradient-to-b from-white/5 to-transparent p-5 md:flex-row md:items-center md:justify-between md:p-8">
+
+            <div>
+
+              <div className="flex items-center gap-2">
+
+                <Car
+                  size={18}
+                  className="text-emerald-400"
+                />
+
+                <h2 className="text-lg md:text-xl">
+                  Today's Vehicle Arrivals
+                </h2>
+
+              </div>
+
+              <p className="mt-2 text-xs text-gray-400">
+                Vehicles that physically arrived at this garage today, including drive-in and external tow arrivals.
+              </p>
+
+            </div>
+
+            <span className="w-fit rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[10px] font-bold tracking-wider text-emerald-400">
+              {
+                todayArrivalCount
+              }{" "}
+              TODAY
+            </span>
+
+          </div>
+
+          <div className="overflow-x-auto">
+
+            <table className="w-[1050px] md:w-full text-left">
+
+              <thead className="text-xs tracking-widest text-gray-500">
+
+                <tr className="border-b border-white/10">
+
+                  <th className="px-5 py-5 md:px-8">
+                    Vehicle Number
+                  </th>
+
+                  <th className="px-4 py-5">
+                    Customer
+                  </th>
+
+                  <th className="px-4 py-5">
+                    Arrival Time
+                  </th>
+
+                  <th className="px-4 py-5">
+                    Arrival Method
+                  </th>
+
+                  <th className="px-4 py-5">
+                    Technician
+                  </th>
+
+                  <th className="px-4 py-5">
+                    Status
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {dashboardLoading &&
+                !dashboardData ? (
+
+                  <tr>
+
+                    <td
+                      colSpan="6"
+                      className="px-8 py-12 text-center text-xs tracking-widest text-gray-500"
+                    >
+                      LOADING TODAY'S ARRIVALS...
+                    </td>
+
+                  </tr>
+
+                ) : filteredTodayArrivals.length >
+                  0 ? (
+
+                  filteredTodayArrivals.map(
+                    (
+                      item
+                    ) => (
+
+                      <tr
+                        key={
+                          item.requestId ||
+                          `${item.vehicleNumber}-${item.arrivalTime}`
+                        }
+                        className="border-b border-white/5 transition hover:bg-white/[0.03]"
+                      >
+
+                        <td className="px-5 py-5 font-mono text-sm text-white md:px-8">
+                          {
+                            item.vehicleNumber
+                          }
+                        </td>
+
+                        <td className="px-4 py-5">
+
+                          <p className="text-sm text-gray-200">
+                            {
+                              item.customerName
+                            }
+                          </p>
+
+                          <p className="mt-1 text-[10px] text-gray-600">
+                            {
+                              item.ticketNumber
+                            }
+                          </p>
+
+                        </td>
+
+                        <td className="px-4 py-5 font-mono text-sm text-gray-300">
+                          {
+                            item.arrivalTime
+                          }
+                        </td>
+
+                        <td className="px-4 py-5">
+
+                          <span
+                            className={`rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider ${
+                              item.arrivalMethod ===
+                              "TOW TRUCK"
+                                ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+                                : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+                            }`}
+                          >
+                            {
+                              item.arrivalMethod
+                            }
+                          </span>
+
+                        </td>
+
+                        <td className="px-4 py-5 text-sm text-gray-300">
+                          {
+                            item.technicianName
+                          }
+                        </td>
+
+                        <td className="px-4 py-5">
+
+                          <span
+                            className={`rounded-full border px-3 py-1 text-[10px] font-bold tracking-wider ${
+                              statusStyle[
+                                item.color
+                              ]
+                            }`}
+                          >
+                            {
+                              item.arrivalStatus
+                            }
+                          </span>
+
+                        </td>
+
+                      </tr>
+
+                    )
+                  )
+
+                ) : (
+
+                  <tr>
+
+                    <td
+                      colSpan="6"
+                      className="px-8 py-12 text-center text-xs tracking-widest text-gray-500"
+                    >
+
+                      {searchText
+                        ? "NO TODAY ARRIVAL FOUND"
+                        : "NO VEHICLES HAVE ARRIVED TODAY"}
+
+                    </td>
+
+                  </tr>
+
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+        {/* ==================================================
+            MASTER LIVE JOBS TABLE
         ================================================== */}
 
         <p className="text-gray-700 font-bold tracking-widest text-xs md:text-sm mb-4">
@@ -1547,11 +2246,14 @@ export default function LiveDashboard({
                   0 ? (
 
                   filteredVehicles.map(
-                    (item) => {
+                    (
+                      item
+                    ) => {
                       const Icon =
                         item.icon;
 
                       return (
+
                         <tr
                           key={
                             item.jobId ||
@@ -1628,9 +2330,11 @@ export default function LiveDashboard({
                               className="w-8 h-8 flex items-center justify-center rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition"
                               aria-label={`Open actions for ${item.vehicle}`}
                             >
+
                               <MoreVertical
                                 size={17}
                               />
+
                             </button>
 
                             {openActionMenu ===
@@ -1657,7 +2361,10 @@ export default function LiveDashboard({
 
                                 </button>
 
-                                {String(item.status || "").toUpperCase() ===
+                                {String(
+                                  item.status ||
+                                    ""
+                                ).toUpperCase() ===
                                   "COMPLETED" && (
 
                                   <button
@@ -1679,7 +2386,8 @@ export default function LiveDashboard({
                                       className="text-emerald-400"
                                     />
 
-                                    {clearingJobId === item.jobId
+                                    {clearingJobId ===
+                                    item.jobId
                                       ? "Clearing..."
                                       : "Clear Vehicle"}
 
@@ -1694,6 +2402,7 @@ export default function LiveDashboard({
                           </td>
 
                         </tr>
+
                       );
                     }
                   )
@@ -1709,7 +2418,7 @@ export default function LiveDashboard({
 
                       {searchText
                         ? "NO VEHICLE FOUND"
-                        : "NO ASSIGNED, ACTIVE OR COMPLETED VEHICLES"}
+                        : "NO ASSIGNED OR ACTIVE VEHICLES"}
 
                     </td>
 
@@ -1775,9 +2484,11 @@ export default function LiveDashboard({
                 className="w-9 h-9 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition"
                 aria-label="Close vehicle details"
               >
+
                 <X
                   size={18}
                 />
+
               </button>
 
             </div>
@@ -1818,7 +2529,9 @@ export default function LiveDashboard({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <DetailCard
-                  icon={Car}
+                  icon={
+                    Car
+                  }
                   label="Vehicle Number"
                   value={
                     selectedVehicle.vehicle
@@ -1826,7 +2539,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={Car}
+                  icon={
+                    Car
+                  }
                   label="Vehicle Type"
                   value={
                     selectedVehicle.vehicleType
@@ -1834,7 +2549,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={User}
+                  icon={
+                    User
+                  }
                   label="Customer Name"
                   value={
                     selectedVehicle.customer
@@ -1842,7 +2559,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={User}
+                  icon={
+                    User
+                  }
                   label="Contact Number"
                   value={
                     selectedVehicle.contact
@@ -1850,7 +2569,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={Wrench}
+                  icon={
+                    Wrench
+                  }
                   label="Assigned Technician"
                   value={
                     selectedVehicle.technician
@@ -1858,7 +2579,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={Wrench}
+                  icon={
+                    Wrench
+                  }
                   label="Service Type"
                   value={
                     selectedVehicle.serviceType
@@ -1866,7 +2589,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={Clock}
+                  icon={
+                    Clock
+                  }
                   label="Entry Time"
                   value={
                     selectedVehicle.entry
@@ -1874,7 +2599,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={Clock}
+                  icon={
+                    Clock
+                  }
                   label="Expected Completion"
                   value={
                     selectedVehicle.completion
@@ -1882,7 +2609,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={Clock}
+                  icon={
+                    Clock
+                  }
                   label="Extension Requests"
                   value={
                     selectedVehicle.extensionRequests
@@ -1890,7 +2619,9 @@ export default function LiveDashboard({
                 />
 
                 <DetailCard
-                  icon={FileText}
+                  icon={
+                    FileText
+                  }
                   label="Ticket Number"
                   value={
                     selectedVehicle.ticketNumber
@@ -1909,13 +2640,11 @@ export default function LiveDashboard({
                   </p>
 
                   <p className="mt-2 text-sm text-white">
-
                     +
                     {
                       selectedVehicle.extensionMinutes
                     }{" "}
                     minutes
-
                   </p>
 
                   {selectedVehicle.extensionReason && (
@@ -1960,7 +2689,10 @@ export default function LiveDashboard({
 
               <div className="mt-7 flex flex-wrap justify-end gap-3">
 
-                {String(selectedVehicle.status || "").toUpperCase() ===
+                {String(
+                  selectedVehicle.status ||
+                    ""
+                ).toUpperCase() ===
                   "COMPLETED" && (
 
                   <button
@@ -1976,10 +2708,16 @@ export default function LiveDashboard({
                     }
                     className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-6 py-2.5 text-sm font-bold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <CheckCircle2 size={16} />
-                    {clearingJobId === selectedVehicle.jobId
+
+                    <CheckCircle2
+                      size={16}
+                    />
+
+                    {clearingJobId ===
+                    selectedVehicle.jobId
                       ? "Clearing..."
                       : "Clear Vehicle"}
+
                   </button>
 
                 )}
@@ -2028,13 +2766,18 @@ function DetailCard({
         />
 
         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.18em]">
-          {label}
+          {
+            label
+          }
         </p>
 
       </div>
 
       <p className="text-sm text-white break-words">
-        {value || "N/A"}
+        {
+          value ||
+          "N/A"
+        }
       </p>
 
     </div>

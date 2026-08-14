@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { createNotification } = require("./notificationController");
 
 // ======================================================
 // HELPER FUNCTIONS
@@ -733,6 +734,84 @@ const sendChatMessage = async (
       ]
     );
 
+    // ==================================================
+    // CREATE NOTIFICATION FOR RECEIVER
+    // ==================================================
+
+    if (
+      senderType === "Customer" &&
+      assistanceId
+    ) {
+      const notificationResult =
+        await createNotification({
+          garageId:
+            serviceRequest.garage_garage_id,
+
+          assistanceId,
+
+          notificationType:
+            "CUSTOMER_CHAT_MESSAGE",
+
+          title:
+            "New Message from Customer",
+
+          message,
+
+          targetPage:
+            "customer-communication",
+
+          referenceId:
+            requestId,
+
+          priority:
+            "MEDIUM",
+        });
+
+      if (!notificationResult.success) {
+        console.error(
+          "Customer chat notification error:",
+          notificationResult.error
+        );
+      }
+    }
+
+    if (
+      senderType === "Assistance" &&
+      customerId
+    ) {
+      const notificationResult =
+        await createNotification({
+          garageId:
+            serviceRequest.garage_garage_id,
+
+          customerId,
+
+          notificationType:
+            "ASSISTANCE_CHAT_MESSAGE",
+
+          title:
+            "New Message from Assistance",
+
+          message,
+
+          targetPage:
+            "chat",
+
+          referenceId:
+            requestId,
+
+          priority:
+            "MEDIUM",
+        });
+
+      if (!notificationResult.success) {
+        console.error(
+          "Assistance chat notification error:",
+          notificationResult.error
+        );
+      }
+    }
+
     const [newMessageRows] =
       await db.query(
         `
@@ -758,6 +837,7 @@ const sendChatMessage = async (
 
     return res.status(201).json({
       success: true,
+
       message:
         "Chat message sent successfully.",
 
@@ -773,11 +853,16 @@ const sendChatMessage = async (
 
     console.error("Code:", error.code);
     console.error("Message:", error.message);
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
-    console.error("SQL:", error.sql);
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
 
     console.error(
       "============================================="
@@ -794,8 +879,26 @@ const sendChatMessage = async (
 };
 
 // ======================================================
-// MARK CUSTOMER MESSAGES AS READ
+// MARK RECEIVED MESSAGES AS READ
 // PUT /api/chats/:requestId/read
+//
+// Body:
+//
+// {
+//   "readerType": "Customer"
+// }
+//
+// OR
+//
+// {
+//   "readerType": "Assistance"
+// }
+//
+// Customer opens chat:
+// Assistance messages -> Read
+//
+// Assistance opens chat:
+// Customer messages -> Read
 // ======================================================
 
 const markConversationAsRead = async (
@@ -804,7 +907,9 @@ const markConversationAsRead = async (
 ) => {
   try {
     const requestId =
-      Number(req.params.requestId);
+      Number(
+        req.params.requestId
+      );
 
     if (
       !Number.isInteger(requestId) ||
@@ -812,49 +917,94 @@ const markConversationAsRead = async (
     ) {
       return res.status(400).json({
         success: false,
+
         message:
           "A valid service request ID is required.",
       });
     }
 
-    const [result] = await db.query(
-      `
-        UPDATE chat
+    const readerType =
+      normalizeSenderType(
+        req.body?.readerType ||
+        req.query?.readerType
+      );
 
-        SET message_status = 'Read'
+    if (!readerType) {
+      return res.status(400).json({
+        success: false,
 
-        WHERE request_request_id = ?
+        message:
+          "Reader type must be Customer or Assistance.",
+      });
+    }
 
-          AND LOWER(sender_type) =
-              'customer'
+    const senderToMark =
+      readerType === "Customer"
+        ? "assistance"
+        : "customer";
 
-          AND LOWER(message_status) <>
-              'read'
-      `,
-      [requestId]
-    );
+    const [result] =
+      await db.query(
+        `
+          UPDATE chat
 
-    return res.status(200).json({
-      success: true,
+          SET
+            message_status = 'Read'
 
-      message:
-        "Conversation marked as read.",
+          WHERE
+            request_request_id = ?
 
-      updatedMessages:
-        result.affectedRows,
-    });
+            AND LOWER(
+              sender_type
+            ) = ?
+
+            AND LOWER(
+              message_status
+            ) <> 'read'
+        `,
+        [
+          requestId,
+          senderToMark,
+        ]
+      );
+
+    return res
+      .status(200)
+      .json({
+        success: true,
+
+        message:
+          "Received messages marked as read.",
+
+        readerType,
+
+        updatedMessages:
+          result.affectedRows,
+      });
   } catch (error) {
     console.error(
       "========== MARK CHAT READ ERROR =========="
     );
 
-    console.error("Code:", error.code);
-    console.error("Message:", error.message);
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
+
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
-    console.error("SQL:", error.sql);
+
+    console.error(
+      "SQL:",
+      error.sql
+    );
 
     console.error(
       "=========================================="

@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  User,
-  Menu,
   X,
   MapPin,
 } from "lucide-react";
@@ -21,12 +19,14 @@ import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
 import L from "leaflet";
 
 import CustomerSidebar from "./CustomerSidebar";
+import CustomerHeader from "./CustomerHeader";
 import MobilityRecovery from "./MobilityRecovery";
 import TrackMyTowTruck from "./TrackMyTowTruck";
 import LiveProgress from "./LiveProgress";
 import InvoiceLedger from "./InvoiceLedger";
 import ExperienceAudit from "./ExperienceAudit";
 import CustomerNotificationBell from "./CustomerNotificationBell";
+import ChatWithAssistance from "./ChatWithAssistance";
 
 delete L.Icon.Default.prototype._getIconUrl;
 
@@ -184,7 +184,9 @@ export default function NavigationHub({ onNavigate, selectedGarage }) {
       resumeTab ===
         "invoice" ||
       resumeTab ===
-        "audit"
+        "audit" ||
+      resumeTab ===
+        "chat"
     ) {
       return resumeTab;
     }
@@ -664,6 +666,7 @@ const customerLocation =
   activeTab === "track-tow" ||
   activeTab === "arrived-at-garage" ||
   activeTab === "progress" ||
+  activeTab === "chat" ||
   activeTab === "invoice" ||
   activeTab === "audit" ||
   isFinalCustomerFlow;
@@ -695,6 +698,40 @@ const customerLocation =
   }
 
   const formatValue = (value) => (value ? value.split(" ")[0] : "--");
+
+  const getActivePageTitle = () => {
+    switch (activeTab) {
+      case "navigation":
+        return "Navigation Hub";
+
+      case "mobility":
+        return "Mobility Recovery";
+
+      case "track-tow":
+        return "Track My Tow Truck";
+
+      case "arrived-at-garage":
+        return "Arrival Status";
+
+      case "progress":
+        return "Live Progress";
+
+      case "chat":
+        return "Chat with Assistance";
+
+      case "invoice":
+        return "Invoice Ledger";
+
+      case "audit":
+        return "Experience Audit";
+
+      default:
+        return "Customer Portal";
+    }
+  };
+
+  const activePageTitle =
+    getActivePageTitle();
 
   return (
     <div className="w-screen h-screen bg-[#070814] text-slate-200 font-mono flex overflow-hidden">
@@ -739,78 +776,76 @@ const customerLocation =
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="h-16 border-b border-slate-900 bg-[#0c0d19]/60 backdrop-blur px-4 flex items-center shrink-0">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="md:hidden p-2 border border-slate-700 rounded"
-          >
-            <Menu className="w-6 h-6 text-white" />
-          </button>
+      <div className="flex min-w-0 flex-1 flex-col h-screen overflow-hidden">
+        <div className="shrink-0">
+          <CustomerHeader
+            title={activePageTitle}
+            customerName={
+              savedRequest?.customerName ||
+              "Customer"
+            }
+            customerId={customerId}
+            onMenuClick={() =>
+              setSidebarOpen(true)
+            }
+            onNavigateTarget={(targetPage) => {
+              if (
+                targetPage === "mobility-recovery" ||
+                targetPage === "mobility"
+              ) {
+                handleCustomerTabChange("mobility");
+                return;
+              }
 
-          <div className="ml-auto flex items-center gap-5">
-            <CustomerNotificationBell
-  customerId={customerId}
-  onNavigateTarget={(targetPage) => {
-    if (
-      targetPage === "mobility-recovery" ||
-      targetPage === "mobility"
-    ) {
-      handleCustomerTabChange("mobility");
-      return;
-    }
+              if (
+                targetPage === "track-tow" ||
+                targetPage === "tow-assignments"
+              ) {
+                handleCustomerTabChange("track-tow");
+                return;
+              }
 
-    if (
-      targetPage === "track-tow" ||
-      targetPage === "tow-assignments"
-    ) {
-      handleCustomerTabChange("track-tow");
-      return;
-    }
+              if (
+                targetPage === "live-progress" ||
+                targetPage === "progress"
+              ) {
+                handleCustomerTabChange("progress");
+                return;
+              }
 
-    if (
-      targetPage === "live-progress" ||
-      targetPage === "progress"
-    ) {
-      handleCustomerTabChange("progress");
-      return;
-    }
+              if (
+                targetPage === "chat" ||
+                targetPage === "chat-with-assistance"
+              ) {
+                handleCustomerTabChange("chat");
+                return;
+              }
 
-    if (
-      targetPage === "invoice" ||
-      targetPage === "invoice-ledger"
-    ) {
-      handleCustomerTabChange("invoice");
-      return;
-    }
+              if (
+                targetPage === "invoice" ||
+                targetPage === "invoice-ledger"
+              ) {
+                handleCustomerTabChange("invoice");
+                return;
+              }
 
-    if (
-      targetPage === "audit" ||
-      targetPage === "feedback"
-    ) {
-      handleCustomerTabChange("audit");
-    }
-  }}
-/>
-
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-white leading-none">
-                  {savedRequest?.customerName || "Customer"}
-                </p>
-                <p className="text-[10px] text-purple-400 uppercase tracking-widest">
-                  User
-                </p>
-              </div>
-
-              <div className="w-9 h-9 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
-              </div>
-            </div>
-          </div>
+              if (
+                targetPage === "audit" ||
+                targetPage === "feedback"
+              ) {
+                handleCustomerTabChange("audit");
+              }
+            }}
+          />
         </div>
 
-        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+        <main
+          className={
+            activeTab === "chat"
+              ? "min-h-0 flex-1 overflow-hidden bg-[#070814] p-4 md:p-6"
+              : "min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#070814] p-4 md:p-8"
+          }
+        >
           {activeTab === "navigation" && (
             <div className="max-w-6xl mx-auto">
               <h1 className="text-xl md:text-2xl font-bold text-white mb-6">
@@ -1118,9 +1153,15 @@ const customerLocation =
               }
             />
           )}
+          {activeTab === "chat" && (
+            <div className="h-full min-h-0 overflow-hidden">
+              <ChatWithAssistance />
+            </div>
+          )}
+
           {activeTab === "invoice" && <InvoiceLedger />}
           {activeTab === "audit" && <ExperienceAudit />}
-        </div>
+        </main>
       </div>
     </div>
   );

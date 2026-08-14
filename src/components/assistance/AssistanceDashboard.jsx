@@ -923,6 +923,66 @@ export default function AssistanceDashboard({
           false
         );
 
+        const targetPage = String(
+          notificationItem?.targetPage ||
+            ""
+        )
+          .trim()
+          .toLowerCase();
+
+        // New customer service request -> Resource Schedule
+        if (
+          targetPage ===
+            "resource-schedule" ||
+          targetPage ===
+            "resource schedule"
+        ) {
+          setSelectedTowNotification(
+            null
+          );
+          setView(
+            "Resource Schedule"
+          );
+          setSearchQuery("");
+          return;
+        }
+
+        // Customer chat message -> Customer Communication
+        if (
+          targetPage ===
+            "customer-communication" ||
+          targetPage ===
+            "customer-comms" ||
+          targetPage === "chat"
+        ) {
+          setSelectedTowNotification(
+            null
+          );
+          setView(
+            "Customer Comms"
+          );
+          setSearchQuery("");
+          return;
+        }
+
+        // Explicit dispatch target -> Incident Dispatch
+        if (
+          targetPage ===
+            "incident-dispatch" ||
+          targetPage ===
+            "incident dispatch"
+        ) {
+          setSelectedTowNotification(
+            null
+          );
+          setView(
+            "Incident Dispatch"
+          );
+          setSearchQuery("");
+          return;
+        }
+
+        // Tow journey updates keep the existing details modal.
         setSelectedTowNotification({
           ...notificationItem,
           isRead: true,
@@ -940,6 +1000,13 @@ export default function AssistanceDashboard({
         return;
       }
 
+      const targetPage = String(
+        selectedTowNotification?.targetPage ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
       setSelectedTowNotification(
         null
       );
@@ -948,9 +1015,30 @@ export default function AssistanceDashboard({
         false
       );
 
-      setView(
-        "Incident Dispatch"
-      );
+      if (
+        targetPage ===
+          "resource-schedule" ||
+        targetPage ===
+          "resource schedule"
+      ) {
+        setView(
+          "Resource Schedule"
+        );
+      } else if (
+        targetPage ===
+          "customer-communication" ||
+        targetPage ===
+          "customer-comms" ||
+        targetPage === "chat"
+      ) {
+        setView(
+          "Customer Comms"
+        );
+      } else {
+        setView(
+          "Incident Dispatch"
+        );
+      }
 
       setSearchQuery("");
     }, [selectedTowNotification]);
