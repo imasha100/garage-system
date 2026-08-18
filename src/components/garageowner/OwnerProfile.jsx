@@ -7,7 +7,6 @@ import React, {
 
 import {
   Search,
-  Bell,
   Menu,
   User,
   Mail,
@@ -1072,15 +1071,6 @@ export default function OwnerProfile({
         ================================================== */}
 
         <div className="flex items-center justify-between gap-5 md:justify-end">
-
-          <button
-            type="button"
-            className="text-gray-300 transition hover:text-white"
-          >
-            <Bell
-              size={18}
-            />
-          </button>
 
           <div className="h-8 w-px bg-white/10" />
 

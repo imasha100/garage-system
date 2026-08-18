@@ -18,7 +18,6 @@ import {
   RefreshCw,
   AlertCircle,
   Copy,
-  Bell,
 } from "lucide-react";
 
 const API_BASE = "http://localhost:5000";
@@ -902,11 +901,6 @@ export default function TechRegistration({
               </span>
             </button>
 
-            <Bell
-              size={18}
-              className="text-gray-300"
-            />
-
             <div className="h-8 w-px bg-white/10" />
 
             <div className="text-right">
@@ -1557,11 +1551,6 @@ export default function TechRegistration({
         </div>
 
         <div className="flex items-center gap-5">
-          <Bell
-            size={18}
-            className="text-gray-300"
-          />
-
           <div className="h-8 w-px bg-white/10" />
 
           <div className="text-right">

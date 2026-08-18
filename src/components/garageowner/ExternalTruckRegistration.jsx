@@ -11,7 +11,6 @@ import {
   Navigation,
   AlertCircle,
   CheckCircle2,
-  Bell,
 } from "lucide-react";
 import {
   MapContainer,
@@ -102,6 +101,37 @@ export default function ExternalTruckRegistration({
     text: "",
   });
 
+  // ======================================================
+  // SUBMITTED REGISTRATION STATUS
+  // ======================================================
+
+  const [submittedRequest, setSubmittedRequest] =
+    useState(() => {
+      try {
+        const storedRequest =
+          localStorage.getItem(
+            "externalTruckRegistrationRequest"
+          );
+
+        return storedRequest
+          ? JSON.parse(storedRequest)
+          : null;
+      } catch (error) {
+        console.error(
+          "Read external truck registration request error:",
+          error
+        );
+
+        return null;
+      }
+    });
+
+  const [requestStatusLoading, setRequestStatusLoading] =
+    useState(false);
+
+  const [requestStatusError, setRequestStatusError] =
+    useState("");
+
   useEffect(() => {
     let isMounted = true;
 
@@ -179,6 +209,120 @@ export default function ExternalTruckRegistration({
       isMounted = false;
     };
   }, []);
+
+  // ======================================================
+  // POLL SUBMITTED REGISTRATION STATUS
+  // ======================================================
+
+  useEffect(() => {
+    const registrationId =
+      Number(
+        submittedRequest?.registrationId
+      );
+
+    if (
+      !Number.isInteger(registrationId) ||
+      registrationId <= 0
+    ) {
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const loadRequestStatus =
+      async (showLoading = false) => {
+        try {
+          if (showLoading && isMounted) {
+            setRequestStatusLoading(true);
+          }
+
+          if (isMounted) {
+            setRequestStatusError("");
+          }
+
+          const response =
+            await fetch(
+              `${API_BASE}/api/external-truck-requests/${registrationId}`
+            );
+
+          const result =
+            await response.json();
+
+          if (
+            !response.ok ||
+            result.success === false ||
+            !result.request
+          ) {
+            throw new Error(
+              result.message ||
+                "Unable to load registration request status."
+            );
+          }
+
+          if (!isMounted) {
+            return;
+          }
+
+          const nextRequest = {
+            registrationId:
+              result.request.registrationId,
+            status:
+              result.request.status || "Pending",
+            truckNumber:
+              result.request.truckNumber || "",
+            garageId:
+              result.request.garageId || null,
+            garageName:
+              result.request.garageName || "",
+            externalDriverId:
+              result.request.externalDriverId || "",
+            temporaryPassword:
+              result.request.temporaryPassword || "",
+          };
+
+          setSubmittedRequest(nextRequest);
+
+          localStorage.setItem(
+            "externalTruckRegistrationRequest",
+            JSON.stringify(nextRequest)
+          );
+        } catch (error) {
+          console.error(
+            "External truck registration status error:",
+            error
+          );
+
+          if (isMounted) {
+            setRequestStatusError(
+              error.message ||
+                "Unable to load registration request status."
+            );
+          }
+        } finally {
+          if (showLoading && isMounted) {
+            setRequestStatusLoading(false);
+          }
+        }
+      };
+
+    loadRequestStatus(true);
+
+    const interval =
+      window.setInterval(
+        () => {
+          loadRequestStatus(false);
+        },
+        5000
+      );
+
+    return () => {
+      isMounted = false;
+
+      window.clearInterval(interval);
+    };
+  }, [
+    submittedRequest?.registrationId,
+  ]);
 
   const ownerName =
     ownerData?.owner?.fullName ??
@@ -532,6 +676,30 @@ export default function ExternalTruckRegistration({
         );
       }
 
+      const savedRequest = {
+        registrationId:
+          result.request?.registrationId,
+        status:
+          result.request?.status || "Pending",
+        truckNumber:
+          result.request?.truckNumber || normalizedPlate,
+        garageId:
+          result.request?.garageId || garageId,
+        garageName:
+          garageName || "",
+        externalDriverId: "",
+        temporaryPassword: "",
+      };
+
+      setSubmittedRequest(
+        savedRequest
+      );
+
+      localStorage.setItem(
+        "externalTruckRegistrationRequest",
+        JSON.stringify(savedRequest)
+      );
+
       setSubmitMessage({
         type: "success",
         text:
@@ -603,11 +771,6 @@ export default function ExternalTruckRegistration({
         </div>
 
         <div className="flex items-center gap-5">
-          <Bell
-            size={18}
-            className="text-gray-300"
-          />
-
           <div className="h-8 w-px bg-white/10" />
 
           <div className="text-right">
@@ -651,6 +814,119 @@ export default function ExternalTruckRegistration({
             }`}
           >
             {submitMessage.text}
+          </div>
+        )}
+
+        {submittedRequest && (
+          <div
+            className={`mx-auto mb-6 max-w-5xl rounded-2xl border p-5 ${
+              String(
+                submittedRequest.status || ""
+              ).toLowerCase() === "approved"
+                ? "border-emerald-500/30 bg-emerald-500/10"
+                : String(
+                    submittedRequest.status || ""
+                  ).toLowerCase() === "rejected"
+                ? "border-red-500/30 bg-red-500/10"
+                : "border-amber-500/30 bg-amber-500/10"
+            }`}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
+                  Registration Request Status
+                </p>
+
+                <h3 className="mt-2 text-lg font-black text-white">
+                  {String(
+                    submittedRequest.status || "Pending"
+                  ).toLowerCase() === "approved"
+                    ? "Registration Approved"
+                    : String(
+                        submittedRequest.status || "Pending"
+                      ).toLowerCase() === "rejected"
+                    ? "Registration Rejected"
+                    : "Waiting for Garage Approval"}
+                </h3>
+
+                <p className="mt-2 text-sm text-gray-300">
+                  Request ID:{" "}
+                  <span className="font-mono font-bold text-white">
+                    #{submittedRequest.registrationId}
+                  </span>
+                  {submittedRequest.truckNumber
+                    ? ` • ${submittedRequest.truckNumber}`
+                    : ""}
+                </p>
+
+                {String(
+                  submittedRequest.status || ""
+                ).toLowerCase() === "approved" && (
+                  <div className="mt-4 space-y-2 rounded-xl border border-emerald-500/20 bg-black/20 p-4">
+                    <p className="text-sm font-bold text-emerald-300">
+                      Your external tow truck registration has been approved.
+                    </p>
+
+                    {submittedRequest.externalDriverId && (
+                      <p className="text-sm text-gray-300">
+                        External Driver ID:{" "}
+                        <span className="font-mono font-black text-white">
+                          {submittedRequest.externalDriverId}
+                        </span>
+                      </p>
+                    )}
+
+                    {submittedRequest.temporaryPassword && (
+                      <p className="text-sm text-gray-300">
+                        Temporary Password:{" "}
+                        <span className="font-mono font-black text-white">
+                          {submittedRequest.temporaryPassword}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {String(
+                  submittedRequest.status || ""
+                ).toLowerCase() === "rejected" && (
+                  <p className="mt-4 text-sm font-bold text-red-300">
+                    Your external tow truck registration request has been rejected.
+                  </p>
+                )}
+
+                {requestStatusError && (
+                  <p className="mt-3 text-xs text-red-300">
+                    {requestStatusError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                {requestStatusLoading && (
+                  <LoaderCircle
+                    size={18}
+                    className="animate-spin text-gray-300"
+                  />
+                )}
+
+                <span
+                  className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${
+                    String(
+                      submittedRequest.status || ""
+                    ).toLowerCase() === "approved"
+                      ? "bg-emerald-500/15 text-emerald-300"
+                      : String(
+                          submittedRequest.status || ""
+                        ).toLowerCase() === "rejected"
+                      ? "bg-red-500/15 text-red-300"
+                      : "bg-amber-500/15 text-amber-300"
+                  }`}
+                >
+                  {submittedRequest.status || "Pending"}
+                </span>
+              </div>
+            </div>
           </div>
         )}
 

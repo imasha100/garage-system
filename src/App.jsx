@@ -7,6 +7,7 @@ import GarageRegistration from "./components/GarageRegistration";
 import CustomerLogin from "./components/customer/CustomerLogin";
 import GarageMap from "./components/customer/GarageMap";
 import NavigationHub from "./components/customer/NavigationHub";
+import MobilityRecovery from "./components/customer/MobilityRecovery";
 import TrackMyTowTruck from "./components/customer/TrackMyTowTruck";
 
 import VehicleIntake from "./components/technician/VehicleIntake";
@@ -18,6 +19,7 @@ import TaskHistory from "./components/technician/TaskHistory";
 import AssistanceDashboard from "./components/assistance/AssistanceDashboard";
 
 import GarageOwnerSidebar from "./components/garageOwner/GarageOwnerSidebar";
+import GarageOwnerNotifications from "./components/garageOwner/GarageOwnerNotifications";
 import LiveDashboard from "./components/garageOwner/LiveDashboard";
 import ResourceMatrix from "./components/garageOwner/ResourceMatrix";
 import PerformanceAudit from "./components/garageOwner/PerformanceAudit";
@@ -529,6 +531,12 @@ function App() {
         closeSidebar={closeOwnerSidebar}
       />
 
+      <div className="fixed right-4 top-4 z-[300]">
+        <GarageOwnerNotifications
+          onNavigate={handleNavigate}
+        />
+      </div>
+
       <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
         {children}
       </main>
@@ -584,6 +592,16 @@ function App() {
     case "navigation-hub":
       return (
         <NavigationHub
+          onNavigate={handleNavigate}
+          selectedGarage={
+            selectedGarage
+          }
+        />
+      );
+
+    case "mobility-recovery":
+      return (
+        <MobilityRecovery
           onNavigate={handleNavigate}
           selectedGarage={
             selectedGarage

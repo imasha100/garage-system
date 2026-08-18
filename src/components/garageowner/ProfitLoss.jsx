@@ -7,7 +7,6 @@ import React, {
 
 import {
   Search,
-  Bell,
   Menu,
   TrendingUp,
   ReceiptText,
@@ -826,11 +825,6 @@ export default function ProfitLoss({
         ================================================== */}
 
         <div className="flex items-center justify-between md:justify-end gap-5">
-
-          <Bell
-            size={18}
-            className="text-gray-300"
-          />
 
           <div className="h-8 w-px bg-white/10" />
 

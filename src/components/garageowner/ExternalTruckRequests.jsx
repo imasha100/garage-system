@@ -572,6 +572,19 @@ export default function ExternalTruckRequests({
         !response.ok ||
         data.success === false
       ) {
+        if (
+          actionType === "release" &&
+          (
+            data.code === "ACTIVE_TOW_JOB_EXISTS" ||
+            data.errorCode === "ACTIVE_TOW_JOB_EXISTS"
+          )
+        ) {
+          throw new Error(
+            data.message ||
+            "This external tow truck is currently assigned to an active customer tow request. Complete or cancel the active tow job before releasing the truck."
+          );
+        }
+
         throw new Error(
           data.message ||
           `Unable to ${actionType} this request.`

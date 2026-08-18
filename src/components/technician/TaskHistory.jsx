@@ -7,7 +7,6 @@ import React, {
 
 import {
   Search,
-  Bell,
   HelpCircle,
   Calendar,
   Info,
@@ -18,9 +17,11 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 import avatarImage from "../../assets/profile.png";
+import TechnicianNotifications from "./TechnicianNotifications";
 
 export default function TaskHistoryLogs({
   toggleSidebar,
+  onNavigate,
 }) {
   const [searchQuery, setSearchQuery] =
     useState("");
@@ -697,12 +698,7 @@ export default function TaskHistoryLogs({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-4">
-          <button
-            type="button"
-            className="text-slate-400 transition hover:text-white"
-          >
-            <Bell size={17} />
-          </button>
+          <TechnicianNotifications onNavigate={onNavigate} />
 
           <button
             type="button"

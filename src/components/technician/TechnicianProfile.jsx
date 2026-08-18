@@ -6,7 +6,6 @@ import React, {
 
 import {
   Search,
-  Bell,
   HelpCircle,
   Plus,
   X,
@@ -28,9 +27,11 @@ import {
 } from "lucide-react";
 
 import avatarImage from "../../assets/profile.png";
+import TechnicianNotifications from "./TechnicianNotifications";
 
 export default function TechnicianProfile({
   toggleSidebar,
+  onNavigate,
 }) {
   // ======================================================
   // STATES
@@ -1481,17 +1482,7 @@ export default function TechnicianProfile({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-4">
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="text-slate-400 transition hover:text-white"
-          >
-            <Bell
-              size={
-                17
-              }
-            />
-          </button>
+          <TechnicianNotifications onNavigate={onNavigate} />
 
           <button
             type="button"
