@@ -652,8 +652,7 @@ const getTechnicianJobs = async (
           "Technician not found.",
       });
     }
-
-    // ==================================================
+        // ==================================================
     // GET TECHNICIAN JOBS
     // ==================================================
 
@@ -1298,7 +1297,7 @@ const startServiceJob = async (
         "Service job added to active workload successfully.",
 
       job: {
-        jobId:
+                jobId:
           updatedJob.job_id,
 
         technicianId:
@@ -1375,6 +1374,10 @@ const completeServiceJob = async (
         req.params.jobId
       );
 
+    // ==================================================
+    // VALIDATE JOB ID
+    // ==================================================
+
     if (
       !Number.isInteger(
         jobId
@@ -1387,6 +1390,10 @@ const completeServiceJob = async (
           "A valid job ID is required.",
       });
     }
+
+    // ==================================================
+    // START TRANSACTION
+    // ==================================================
 
     connection =
       await db.getConnection();
@@ -1403,10 +1410,14 @@ const completeServiceJob = async (
         SELECT
           job_id,
           job_status,
-          technician_technician_id
+          technician_technician_id,
+          service_request_request_id,
+          garage_garage_id,
+          assistance_assistance_id
         FROM service_job
         WHERE job_id = ?
         LIMIT 1
+        FOR UPDATE
         `,
         [jobId]
       );
@@ -1426,13 +1437,16 @@ const completeServiceJob = async (
     const job =
       jobRows[0];
 
-    if (
+    const currentJobStatus =
       String(
         job.job_status ||
-          ""
+        ""
       )
         .trim()
-        .toUpperCase() !==
+        .toUpperCase();
+
+    if (
+      currentJobStatus !==
       "IN_PROGRESS"
     ) {
       await connection.rollback();
@@ -1462,48 +1476,187 @@ const completeServiceJob = async (
     );
 
     // ==================================================
+    // COMPLETE RELATED SERVICE REQUEST
+    // ==================================================
+
+    const serviceRequestId =
+      Number(
+        job.service_request_request_id
+      );
+
+    if (
+      Number.isInteger(
+        serviceRequestId
+      ) &&
+      serviceRequestId > 0
+    ) {
+      await connection.query(
+        `
+        UPDATE service_request
+        SET
+          request_status = 'COMPLETED',
+          customer_stage = 'COMPLETED'
+        WHERE request_id = ?
+        `,
+        [serviceRequestId]
+      );
+    }
+
+    // ==================================================
     // MARK TECHNICIAN AVAILABLE AGAIN
     // ==================================================
 
-    await connection.query(
-      `
-      UPDATE technician
-      SET availability_status = 'AVAILABLE'
-      WHERE technician_id = ?
-      `,
-      [
-        job.technician_technician_id,
-      ]
-    );
+    const technicianId =
+      Number(
+        job.technician_technician_id
+      );
+
+    if (
+      Number.isInteger(
+        technicianId
+      ) &&
+      technicianId > 0
+    ) {
+      await connection.query(
+        `
+        UPDATE technician
+        SET availability_status = 'AVAILABLE'
+        WHERE technician_id = ?
+        `,
+        [technicianId]
+      );
+    }
 
     // ==================================================
-    // GET COMPLETED JOB
+    // GET COMPLETED JOB + RELATED REQUEST
     // ==================================================
 
     const [completedRows] =
       await connection.query(
         `
         SELECT
-          job_id,
-          start_date,
-          start_time,
-          end_date,
-          end_time,
-          estimated_completion_time,
-          actual_completion_time,
-          job_status,
-          technician_technician_id
-        FROM service_job
-        WHERE job_id = ?
+          sj.job_id,
+          sj.start_date,
+          sj.start_time,
+          sj.end_date,
+          sj.end_time,
+          sj.estimated_completion_time,
+          sj.actual_completion_time,
+          sj.job_status,
+          sj.technician_technician_id,
+          sj.service_request_request_id,
+          sj.garage_garage_id,
+          sj.assistance_assistance_id,
+
+          sr.request_status,
+          sr.customer_stage,
+          sr.customer_customer_id,
+          sr.customer_name,
+          sr.vehicle_number,
+          sr.ticket_number
+
+        FROM service_job sj
+
+        LEFT JOIN service_request sr
+          ON sr.request_id =
+             sj.service_request_request_id
+
+        WHERE
+          sj.job_id = ?
+
         LIMIT 1
         `,
         [jobId]
       );
 
-    await connection.commit();
+    if (
+      completedRows.length === 0
+    ) {
+      throw new Error(
+        "Completed service job could not be loaded."
+      );
+    }
 
     const completedJob =
       completedRows[0];
+
+    // ==================================================
+    // COMMIT TRANSACTION
+    // ==================================================
+
+    await connection.commit();
+
+    // ==================================================
+    // NOTIFY CUSTOMER - SERVICE COMPLETED
+    // ==================================================
+
+    try {
+      const customerId =
+        Number(
+          completedJob.customer_customer_id
+        );
+
+      if (
+        Number.isInteger(
+          customerId
+        ) &&
+        customerId > 0
+      ) {
+        const vehicleNumber =
+          String(
+            completedJob.vehicle_number ||
+            "Your vehicle"
+          ).trim();
+
+        const notificationResult =
+          await createNotification({
+            garageId:
+              Number(
+                completedJob.garage_garage_id
+              ) || null,
+
+            customerId,
+
+            notificationType:
+              "SERVICE_COMPLETED",
+
+            title:
+              "Service Completed",
+
+            message:
+              `${vehicleNumber} service has been completed successfully.`,
+
+            targetPage:
+              "progress",
+
+            referenceId:
+              jobId,
+
+            priority:
+              "HIGH",
+          });
+
+        if (
+          !notificationResult.success
+        ) {
+          console.error(
+            "Service completed customer notification failed:",
+            notificationResult.error
+          );
+        }
+      }
+    } catch (
+      notificationError
+    ) {
+      console.error(
+        "Service completion notification error:",
+        notificationError
+      );
+    }
+
+    // ==================================================
+    // SUCCESS RESPONSE
+    // ==================================================
 
     return res.status(200).json({
       success: true,
@@ -1515,9 +1668,17 @@ const completeServiceJob = async (
         jobId:
           completedJob.job_id,
 
+        requestId:
+          completedJob.service_request_request_id,
+
         technicianId:
-          completedJob
-            .technician_technician_id,
+          completedJob.technician_technician_id,
+
+        garageId:
+          completedJob.garage_garage_id,
+
+        assistanceId:
+          completedJob.assistance_assistance_id,
 
         startDate:
           completedJob.start_date,
@@ -1532,15 +1693,27 @@ const completeServiceJob = async (
           completedJob.end_time,
 
         estimatedCompletionTime:
-          completedJob
-            .estimated_completion_time,
+          completedJob.estimated_completion_time,
 
         actualCompletionTime:
-          completedJob
-            .actual_completion_time,
+          completedJob.actual_completion_time,
 
         jobStatus:
           completedJob.job_status,
+
+        requestStatus:
+          completedJob.request_status,
+
+        customerStage:
+          completedJob.customer_stage,
+
+        ticketNumber:
+          completedJob.ticket_number ||
+          "",
+
+        vehicleNumber:
+          completedJob.vehicle_number ||
+          "",
       },
     });
   } catch (error) {
@@ -1590,6 +1763,7 @@ const completeServiceJob = async (
 
       message:
         error.sqlMessage ||
+        error.message ||
         "Unable to complete service job.",
     });
   } finally {
@@ -1773,7 +1947,7 @@ const clearCompletedVehicle = async (req, res) => {
           clearedJob.service_request_request_id,
 
         garageId:
-          clearedJob.garage_garage_id,
+                  clearedJob.garage_garage_id,
 
         completedDate:
           clearedJob.end_date,
@@ -1850,10 +2024,6 @@ const getGarageLiveDashboard = async (req, res) => {
   try {
     const garageId = Number(req.params.garageId);
 
-    // ==================================================
-    // VALIDATE GARAGE ID
-    // ==================================================
-
     if (
       !Number.isInteger(garageId) ||
       garageId <= 0
@@ -1864,10 +2034,6 @@ const getGarageLiveDashboard = async (req, res) => {
           "A valid garage ID is required.",
       });
     }
-
-    // ==================================================
-    // CHECK GARAGE
-    // ==================================================
 
     const [garageRows] = await db.query(
       `
@@ -1894,12 +2060,6 @@ const getGarageLiveDashboard = async (req, res) => {
 
     // ==================================================
     // GET LIVE SERVICE JOBS
-    // ==================================================
-    // Show:
-    // ASSIGNED
-    // IN_PROGRESS
-    //
-    // Completed jobs are removed from the live workload.
     // ==================================================
 
     const [rows] = await db.query(
@@ -2119,10 +2279,6 @@ const getGarageLiveDashboard = async (req, res) => {
       `,
       [garageId]
     );
-
-    // ==================================================
-    // FORMAT JOBS
-    // ==================================================
 
     const jobs = rows.map((row) => {
       const totalExtensionMinutes =
@@ -2423,7 +2579,7 @@ const getGarageLiveDashboard = async (req, res) => {
         } else if (
           hasTowDispatch &&
           dispatchStatus ===
-            "COMPLETED"
+                      "COMPLETED"
         ) {
           arrivalStatus =
             "READY FOR TECHNICIAN";
@@ -2811,10 +2967,6 @@ const getGaragePerformanceAudit = async (req, res) => {
               row.avg_time_error_minutes
             );
 
-      // ==================================================
-      // FORMAT AVERAGE TIME ERROR
-      // ==================================================
-
       let avgTimeError = "N/A";
 
       if (
@@ -2837,18 +2989,10 @@ const getGaragePerformanceAudit = async (req, res) => {
         }
       }
 
-      // ==================================================
-      // CALCULATE EFFICIENCY INDEX
-      // ==================================================
-
       let efficiencyIndex = 0;
 
       if (jobsDone > 0) {
         let score = 100;
-
-        // ----------------------------------------------
-        // LATE COMPLETION PENALTY
-        // ----------------------------------------------
 
         if (
           avgTimeErrorMinutes !==
@@ -2865,10 +3009,6 @@ const getGaragePerformanceAudit = async (req, res) => {
           score -=
             latePenalty;
         }
-
-        // ----------------------------------------------
-        // EXTENSION REQUEST PENALTY
-        // ----------------------------------------------
 
         const extensionRate =
           extensionRequests /
@@ -2894,10 +3034,6 @@ const getGaragePerformanceAudit = async (req, res) => {
             )
           );
       }
-
-      // ==================================================
-      // PERFORMANCE LEVEL
-      // ==================================================
 
       let performanceLevel =
         "NO DATA";
@@ -3011,10 +3147,6 @@ const getGaragePerformanceAudit = async (req, res) => {
           )
         : 0;
 
-    // ==================================================
-    // RESPONSE
-    // ==================================================
-
     return res.status(200).json({
       success: true,
 
@@ -3073,7 +3205,7 @@ const getGaragePerformanceAudit = async (req, res) => {
         "Unable to load garage performance audit.",
     });
   }
-};
+  };
 
 // ======================================================
 // CUSTOMER LIVE PROGRESS

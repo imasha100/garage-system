@@ -1,5 +1,9 @@
 const db = require("../config/db");
 
+const {
+  createNotification,
+} = require("./notificationController");
+
 // ======================================================
 // HELPER FUNCTIONS
 // ======================================================
@@ -38,46 +42,33 @@ const normalizeTruckType = (truckType = "") => {
 };
 
 const formatExternalTruckRequest = (row) => ({
-  registrationId:
-    row.registration_id,
+  registrationId: row.registration_id,
 
-  status:
-    row.status,
+  status: row.status,
 
-  truckNumber:
-    row.truck_number,
+  truckNumber: row.truck_number,
 
-  truckType:
-    row.truck_type,
+  truckType: row.truck_type,
 
-  capacity:
-    Number(row.capacity_tons),
+  capacity: Number(row.capacity_tons),
 
-  truckModel:
-    row.truck_model,
+  truckModel: row.truck_model,
 
-  registrationDate:
-    formatDateValue(
-      row.registration_date
-    ),
+  registrationDate: formatDateValue(
+    row.registration_date
+  ),
 
-  latitude:
-    Number(row.latitude),
+  latitude: Number(row.latitude),
 
-  longitude:
-    Number(row.longitude),
+  longitude: Number(row.longitude),
 
-  truckStatus:
-    row.truck_status,
+  truckStatus: row.truck_status,
 
-  driverFullName:
-    row.full_name,
+  driverFullName: row.full_name,
 
-  driverNic:
-    row.nic,
+  driverNic: row.nic,
 
-  driverEmail:
-    row.email,
+  driverEmail: row.email,
 
   driverContactNumber:
     row.contact_number,
@@ -97,34 +88,43 @@ const formatExternalTruckRequest = (row) => ({
     row.driver_status,
 
   truckId:
-    row.approved_truck_id || null,
+    row.approved_truck_id ||
+    null,
 
   driverId:
-    row.approved_driver_id || null,
+    row.approved_driver_id ||
+    null,
 
   approvedLoginId:
-    row.approved_login_id || null,
+    row.approved_login_id ||
+    null,
 
   externalDriverId:
-    row.external_driver_id || "",
+    row.external_driver_id ||
+    "",
 
   temporaryPassword:
-    row.temporary_password || "",
+    row.temporary_password ||
+    "",
 
   assignmentStatus:
-    row.assignment_status || "",
+    row.assignment_status ||
+    "",
 
   garageId:
     row.garage_garage_id,
 
   garageName:
-    row.garage_name || "",
+    row.garage_name ||
+    "",
 
   garageAddress:
-    row.garage_address || "",
+    row.garage_address ||
+    "",
 
   garageDistrict:
-    row.garage_district || "",
+    row.garage_district ||
+    "",
 });
 
 // ======================================================
@@ -196,10 +196,14 @@ const validateRequestData = (body) => {
     );
 
   const cleanTruckModel =
-    String(truckModel).trim();
+    String(
+      truckModel
+    ).trim();
 
   const cleanDriverFullName =
-    String(driverFullName).trim();
+    String(
+      driverFullName
+    ).trim();
 
   const cleanDriverNic =
     String(driverNic)
@@ -217,7 +221,9 @@ const validateRequestData = (body) => {
     ).trim();
 
   const cleanLicenceNumber =
-    String(licenceNumber)
+    String(
+      licenceNumber
+    )
       .trim()
       .toUpperCase();
 
@@ -236,7 +242,9 @@ const validateRequestData = (body) => {
     Number(longitude);
 
   const numericExperienceYears =
-    Number(experienceYears);
+    Number(
+      experienceYears
+    );
 
   const numericGarageId =
     Number(garageId);
@@ -308,8 +316,10 @@ const validateRequestData = (body) => {
   }
 
   if (
-    cleanTruckModel.length < 2 ||
-    cleanTruckModel.length > 50
+    cleanTruckModel.length <
+      2 ||
+    cleanTruckModel.length >
+      50
   ) {
     return {
       valid: false,
@@ -337,7 +347,8 @@ const validateRequestData = (body) => {
     };
   }
 
-  const today = new Date();
+  const today =
+    new Date();
 
   today.setHours(
     0,
@@ -487,8 +498,10 @@ const validateRequestData = (body) => {
     !Number.isInteger(
       numericExperienceYears
     ) ||
-    numericExperienceYears < 0 ||
-    numericExperienceYears > 60
+    numericExperienceYears <
+      0 ||
+    numericExperienceYears >
+      60
   ) {
     return {
       valid: false,
@@ -520,17 +533,22 @@ const validateRequestData = (body) => {
       cleanTruckType,
       numericCapacity,
       cleanTruckModel,
+
       cleanRegistrationDate:
         registrationDate,
+
       numericLatitude,
       numericLongitude,
+
       cleanDriverFullName,
       cleanDriverNic,
       cleanDriverEmail,
       cleanDriverContactNumber,
       cleanLicenceNumber,
+
       cleanLicenceExpiryDate:
         licenceExpiryDate,
+
       numericExperienceYears,
       numericGarageId,
     },
@@ -550,13 +568,16 @@ const createExternalTruckRequest =
           req.body
         );
 
-      if (!validation.valid) {
+      if (
+        !validation.valid
+      ) {
         return res
           .status(
             validation.statusCode
           )
           .json({
             success: false,
+
             message:
               validation.message,
           });
@@ -598,12 +619,14 @@ const createExternalTruckRequest =
         );
 
       if (
-        garageRows.length === 0
+        garageRows.length ===
+        0
       ) {
         return res
           .status(404)
           .json({
             success: false,
+
             message:
               "The selected garage does not exist.",
           });
@@ -615,22 +638,30 @@ const createExternalTruckRequest =
 
       const [
         existingTruckRows,
-      ] = await db.query(
-        `
-        SELECT
-          truck_id
-        FROM tow_truck
-        WHERE UPPER(
-          TRIM(truck_number)
-        ) = UPPER(TRIM(?))
-          AND assignment_status =
+      ] =
+        await db.query(
+          `
+          SELECT
+            truck_id
+          FROM tow_truck
+          WHERE
+            UPPER(
+              TRIM(
+                truck_number
+              )
+            ) =
+            UPPER(TRIM(?))
+
+            AND
+            assignment_status =
               'Active'
-        LIMIT 1
-        `,
-        [
-          cleanTruckNumber,
-        ]
-      );
+
+          LIMIT 1
+          `,
+          [
+            cleanTruckNumber,
+          ]
+        );
 
       if (
         existingTruckRows.length >
@@ -640,8 +671,10 @@ const createExternalTruckRequest =
           .status(409)
           .json({
             success: false,
+
             code:
               "TRUCK_ALREADY_REGISTERED",
+
             message:
               "A tow truck with this number is already registered.",
           });
@@ -653,47 +686,65 @@ const createExternalTruckRequest =
 
       const [
         existingRequestRows,
-      ] = await db.query(
-        `
-        SELECT
-          registration_id,
-          status
-        FROM truck_registration_request
-        WHERE (
-          UPPER(
-            TRIM(truck_number)
-          ) = UPPER(TRIM(?))
+      ] =
+        await db.query(
+          `
+          SELECT
+            registration_id,
+            status
+          FROM
+            truck_registration_request
 
-          OR UPPER(
-            TRIM(nic)
-          ) = UPPER(TRIM(?))
+          WHERE (
+            UPPER(
+              TRIM(
+                truck_number
+              )
+            ) =
+            UPPER(TRIM(?))
 
-          OR LOWER(
-            TRIM(email)
-          ) = LOWER(TRIM(?))
+            OR
+            UPPER(
+              TRIM(nic)
+            ) =
+            UPPER(TRIM(?))
 
-          OR TRIM(
-            contact_number
-          ) = TRIM(?)
+            OR
+            LOWER(
+              TRIM(email)
+            ) =
+            LOWER(TRIM(?))
 
-          OR UPPER(
-            TRIM(license_number)
-          ) = UPPER(TRIM(?))
-        )
-        AND status IN (
-          'Pending',
-          'Approved'
-        )
-        LIMIT 1
-        `,
-        [
-          cleanTruckNumber,
-          cleanDriverNic,
-          cleanDriverEmail,
-          cleanDriverContactNumber,
-          cleanLicenceNumber,
-        ]
-      );
+            OR
+            TRIM(
+              contact_number
+            ) =
+            TRIM(?)
+
+            OR
+            UPPER(
+              TRIM(
+                license_number
+              )
+            ) =
+            UPPER(TRIM(?))
+          )
+
+          AND status IN (
+            'Pending',
+            'Approved'
+          )
+
+          LIMIT 1
+          `,
+          [
+            cleanTruckNumber,
+            cleanDriverNic,
+            cleanDriverEmail,
+            cleanDriverContactNumber,
+            cleanLicenceNumber,
+          ]
+        );
 
       if (
         existingRequestRows.length >
@@ -728,34 +779,48 @@ const createExternalTruckRequest =
 
       const [
         existingDriverRows,
-      ] = await db.query(
-        `
-        SELECT
-          driver_id
-        FROM truck_driver
-        WHERE
-          UPPER(TRIM(nic)) =
-          UPPER(TRIM(?))
+      ] =
+        await db.query(
+          `
+          SELECT
+            driver_id
+          FROM truck_driver
 
-          OR LOWER(TRIM(email)) =
-          LOWER(TRIM(?))
+          WHERE
+            UPPER(
+              TRIM(nic)
+            ) =
+            UPPER(TRIM(?))
 
-          OR TRIM(contact_number) =
-          TRIM(?)
+            OR
+            LOWER(
+              TRIM(email)
+            ) =
+            LOWER(TRIM(?))
 
-          OR UPPER(
-            TRIM(license_number)
-          ) = UPPER(TRIM(?))
+            OR
+            TRIM(
+              contact_number
+            ) =
+            TRIM(?)
 
-        LIMIT 1
-        `,
-        [
-          cleanDriverNic,
-          cleanDriverEmail,
-          cleanDriverContactNumber,
-          cleanLicenceNumber,
-        ]
-      );
+            OR
+            UPPER(
+              TRIM(
+                license_number
+              )
+            ) =
+            UPPER(TRIM(?))
+
+          LIMIT 1
+          `,
+          [
+            cleanDriverNic,
+            cleanDriverEmail,
+            cleanDriverContactNumber,
+            cleanLicenceNumber,
+          ]
+        );
 
       if (
         existingDriverRows.length >
@@ -765,20 +830,25 @@ const createExternalTruckRequest =
           .status(409)
           .json({
             success: false,
+
             code:
               "DRIVER_ALREADY_REGISTERED",
+
             message:
               "A truck driver with this NIC, email, contact number or licence number is already registered.",
           });
       }
-            // ==================================================
+
+      // ==================================================
       // CREATE REGISTRATION REQUEST
       // ==================================================
 
       const [result] =
         await db.query(
           `
-          INSERT INTO truck_registration_request (
+          INSERT INTO
+            truck_registration_request
+          (
             status,
             truck_number,
             truck_type,
@@ -798,6 +868,7 @@ const createExternalTruckRequest =
             driver_status,
             garage_garage_id
           )
+
           VALUES (
             ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?,
@@ -825,6 +896,43 @@ const createExternalTruckRequest =
             numericGarageId,
           ]
         );
+
+      // ==================================================
+      // CREATE GARAGE OWNER NOTIFICATION
+      // ==================================================
+
+      const notificationResult =
+        await createNotification({
+          garageId:
+            numericGarageId,
+
+          notificationType:
+            "EXTERNAL_TRUCK_REGISTRATION_REQUEST",
+
+          title:
+            "New External Tow Truck Registration Request",
+
+          message:
+            `${cleanDriverFullName} submitted an external tow truck registration request for ${cleanTruckNumber}.`,
+
+          targetPage:
+            "external-truck-requests",
+
+          referenceId:
+            result.insertId,
+
+          priority:
+            "HIGH",
+        });
+
+      if (
+        !notificationResult.success
+      ) {
+        console.error(
+          "External truck registration notification error:",
+          notificationResult.error
+        );
+      }
 
       return res
         .status(201)
@@ -883,7 +991,8 @@ const getExternalTruckRequests =
 
       const requestedStatus =
         String(
-          req.query.status || ""
+          req.query.status ||
+            ""
         ).trim();
 
       let sql = `
@@ -946,13 +1055,17 @@ const getExternalTruckRequests =
              r.garage_garage_id
       `;
 
-      const conditions = [];
-      const values = [];
+      const conditions =
+        [];
+
+      const values =
+        [];
 
       if (
         requestedGarageId !==
           undefined &&
-        requestedGarageId !== ""
+        requestedGarageId !==
+          ""
       ) {
         const numericGarageId =
           Number(
@@ -963,7 +1076,8 @@ const getExternalTruckRequests =
           !Number.isInteger(
             numericGarageId
           ) ||
-          numericGarageId <= 0
+          numericGarageId <=
+            0
         ) {
           return res
             .status(400)
@@ -984,12 +1098,15 @@ const getExternalTruckRequests =
         );
       }
 
-      if (requestedStatus) {
-        const allowedStatuses = [
-          "Pending",
-          "Approved",
-          "Rejected",
-        ];
+      if (
+        requestedStatus
+      ) {
+        const allowedStatuses =
+          [
+            "Pending",
+            "Approved",
+            "Rejected",
+          ];
 
         const matchingStatus =
           allowedStatuses.find(
@@ -998,7 +1115,9 @@ const getExternalTruckRequests =
               requestedStatus.toLowerCase()
           );
 
-        if (!matchingStatus) {
+        if (
+          !matchingStatus
+        ) {
           return res
             .status(400)
             .json({
@@ -1019,13 +1138,14 @@ const getExternalTruckRequests =
       }
 
       if (
-        conditions.length > 0
+        conditions.length >
+        0
       ) {
         sql += `
           WHERE
-          ${conditions.join(
-            " AND "
-          )}
+            ${conditions.join(
+              " AND "
+            )}
         `;
       }
 
@@ -1083,17 +1203,6 @@ const getExternalTruckRequests =
 // ======================================================
 // GET SINGLE REQUEST / REGISTRATION STATUS
 // GET /api/external-truck-requests/:id
-//
-// Driver registration form polls this endpoint.
-//
-// Pending:
-// Shows waiting message.
-//
-// Approved:
-// Returns External Driver ID + Temporary Password.
-//
-// Rejected:
-// Shows rejected message.
 // ======================================================
 
 const getExternalTruckRequestById =
@@ -1108,7 +1217,8 @@ const getExternalTruckRequestById =
         !Number.isInteger(
           registrationId
         ) ||
-        registrationId <= 0
+        registrationId <=
+          0
       ) {
         return res
           .status(400)
@@ -1237,21 +1347,6 @@ const getExternalTruckRequestById =
 
 // ======================================================
 // APPROVE EXTERNAL TRUCK REGISTRATION REQUEST
-//
-// Garage Owner clicks APPROVE.
-//
-// This will:
-// 1. Lock the registration request
-// 2. Validate request status
-// 3. Create external tow truck
-// 4. Create external truck driver
-// 5. Generate External Driver ID
-// 6. Generate temporary password
-// 7. Create login account
-// 8. Link login to driver
-// 9. Save approval IDs and temporary password
-// 10. Return credentials to Garage Owner
-//
 // PUT /api/external-truck-requests/:id/approve
 // ======================================================
 
@@ -1269,7 +1364,8 @@ const approveExternalTruckRequest =
         !Number.isInteger(
           registrationId
         ) ||
-        registrationId <= 0
+        registrationId <=
+          0
       ) {
         return res
           .status(400)
@@ -1295,8 +1391,10 @@ const approveExternalTruckRequest =
         await connection.query(
           `
           SELECT *
-          FROM truck_registration_request
-          WHERE registration_id = ?
+          FROM
+            truck_registration_request
+          WHERE
+            registration_id = ?
           FOR UPDATE
           `,
           [
@@ -1305,7 +1403,8 @@ const approveExternalTruckRequest =
         );
 
       if (
-        requestRows.length === 0
+        requestRows.length ===
+        0
       ) {
         await connection
           .rollback();
@@ -1354,15 +1453,18 @@ const approveExternalTruckRequest =
           SELECT
             truck_id
           FROM tow_truck
+
           WHERE
             UPPER(
-              TRIM(truck_number)
+              TRIM(
+                truck_number
+              )
             ) =
             UPPER(TRIM(?))
 
             AND
             assignment_status =
-            'Active'
+              'Active'
 
           LIMIT 1
           `,
@@ -1403,24 +1505,30 @@ const approveExternalTruckRequest =
           SELECT
             driver_id
           FROM truck_driver
+
           WHERE
             UPPER(
               TRIM(nic)
             ) =
             UPPER(TRIM(?))
 
-            OR LOWER(
+            OR
+            LOWER(
               TRIM(email)
             ) =
             LOWER(TRIM(?))
 
-            OR TRIM(
+            OR
+            TRIM(
               contact_number
             ) =
             TRIM(?)
 
-            OR UPPER(
-              TRIM(license_number)
+            OR
+            UPPER(
+              TRIM(
+                license_number
+              )
             ) =
             UPPER(TRIM(?))
 
@@ -1473,6 +1581,7 @@ const approveExternalTruckRequest =
             assignment_status,
             garage_garage_id
           )
+
           VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?
@@ -1514,6 +1623,7 @@ const approveExternalTruckRequest =
             tow_truck_truck_id,
             login_login_id
           )
+
           VALUES (
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?
@@ -1538,9 +1648,6 @@ const approveExternalTruckRequest =
 
       // ==================================================
       // GENERATE EXTERNAL DRIVER ID
-      //
-      // Example:
-      // EXT-DRV-0012
       // ==================================================
 
       const externalDriverId =
@@ -1553,18 +1660,16 @@ const approveExternalTruckRequest =
 
       // ==================================================
       // GENERATE TEMPORARY PASSWORD
-      //
-      // Example:
-      // Temp@482917
       // ==================================================
 
       const temporaryPassword =
         `Temp@${Math.floor(
           100000 +
-          Math.random() *
-          900000
+            Math.random() *
+              900000
         )}`;
-              // ==================================================
+
+      // ==================================================
       // CHECK USERNAME DUPLICATE
       // ==================================================
 
@@ -1576,7 +1681,10 @@ const approveExternalTruckRequest =
           SELECT
             login_id
           FROM login
-          WHERE user_name = ?
+
+          WHERE
+            user_name = ?
+
           LIMIT 1
           `,
           [
@@ -1616,7 +1724,10 @@ const approveExternalTruckRequest =
             password,
             role
           )
-          VALUES (?, ?, ?)
+
+          VALUES (
+            ?, ?, ?
+          )
           `,
           [
             externalDriverId,
@@ -1635,8 +1746,12 @@ const approveExternalTruckRequest =
       await connection.query(
         `
         UPDATE truck_driver
-        SET login_login_id = ?
-        WHERE driver_id = ?
+
+        SET
+          login_login_id = ?
+
+        WHERE
+          driver_id = ?
         `,
         [
           loginId,
@@ -1646,10 +1761,6 @@ const approveExternalTruckRequest =
 
       // ==================================================
       // MARK REQUEST APPROVED
-      //
-      // Save all approval links + temporary password.
-      // This allows the original registration form
-      // to retrieve the Approved status and credentials.
       // ==================================================
 
       await connection.query(
@@ -1658,14 +1769,24 @@ const approveExternalTruckRequest =
           truck_registration_request
 
         SET
-          status = 'Approved',
-          approved_truck_id = ?,
-          approved_driver_id = ?,
-          approved_login_id = ?,
-          temporary_password = ?
+          status =
+            'Approved',
+
+          approved_truck_id =
+            ?,
+
+          approved_driver_id =
+            ?,
+
+          approved_login_id =
+            ?,
+
+          temporary_password =
+            ?
 
         WHERE
-          registration_id = ?
+          registration_id =
+            ?
         `,
         [
           truckId,
@@ -1688,8 +1809,12 @@ const approveExternalTruckRequest =
             garage_name,
             contact_number,
             address
+
           FROM garage
-          WHERE garage_id = ?
+
+          WHERE
+            garage_id = ?
+
           LIMIT 1
           `,
           [
@@ -1699,25 +1824,55 @@ const approveExternalTruckRequest =
         );
 
       const garage =
-        garageRows.length > 0
+        garageRows.length >
+        0
           ? garageRows[0]
           : null;
 
       // ==================================================
-      // COMMIT EVERYTHING
+      // COMMIT
       // ==================================================
 
       await connection.commit();
 
       // ==================================================
-      // RETURN CREDENTIALS TO GARAGE OWNER FRONTEND
-      //
-      // Garage Owner still sees:
-      // External Driver ID + Temporary Password
-      //
-      // The same credentials are also saved in
-      // truck_registration_request for the driver popup.
+      // CREATE EXTERNAL DRIVER APPROVAL NOTIFICATION
       // ==================================================
+
+      const driverApprovalNotification =
+        await createNotification({
+          garageId:
+            request.garage_garage_id,
+
+          driverId,
+
+          notificationType:
+            "EXTERNAL_TRUCK_REGISTRATION_APPROVED",
+
+          title:
+            "Registration Approved",
+
+          message:
+            `Your external tow truck registration for ${request.truck_number} has been approved. Your External Driver ID is ${externalDriverId}.`,
+
+          targetPage:
+            "dashboard",
+
+          referenceId:
+            registrationId,
+
+          priority:
+            "HIGH",
+        });
+
+      if (
+        !driverApprovalNotification.success
+      ) {
+        console.error(
+          "External driver approval notification error:",
+          driverApprovalNotification.error
+        );
+      }
 
       return res
         .status(200)
@@ -1749,7 +1904,8 @@ const approveExternalTruckRequest =
               "",
 
             driverFullName:
-              request.full_name,
+              request
+                .full_name,
 
             driverEmail:
               request.email,
@@ -1770,7 +1926,9 @@ const approveExternalTruckRequest =
           },
         });
     } catch (error) {
-      if (connection) {
+      if (
+        connection
+      ) {
         try {
           await connection
             .rollback();
@@ -1799,7 +1957,9 @@ const approveExternalTruckRequest =
             "Unable to approve external tow truck request.",
         });
     } finally {
-      if (connection) {
+      if (
+        connection
+      ) {
         connection.release();
       }
     }
@@ -1822,7 +1982,8 @@ const rejectExternalTruckRequest =
         !Number.isInteger(
           registrationId
         ) ||
-        registrationId <= 0
+        registrationId <=
+          0
       ) {
         return res
           .status(400)
@@ -1840,8 +2001,13 @@ const rejectExternalTruckRequest =
           SELECT
             registration_id,
             status
-          FROM truck_registration_request
-          WHERE registration_id = ?
+
+          FROM
+            truck_registration_request
+
+          WHERE
+            registration_id = ?
+
           LIMIT 1
           `,
           [
@@ -1850,7 +2016,8 @@ const rejectExternalTruckRequest =
         );
 
       if (
-        requestRows.length === 0
+        requestRows.length ===
+        0
       ) {
         return res
           .status(404)
@@ -1864,7 +2031,8 @@ const rejectExternalTruckRequest =
 
       if (
         requestRows[0]
-          .status !== "Pending"
+          .status !==
+        "Pending"
       ) {
         return res
           .status(409)
@@ -1885,14 +2053,24 @@ const rejectExternalTruckRequest =
           truck_registration_request
 
         SET
-          status = 'Rejected',
-          approved_truck_id = NULL,
-          approved_driver_id = NULL,
-          approved_login_id = NULL,
-          temporary_password = NULL
+          status =
+            'Rejected',
+
+          approved_truck_id =
+            NULL,
+
+          approved_driver_id =
+            NULL,
+
+          approved_login_id =
+            NULL,
+
+          temporary_password =
+            NULL
 
         WHERE
-          registration_id = ?
+          registration_id =
+            ?
         `,
         [
           registrationId,
@@ -1935,134 +2113,537 @@ const rejectExternalTruckRequest =
 // ======================================================
 // RELEASE EXTERNAL TRUCK
 // PUT /api/external-truck-requests/:id/release
+//
+// IMPORTANT:
+// - Only External trucks can be released.
+// - A truck CANNOT be released while it has an active
+//   customer tow assignment.
+// - Completed / Rejected jobs do not block release.
+// - When released:
+//      tow_truck.assignment_status = 'Inactive'
+//      tow_truck.garage_garage_id = NULL
 // ======================================================
 
-const releaseExternalTruck =
-  async (req, res) => {
-    try {
-      const truckId =
-        Number(
-          req.params.id
-        );
+const releaseExternalTruck = async (req, res) => {
+  let connection;
 
-      if (
-        !Number.isInteger(
-          truckId
-        ) ||
-        truckId <= 0
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
+  try {
+    const truckId = Number(
+      req.params.id
+    );
 
-            message:
-              "Invalid truck ID.",
-          });
-      }
+    // ==================================================
+    // VALIDATE TRUCK ID
+    // ==================================================
 
-      const [rows] =
-        await db.query(
-          `
-          SELECT *
-          FROM tow_truck
-          WHERE truck_id = ?
-          LIMIT 1
-          `,
-          [
-            truckId,
-          ]
-        );
+    if (
+      !Number.isInteger(
+        truckId
+      ) ||
+      truckId <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
 
-      if (
-        rows.length === 0
-      ) {
-        return res
-          .status(404)
-          .json({
-            success: false,
+          message:
+            "Invalid truck ID.",
+        });
+    }
 
-            message:
-              "Truck not found.",
-          });
-      }
+    // ==================================================
+    // START TRANSACTION
+    // ==================================================
 
-      const truck =
-        rows[0];
+    connection =
+      await db.getConnection();
 
-      if (
-        truck.truck_status !==
-        "External"
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
+    await connection
+      .beginTransaction();
 
-            message:
-              "Only external trucks can be released.",
-          });
-      }
+    // ==================================================
+    // LOAD AND LOCK TRUCK
+    // ==================================================
 
-      if (
-        truck.assignment_status ===
-        "Inactive"
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-
-            message:
-              "This truck has already been released.",
-          });
-      }
-
-      await db.query(
+    const [rows] =
+      await connection.query(
         `
-        UPDATE tow_truck
+        SELECT
+          truck_id,
+          truck_number,
+          truck_type,
+          truck_model,
+          truck_status,
+          assignment_status,
+          garage_garage_id
 
-        SET
-          assignment_status =
-            'Inactive',
-
-          garage_garage_id =
-            NULL
+        FROM tow_truck
 
         WHERE
           truck_id = ?
+
+        LIMIT 1
+
+        FOR UPDATE
         `,
         [
           truckId,
         ]
       );
 
-      return res
-        .status(200)
-        .json({
-          success: true,
+    // ==================================================
+    // TRUCK NOT FOUND
+    // ==================================================
 
-          message:
-            "Truck released successfully.",
-        });
-    } catch (error) {
-      console.error(
-        "Release external truck error:",
-        error
-      );
+    if (
+      rows.length === 0
+    ) {
+      await connection
+        .rollback();
 
       return res
-        .status(500)
+        .status(404)
         .json({
           success: false,
 
           message:
-            error.sqlMessage ||
-            "Failed to release truck.",
+            "Truck not found.",
         });
     }
-  };
-  // ======================================================
+
+    const truck =
+      rows[0];
+
+    // ==================================================
+    // ONLY EXTERNAL TRUCKS CAN BE RELEASED
+    // ==================================================
+
+    const truckStatus =
+      String(
+        truck.truck_status ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+    if (
+      truckStatus !==
+      "external"
+    ) {
+      await connection
+        .rollback();
+
+      return res
+        .status(400)
+        .json({
+          success: false,
+
+          message:
+            "Only external trucks can be released.",
+        });
+    }
+
+    // ==================================================
+    // CHECK IF ALREADY RELEASED
+    // ==================================================
+
+    const assignmentStatus =
+      String(
+        truck.assignment_status ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+    if (
+      assignmentStatus ===
+      "inactive"
+    ) {
+      await connection
+        .rollback();
+
+      return res
+        .status(400)
+        .json({
+          success: false,
+
+          message:
+            "This truck has already been released.",
+        });
+    }
+
+    // ==================================================
+    // CHECK ACTIVE CUSTOMER TOW ASSIGNMENT
+    //
+    // Truck must NOT be released while:
+    // Pending Verification
+    // Approved
+    // Dispatched
+    // EN_ROUTE_TO_CUSTOMER
+    // ARRIVED_AT_CUSTOMER
+    // EN_ROUTE_TO_GARAGE
+    // ARRIVED_AT_GARAGE
+    //
+    // Only after the tow job becomes Completed
+    // can the Garage Owner release the truck.
+    // ==================================================
+
+    const [
+      activeDispatchRows,
+    ] =
+      await connection.query(
+        `
+        SELECT
+          td.dispatch_id
+            AS dispatchId,
+
+          td.dispatch_status
+            AS dispatchStatus,
+
+          td.service_request_request_id
+            AS requestId,
+
+          sr.customer_customer_id
+            AS customerId,
+
+          sr.customer_name
+            AS customerName,
+
+          sr.vehicle_number
+            AS vehicleNumber,
+
+          sr.request_status
+            AS requestStatus
+
+        FROM tow_dispatch td
+
+        LEFT JOIN service_request sr
+          ON sr.request_id =
+             td.service_request_request_id
+
+        WHERE
+          td.tow_truck_truck_id = ?
+
+          AND td.dispatch_status IN (
+            'Pending Verification',
+            'Approved',
+            'Dispatched',
+            'EN_ROUTE_TO_CUSTOMER',
+            'ARRIVED_AT_CUSTOMER',
+            'EN_ROUTE_TO_GARAGE',
+            'ARRIVED_AT_GARAGE'
+          )
+
+        ORDER BY
+          td.dispatch_id DESC
+
+        LIMIT 1
+        `,
+        [
+          truckId,
+        ]
+      );
+
+    // ==================================================
+    // ACTIVE JOB EXISTS -> BLOCK RELEASE
+    // ==================================================
+
+    if (
+      activeDispatchRows.length >
+      0
+    ) {
+      const activeDispatch =
+        activeDispatchRows[0];
+
+      await connection
+        .rollback();
+
+      return res
+        .status(409)
+        .json({
+          success: false,
+
+          code:
+            "ACTIVE_TOW_JOB_EXISTS",
+
+          message:
+            `Tow truck ${
+              truck.truck_number ||
+              ""
+            } cannot be released because it currently has an active customer tow assignment.`,
+
+          activeAssignment: {
+            dispatchId:
+              activeDispatch
+                .dispatchId,
+
+            dispatchStatus:
+              activeDispatch
+                .dispatchStatus,
+
+            requestId:
+              activeDispatch
+                .requestId,
+
+            customerId:
+              activeDispatch
+                .customerId,
+
+            customerName:
+              activeDispatch
+                .customerName,
+
+            vehicleNumber:
+              activeDispatch
+                .vehicleNumber,
+
+            requestStatus:
+              activeDispatch
+                .requestStatus,
+          },
+        });
+    }
+
+    // ==================================================
+    // GET EXTERNAL DRIVER
+    // ==================================================
+
+    const [driverRows] =
+      await connection.query(
+        `
+        SELECT
+          driver_id,
+          full_name,
+          contact_number,
+          email,
+          driver_status
+
+        FROM truck_driver
+
+        WHERE
+          tow_truck_truck_id = ?
+
+        LIMIT 1
+        `,
+        [
+          truckId,
+        ]
+      );
+
+    const driver =
+      driverRows.length > 0
+        ? driverRows[0]
+        : null;
+
+    // ==================================================
+    // SAVE OLD GARAGE ID BEFORE REMOVING IT
+    // ==================================================
+
+    const oldGarageId =
+      truck.garage_garage_id !==
+        null &&
+      truck.garage_garage_id !==
+        undefined
+        ? Number(
+            truck.garage_garage_id
+          )
+        : null;
+
+    // ==================================================
+    // RELEASE TRUCK
+    // ==================================================
+
+    await connection.query(
+      `
+      UPDATE tow_truck
+
+      SET
+        assignment_status =
+          'Inactive',
+
+        garage_garage_id =
+          NULL
+
+      WHERE
+        truck_id = ?
+      `,
+      [
+        truckId,
+      ]
+    );
+
+    // ==================================================
+    // COMMIT RELEASE
+    // ==================================================
+
+    await connection
+      .commit();
+
+    // ==================================================
+    // CREATE EXTERNAL DRIVER RELEASE NOTIFICATION
+    // ==================================================
+
+    let driverNotification = {
+      created: false,
+      notificationId: null,
+    };
+
+    if (
+      driver &&
+      Number.isInteger(
+        Number(
+          driver.driver_id
+        )
+      ) &&
+      Number(
+        driver.driver_id
+      ) > 0 &&
+      Number.isInteger(
+        oldGarageId
+      ) &&
+      oldGarageId > 0
+    ) {
+      const notificationResult =
+        await createNotification({
+          garageId:
+            oldGarageId,
+
+          driverId:
+            Number(
+              driver.driver_id
+            ),
+
+          notificationType:
+            "EXTERNAL_TRUCK_RELEASED",
+
+          title:
+            "Tow Truck Released",
+
+          message:
+            `Your external tow truck ${
+              truck.truck_number ||
+              ""
+            } has been released by the garage. You are no longer assigned to this garage.`,
+
+          targetPage:
+            "dashboard",
+
+          referenceId:
+            truckId,
+
+          priority:
+            "HIGH",
+        });
+
+      if (
+        notificationResult.success
+      ) {
+        driverNotification = {
+          created: true,
+
+          notificationId:
+            notificationResult
+              .notificationId,
+        };
+      } else {
+        console.error(
+          "External driver release notification error:",
+          notificationResult.error
+        );
+      }
+    }
+
+    // ==================================================
+    // SUCCESS RESPONSE
+    // ==================================================
+
+    return res
+      .status(200)
+      .json({
+        success: true,
+
+        message:
+          "External tow truck released successfully.",
+
+        data: {
+          truckId,
+
+          truckNumber:
+            truck.truck_number,
+
+          previousGarageId:
+            oldGarageId,
+
+          assignmentStatus:
+            "Inactive",
+
+          garageId:
+            null,
+
+          driverId:
+            driver
+              ? Number(
+                  driver.driver_id
+                )
+              : null,
+
+          driverName:
+            driver?.full_name ||
+            null,
+        },
+
+        driverNotification,
+      });
+  } catch (error) {
+    // ==================================================
+    // ROLLBACK
+    // ==================================================
+
+    if (
+      connection
+    ) {
+      try {
+        await connection
+          .rollback();
+      } catch (
+        rollbackError
+      ) {
+        console.error(
+          "Release external truck rollback error:",
+          rollbackError
+        );
+      }
+    }
+
+    console.error(
+      "Release external truck error:",
+      error
+    );
+
+    return res
+      .status(500)
+      .json({
+        success: false,
+
+        message:
+          error.sqlMessage ||
+          "Failed to release truck.",
+      });
+  } finally {
+    // ==================================================
+    // RELEASE DATABASE CONNECTION
+    // ==================================================
+
+    if (
+      connection
+    ) {
+      connection.release();
+    }
+  }
+};
+
+// ======================================================
 // EXPORTS
 // ======================================================
 

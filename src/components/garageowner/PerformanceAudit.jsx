@@ -6,7 +6,6 @@ import React, {
 
 import {
   Search,
-  Bell,
   Menu,
   Info,
   User,
@@ -634,11 +633,6 @@ export default function PerformanceAudit({
         ================================================== */}
 
         <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:justify-end md:gap-5">
-
-          <Bell
-            size={18}
-            className="shrink-0 text-gray-300"
-          />
 
           <div className="h-8 w-px shrink-0 bg-white/10" />
 

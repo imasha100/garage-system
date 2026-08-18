@@ -7,7 +7,6 @@ import React, {
 
 import {
   Search,
-  Bell,
   Menu,
   PackageSearch,
   Plus,
@@ -948,11 +947,6 @@ export default function StockManagement({
         {/* OWNER HEADER */}
 
         <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:justify-end md:gap-5">
-          <Bell
-            size={18}
-            className="shrink-0 text-gray-300"
-          />
-
           <div className="h-8 w-px shrink-0 bg-white/10" />
 
           <div className="min-w-0 flex-1 text-right md:flex-none">

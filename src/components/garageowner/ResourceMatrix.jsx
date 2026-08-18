@@ -7,7 +7,6 @@ import React, {
 
 import {
   Search,
-  Bell,
   Menu,
   CircleDot,
   Gauge,
@@ -1108,11 +1107,6 @@ export default function ResourceMatrix({
         ================================================== */}
 
         <div className="flex items-center gap-5">
-
-          <Bell
-            size={18}
-            className="text-gray-300"
-          />
 
           <div className="h-8 w-px bg-white/10" />
 

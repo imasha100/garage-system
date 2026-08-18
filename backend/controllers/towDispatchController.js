@@ -1976,7 +1976,7 @@ const updateExternalDriverJourneyStage =
           "Arrived at Garage";
 
         customerStage =
-          "COMPLETED";
+          "ARRIVED_AT_GARAGE";
       }
 
       if (
@@ -2352,7 +2352,10 @@ const updateExternalDriverJourneyStage =
               assistanceMessage,
 
             targetPage:
-              "incident-dispatch",
+  stage === "ARRIVED_AT_GARAGE" ||
+  stage === "COMPLETED"
+    ? "resource-schedule"
+    : "incident-dispatch",
 
             referenceId:
               dispatchId,

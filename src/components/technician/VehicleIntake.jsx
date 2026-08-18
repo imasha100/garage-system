@@ -15,10 +15,15 @@ import {
 
 import avatarImage from "../../assets/profile.png";
 import garageImage from "../../assets/garage-car.jpeg";
+import TechnicianNotifications from "./TechnicianNotifications";
 
 export default function VehicleIntake({
   toggleSidebar,
+  onNavigate,
 }) {
+  const [technician, setTechnician] =
+    useState(null);
+
   const [searchQuery, setSearchQuery] =
     useState("");
 
@@ -214,6 +219,93 @@ export default function VehicleIntake({
   };
 
   // ======================================================
+  // LOAD LOGGED-IN TECHNICIAN DETAILS
+  // ======================================================
+
+  const loadTechnicianDetails = async () => {
+    try {
+      const storedStaffUser =
+        sessionStorage.getItem(
+          "staffUser"
+        );
+
+      if (!storedStaffUser) {
+        throw new Error(
+          "Logged-in technician details were not found."
+        );
+      }
+
+      const staffUser =
+        JSON.parse(
+          storedStaffUser
+        );
+
+      const technicianId =
+        Number(
+          staffUser?.staffId
+        );
+
+      if (
+        String(
+          staffUser?.role || ""
+        ).toLowerCase() !==
+          "technician" ||
+        !Number.isInteger(
+          technicianId
+        ) ||
+        technicianId <= 0
+      ) {
+        throw new Error(
+          "A valid technician account could not be identified."
+        );
+      }
+
+      const response =
+        await fetch(
+          `http://localhost:5000/api/technicians/${technicianId}`
+        );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        result.success === false ||
+        !result.technician
+      ) {
+        throw new Error(
+          result.message ||
+            "Unable to load technician details."
+        );
+      }
+
+      setTechnician(
+        result.technician
+      );
+    } catch (error) {
+      console.error(
+        "Load technician details error:",
+        error
+      );
+
+      setTechnician(null);
+    }
+  };
+
+  const technicianName =
+    technician?.fullName ||
+    "Technician";
+
+  const technicianRole =
+    Array.isArray(
+      technician?.specialization
+    ) &&
+    technician.specialization.length > 0
+      ? technician.specialization[0]
+      : technician?.specialization ||
+        "Workshop Staff";
+
+  // ======================================================
   // LOAD ASSIGNED JOBS
   // ======================================================
 
@@ -398,10 +490,12 @@ export default function VehicleIntake({
   // ======================================================
 
   useEffect(() => {
+    loadTechnicianDetails();
     loadAssignedJobs();
 
     const refreshInterval =
       setInterval(() => {
+        loadTechnicianDetails();
         loadAssignedJobs();
       }, 5000);
 
@@ -782,12 +876,7 @@ export default function VehicleIntake({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-4">
-          <button
-            type="button"
-            className="text-slate-400 transition hover:text-white"
-          >
-            <Bell size={17} />
-          </button>
+          <TechnicianNotifications onNavigate={onNavigate} />
 
           <button
             type="button"
@@ -800,12 +889,12 @@ export default function VehicleIntake({
 
           <div className="flex items-center gap-3 border-l border-slate-800 pl-4">
             <div className="hidden text-right sm:block">
-              <p className="text-[10px] font-bold text-white">
-                Technician
+              <p className="max-w-[160px] truncate text-[10px] font-bold text-white">
+                {technicianName}
               </p>
 
-              <p className="text-[9px] uppercase text-slate-500">
-                Workshop Staff
+              <p className="max-w-[160px] truncate text-[9px] uppercase text-slate-500">
+                {technicianRole}
               </p>
             </div>
 
@@ -814,7 +903,7 @@ export default function VehicleIntake({
                 src={
                   avatarImage
                 }
-                alt="Technician"
+                alt={`${technicianName} profile`}
                 className="h-full w-full object-cover"
               />
             </div>

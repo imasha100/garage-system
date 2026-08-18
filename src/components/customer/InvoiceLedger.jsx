@@ -290,6 +290,41 @@ export default function InvoiceLedger() {
   ]);
 
   // ======================================================
+  // LIVE PAYMENT COUNTDOWN - UPDATE EVERY SECOND
+  // ======================================================
+
+  useEffect(() => {
+    if (readyInSeconds <= 0) {
+      return;
+    }
+
+    const countdownInterval =
+      setInterval(() => {
+        setReadyInSeconds(
+          (previousSeconds) => {
+            if (
+              previousSeconds <= 1
+            ) {
+              return 0;
+            }
+
+            return (
+              previousSeconds - 1
+            );
+          }
+        );
+      }, 1000);
+
+    return () => {
+      clearInterval(
+        countdownInterval
+      );
+    };
+  }, [
+    readyInSeconds > 0,
+  ]);
+
+  // ======================================================
   // FORMAT DATE
   // ======================================================
 

@@ -87,16 +87,16 @@ const createInvoiceAndPayment = async (req, res) => {
     const [currentDateTimeRows] =
       await connection.query(
         `
-        SELECT
-          DATE_FORMAT(
-            CURDATE(),
-            '%Y-%m-%d'
-          ) AS formatted_date,
+          SELECT
+            DATE_FORMAT(
+              CURDATE(),
+              '%Y-%m-%d'
+            ) AS formatted_date,
 
-          TIME_FORMAT(
-            CURTIME(),
-            '%H:%i:%s'
-          ) AS formatted_time
+            TIME_FORMAT(
+              CURTIME(),
+              '%H:%i:%s'
+            ) AS formatted_time
         `
       );
 
@@ -112,14 +112,14 @@ const createInvoiceAndPayment = async (req, res) => {
 
     const [jobRows] = await connection.query(
       `
-      SELECT
-        job_id,
-        job_status,
-        garage_garage_id,
-        service_request_request_id
-      FROM service_job
-      WHERE job_id = ?
-      LIMIT 1
+        SELECT
+          job_id,
+          job_status,
+          garage_garage_id,
+          service_request_request_id
+        FROM service_job
+        WHERE job_id = ?
+        LIMIT 1
       `,
       [numericJobId]
     );
@@ -138,9 +138,6 @@ const createInvoiceAndPayment = async (req, res) => {
 
     // ==================================================
     // GET TOW TRUCK CHARGE (NON-DRIVEABLE ONLY)
-    //
-    // Driveable requests do not have a tow dispatch, so
-    // towCharge remains 0.
     // ==================================================
 
     let towCharge = 0;
@@ -148,26 +145,24 @@ const createInvoiceAndPayment = async (req, res) => {
     if (job.service_request_request_id) {
       const [towRows] = await connection.query(
         `
-        SELECT
-          tow_charge
-        FROM tow_dispatch
-        WHERE service_request_request_id = ?
-          AND tow_charge IS NOT NULL
-          AND UPPER(
-            TRIM(
-              COALESCE(
-                dispatch_status,
-                ''
+          SELECT
+            tow_charge
+          FROM tow_dispatch
+          WHERE service_request_request_id = ?
+            AND tow_charge IS NOT NULL
+            AND UPPER(
+              TRIM(
+                COALESCE(
+                  dispatch_status,
+                  ''
+                )
               )
-            )
-          ) <> 'REJECTED'
-        ORDER BY
-          dispatch_id DESC
-        LIMIT 1
+            ) <> 'REJECTED'
+          ORDER BY
+            dispatch_id DESC
+          LIMIT 1
         `,
-        [
-          job.service_request_request_id,
-        ]
+        [job.service_request_request_id]
       );
 
       if (towRows.length > 0) {
@@ -207,11 +202,11 @@ const createInvoiceAndPayment = async (req, res) => {
     const [existingInvoiceRows] =
       await connection.query(
         `
-        SELECT
-          invoice_id
-        FROM invoice
-        WHERE service_job_job_id = ?
-        LIMIT 1
+          SELECT
+            invoice_id
+          FROM invoice
+          WHERE service_job_job_id = ?
+          LIMIT 1
         `,
         [numericJobId]
       );
@@ -274,34 +269,34 @@ const createInvoiceAndPayment = async (req, res) => {
       const [batchRows] =
         await connection.query(
           `
-          SELECT
-            sb.batch_id,
-            sb.batch_num,
-            sb.selling_price,
-            sb.available_quantity,
+            SELECT
+              sb.batch_id,
+              sb.batch_num,
+              sb.selling_price,
+              sb.available_quantity,
 
-            s.stock_id,
-            s.reorder_level,
-            s.garage_garage_id,
+              s.stock_id,
+              s.reorder_level,
+              s.garage_garage_id,
 
-            si.item_id,
-            si.item_name
+              si.item_id,
+              si.item_name
 
-          FROM stock_batch sb
+            FROM stock_batch sb
 
-          INNER JOIN stock s
-            ON s.stock_id =
-               sb.stock_stock_id
+            INNER JOIN stock s
+              ON s.stock_id =
+                 sb.stock_stock_id
 
-          INNER JOIN stock_item si
-            ON si.item_id =
-               s.stock_item_item_id
+            INNER JOIN stock_item si
+              ON si.item_id =
+                 s.stock_item_item_id
 
-          WHERE sb.batch_id = ?
+            WHERE sb.batch_id = ?
 
-          LIMIT 1
+            LIMIT 1
 
-          FOR UPDATE
+            FOR UPDATE
           `,
           [batchId]
         );
@@ -323,12 +318,8 @@ const createInvoiceAndPayment = async (req, res) => {
       // ================================================
 
       if (
-        Number(
-          batch.garage_garage_id
-        ) !==
-        Number(
-          job.garage_garage_id
-        )
+        Number(batch.garage_garage_id) !==
+        Number(job.garage_garage_id)
       ) {
         await connection.rollback();
 
@@ -347,10 +338,7 @@ const createInvoiceAndPayment = async (req, res) => {
       // CHECK AVAILABLE STOCK
       // ================================================
 
-      if (
-        quantity >
-        availableQuantity
-      ) {
+      if (quantity > availableQuantity) {
         await connection.rollback();
 
         return res.status(409).json({
@@ -397,8 +385,7 @@ const createInvoiceAndPayment = async (req, res) => {
           availableQuantity,
 
         availableAfter:
-          availableQuantity -
-          quantity,
+          availableQuantity - quantity,
 
         reorderLevel:
           Number(
@@ -414,14 +401,12 @@ const createInvoiceAndPayment = async (req, res) => {
     const stockItemsTotal =
       validatedItems.reduce(
         (total, item) =>
-          total +
-          item.lineTotal,
+          total + item.lineTotal,
         0
       );
 
     const totalAmount =
-      stockItemsTotal +
-      towCharge;
+      stockItemsTotal + towCharge;
 
     const numericTaxAmount =
       Math.max(
@@ -457,22 +442,22 @@ const createInvoiceAndPayment = async (req, res) => {
     const [invoiceResult] =
       await connection.query(
         `
-        INSERT INTO invoice (
-          invoice_date,
-          total_amount,
-          tax_amount,
-          discount_amount,
-          final_amount,
-          service_job_job_id
-        )
-        VALUES (
-          CURDATE(),
-          ?,
-          ?,
-          ?,
-          ?,
-          ?
-        )
+          INSERT INTO invoice (
+            invoice_date,
+            total_amount,
+            tax_amount,
+            discount_amount,
+            final_amount,
+            service_job_job_id
+          )
+          VALUES (
+            CURDATE(),
+            ?,
+            ?,
+            ?,
+            ?,
+            ?
+          )
         `,
         [
           totalAmount,
@@ -498,22 +483,22 @@ const createInvoiceAndPayment = async (req, res) => {
 
       await connection.query(
         `
-        INSERT INTO invoice_item (
-          item_name,
-          invoice_invoice_id,
-          stock_batch_id,
-          quantity,
-          unit_price,
-          line_total
-        )
-        VALUES (
-          ?,
-          ?,
-          ?,
-          ?,
-          ?,
-          ?
-        )
+          INSERT INTO invoice_item (
+            item_name,
+            invoice_invoice_id,
+            stock_batch_id,
+            quantity,
+            unit_price,
+            line_total
+          )
+          VALUES (
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?
+          )
         `,
         [
           item.itemName,
@@ -531,10 +516,10 @@ const createInvoiceAndPayment = async (req, res) => {
 
       await connection.query(
         `
-        UPDATE stock_batch
-        SET available_quantity =
-          available_quantity - ?
-        WHERE batch_id = ?
+          UPDATE stock_batch
+          SET available_quantity =
+            available_quantity - ?
+          WHERE batch_id = ?
         `,
         [
           item.quantity,
@@ -547,47 +532,96 @@ const createInvoiceAndPayment = async (req, res) => {
       // SAVE STOCK ZERO DATE
       // ================================================
 
-      if (
-        item.availableAfter === 0
-      ) {
+      if (item.availableAfter === 0) {
         await connection.query(
           `
-          UPDATE stock_batch
-          SET stock_zero_date =
-            CURDATE()
-          WHERE batch_id = ?
+            UPDATE stock_batch
+            SET stock_zero_date =
+              CURDATE()
+            WHERE batch_id = ?
           `,
           [item.batchId]
+        );
+      }
+
+      // ================================================
+      // GARAGE OWNER LOW STOCK NOTIFICATION
+      // ================================================
+
+      const crossedLowStockThreshold =
+        item.availableBefore > item.reorderLevel &&
+        item.availableAfter <= item.reorderLevel;
+
+      if (crossedLowStockThreshold) {
+        await connection.query(
+          `
+            INSERT INTO notification (
+              garage_id,
+              truck_driver_driver_id,
+              customer_customer_id,
+              assistance_assistance_id,
+              technician_technician_id,
+              notification_type,
+              title,
+              message,
+              target_page,
+              reference_id,
+              priority,
+              is_read,
+              created_date,
+              created_time
+            )
+            VALUES (
+              ?,
+              NULL,
+              NULL,
+              NULL,
+              NULL,
+              'LOW_STOCK',
+              'Low Stock Alert',
+              ?,
+              'stock-management',
+              ?,
+              'HIGH',
+              0,
+              CURDATE(),
+              CURTIME()
+            )
+          `,
+          [
+            Number(job.garage_garage_id),
+
+            `${item.itemName} stock is low. Only ${item.availableAfter} unit(s) remaining. Reorder level is ${item.reorderLevel}.`,
+
+            item.stockId,
+          ]
         );
       }
     }
 
     // ==================================================
     // ADD TOW TRUCK CHARGE AS A NON-STOCK INVOICE ITEM
-    //
-    // stock_batch_id is NULL because towing is a service
-    // charge, not a stock item.
     // ==================================================
 
     if (towCharge > 0) {
       await connection.query(
         `
-        INSERT INTO invoice_item (
-          item_name,
-          invoice_invoice_id,
-          stock_batch_id,
-          quantity,
-          unit_price,
-          line_total
-        )
-        VALUES (
-          'Tow Truck Charge',
-          ?,
-          NULL,
-          1,
-          ?,
-          ?
-        )
+          INSERT INTO invoice_item (
+            item_name,
+            invoice_invoice_id,
+            stock_batch_id,
+            quantity,
+            unit_price,
+            line_total
+          )
+          VALUES (
+            'Tow Truck Charge',
+            ?,
+            NULL,
+            1,
+            ?,
+            ?
+          )
         `,
         [
           invoiceId,
@@ -604,20 +638,20 @@ const createInvoiceAndPayment = async (req, res) => {
     const [paymentResult] =
       await connection.query(
         `
-        INSERT INTO payment (
-          payment_date,
-          payment_time,
-          payment_method,
-          amount_paid,
-          invoice_invoice_id
-        )
-        VALUES (
-          CURDATE(),
-          CURTIME(),
-          ?,
-          ?,
-          ?
-        )
+          INSERT INTO payment (
+            payment_date,
+            payment_time,
+            payment_method,
+            amount_paid,
+            invoice_invoice_id
+          )
+          VALUES (
+            CURDATE(),
+            CURTIME(),
+            ?,
+            ?,
+            ?
+          )
         `,
         [
           normalizedPaymentMethod,
@@ -755,10 +789,6 @@ const createInvoiceAndPayment = async (req, res) => {
       },
     });
   } catch (error) {
-    // ==================================================
-    // ROLLBACK IF ANYTHING FAILS
-    // ==================================================
-
     if (connection) {
       try {
         await connection.rollback();
@@ -811,7 +841,6 @@ const createInvoiceAndPayment = async (req, res) => {
     }
   }
 };
-
 // ======================================================
 // GET GARAGE INVOICE / PAYMENT HISTORY
 // GET /api/invoices/garage/:garageId/history
@@ -836,65 +865,65 @@ const getGarageInvoiceHistory = async (req, res) => {
 
     const [rows] = await db.query(
       `
-      SELECT
-        i.invoice_id,
+        SELECT
+          i.invoice_id,
 
-        DATE_FORMAT(
-          i.invoice_date,
-          '%Y-%m-%d'
-        ) AS invoice_date,
+          DATE_FORMAT(
+            i.invoice_date,
+            '%Y-%m-%d'
+          ) AS invoice_date,
 
-        i.total_amount,
-        i.tax_amount,
-        i.discount_amount,
-        i.final_amount,
+          i.total_amount,
+          i.tax_amount,
+          i.discount_amount,
+          i.final_amount,
 
-        p.payment_id,
+          p.payment_id,
 
-        DATE_FORMAT(
-          p.payment_date,
-          '%Y-%m-%d'
-        ) AS payment_date,
+          DATE_FORMAT(
+            p.payment_date,
+            '%Y-%m-%d'
+          ) AS payment_date,
 
-        TIME_FORMAT(
-          p.payment_time,
-          '%H:%i:%s'
-        ) AS payment_time,
+          TIME_FORMAT(
+            p.payment_time,
+            '%H:%i:%s'
+          ) AS payment_time,
 
-        p.payment_method,
-        p.amount_paid,
+          p.payment_method,
+          p.amount_paid,
 
-        sj.job_id,
-        sj.job_status,
+          sj.job_id,
+          sj.job_status,
 
-        sr.request_id,
-        sr.ticket_number,
-        sr.customer_name,
-        sr.contact_number,
-        sr.vehicle_number,
-        sr.vehicle_type
+          sr.request_id,
+          sr.ticket_number,
+          sr.customer_name,
+          sr.contact_number,
+          sr.vehicle_number,
+          sr.vehicle_type
 
-      FROM invoice i
+        FROM invoice i
 
-      INNER JOIN service_job sj
-        ON sj.job_id =
-           i.service_job_job_id
+        INNER JOIN service_job sj
+          ON sj.job_id =
+             i.service_job_job_id
 
-      INNER JOIN service_request sr
-        ON sr.request_id =
-           sj.service_request_request_id
+        INNER JOIN service_request sr
+          ON sr.request_id =
+             sj.service_request_request_id
 
-      LEFT JOIN payment p
-        ON p.invoice_invoice_id =
-           i.invoice_id
+        LEFT JOIN payment p
+          ON p.invoice_invoice_id =
+             i.invoice_id
 
-      WHERE
-        sj.garage_garage_id = ?
+        WHERE
+          sj.garage_garage_id = ?
 
-      ORDER BY
-        i.invoice_date DESC,
-        p.payment_time DESC,
-        i.invoice_id DESC
+        ORDER BY
+          i.invoice_date DESC,
+          p.payment_time DESC,
+          i.invoice_id DESC
       `,
       [garageId]
     );
@@ -904,21 +933,21 @@ const getGarageInvoiceHistory = async (req, res) => {
     for (const row of rows) {
       const [itemRows] = await db.query(
         `
-        SELECT
-          invoice_item_id,
-          item_name,
-          stock_batch_id,
-          quantity,
-          unit_price,
-          line_total
+          SELECT
+            invoice_item_id,
+            item_name,
+            stock_batch_id,
+            quantity,
+            unit_price,
+            line_total
 
-        FROM invoice_item
+          FROM invoice_item
 
-        WHERE
-          invoice_invoice_id = ?
+          WHERE
+            invoice_invoice_id = ?
 
-        ORDER BY
-          invoice_item_id ASC
+          ORDER BY
+            invoice_item_id ASC
         `,
         [row.invoice_id]
       );
@@ -1097,82 +1126,82 @@ const getLatestCustomerInvoice = async (req, res) => {
 
     const [rows] = await db.query(
       `
-      SELECT
-        i.invoice_id,
+        SELECT
+          i.invoice_id,
 
-        DATE_FORMAT(
-          i.invoice_date,
-          '%Y-%m-%d'
-        ) AS invoice_date,
+          DATE_FORMAT(
+            i.invoice_date,
+            '%Y-%m-%d'
+          ) AS invoice_date,
 
-        i.total_amount,
-        i.tax_amount,
-        i.discount_amount,
-        i.final_amount,
+          i.total_amount,
+          i.tax_amount,
+          i.discount_amount,
+          i.final_amount,
 
-        p.payment_id,
+          p.payment_id,
 
-        DATE_FORMAT(
-          p.payment_date,
-          '%Y-%m-%d'
-        ) AS payment_date,
+          DATE_FORMAT(
+            p.payment_date,
+            '%Y-%m-%d'
+          ) AS payment_date,
 
-        TIME_FORMAT(
-          p.payment_time,
-          '%H:%i:%s'
-        ) AS payment_time,
+          TIME_FORMAT(
+            p.payment_time,
+            '%H:%i:%s'
+          ) AS payment_time,
 
-        p.payment_method,
-        p.amount_paid,
+          p.payment_method,
+          p.amount_paid,
 
-        sj.job_id,
+          sj.job_id,
 
-        sr.request_id,
-        sr.ticket_number,
-        sr.customer_name,
-        sr.contact_number,
-        sr.vehicle_number,
-        sr.vehicle_type
+          sr.request_id,
+          sr.ticket_number,
+          sr.customer_name,
+          sr.contact_number,
+          sr.vehicle_number,
+          sr.vehicle_type
 
-      FROM invoice i
+        FROM invoice i
 
-      INNER JOIN service_job sj
-        ON sj.job_id =
-           i.service_job_job_id
+        INNER JOIN service_job sj
+          ON sj.job_id =
+             i.service_job_job_id
 
-      INNER JOIN service_request sr
-        ON sr.request_id =
-           sj.service_request_request_id
+        INNER JOIN service_request sr
+          ON sr.request_id =
+             sj.service_request_request_id
 
-      LEFT JOIN payment p
-        ON p.invoice_invoice_id =
-           i.invoice_id
+        LEFT JOIN payment p
+          ON p.invoice_invoice_id =
+             i.invoice_id
 
-      WHERE
-        sr.contact_number = ?
+        WHERE
+          sr.contact_number = ?
 
-        AND UPPER(
-          REPLACE(
-            COALESCE(
-              sr.vehicle_number,
+          AND UPPER(
+            REPLACE(
+              COALESCE(
+                sr.vehicle_number,
+                ''
+              ),
+              ' ',
               ''
-            ),
-            ' ',
-            ''
+            )
+          ) =
+          UPPER(
+            REPLACE(
+              ?,
+              ' ',
+              ''
+            )
           )
-        ) =
-        UPPER(
-          REPLACE(
-            ?,
-            ' ',
-            ''
-          )
-        )
 
-      ORDER BY
-        i.invoice_id DESC
+        ORDER BY
+          i.invoice_id DESC
 
-      LIMIT 1
+        LIMIT 1
       `,
       [
         contactNumber,
@@ -1192,21 +1221,21 @@ const getLatestCustomerInvoice = async (req, res) => {
 
     const [itemRows] = await db.query(
       `
-      SELECT
-        invoice_item_id,
-        item_name,
-        stock_batch_id,
-        quantity,
-        unit_price,
-        line_total
+        SELECT
+          invoice_item_id,
+          item_name,
+          stock_batch_id,
+          quantity,
+          unit_price,
+          line_total
 
-      FROM invoice_item
+        FROM invoice_item
 
-      WHERE
-        invoice_invoice_id = ?
+        WHERE
+          invoice_invoice_id = ?
 
-      ORDER BY
-        invoice_item_id ASC
+        ORDER BY
+          invoice_item_id ASC
       `,
       [invoice.invoice_id]
     );
@@ -1349,7 +1378,6 @@ const getLatestCustomerInvoice = async (req, res) => {
     });
   }
 };
-
 // ======================================================
 // EXPORTS
 // ======================================================
