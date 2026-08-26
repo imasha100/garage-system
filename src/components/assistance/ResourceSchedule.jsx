@@ -477,6 +477,11 @@ const [techniciansError, setTechniciansError] = useState("");
     setCompletingJobId,
   ] = useState(null);
 
+  const [
+    pendingCompletion,
+    setPendingCompletion,
+  ] = useState(null);
+
   const extensionTimeOptions = Array.from(
     { length: 16 },
     (_, index) => {
@@ -1364,14 +1369,32 @@ setCurrentCapacity(
       technician?.vehicleNumber ||
       "this vehicle";
 
-    const confirmed =
-      window.confirm(
-        `${technicianName} has informed you that the repair for ${vehicleNumber} is finished. Mark this job as COMPLETED?`
-      );
+    // Open a custom in-app confirmation modal.
+    // No browser window.confirm / localhost popup is used.
+    setPendingCompletion({
+      jobId,
+      technicianName,
+      vehicleNumber,
+    });
+  };
 
-    if (!confirmed) {
+  // ====================================================
+  // CONFIRM SERVICE JOB COMPLETION
+  // ====================================================
+
+  const confirmCompleteJob = async () => {
+    if (
+      !pendingCompletion ||
+      completingJobId
+    ) {
       return;
     }
+
+    const {
+      jobId,
+      technicianName,
+      vehicleNumber,
+    } = pendingCompletion;
 
     try {
       setCompletingJobId(
@@ -1404,6 +1427,10 @@ setCurrentCapacity(
         );
       }
 
+      setPendingCompletion(
+        null
+      );
+
       setPopup({
         show: true,
         title: "JOB COMPLETED",
@@ -1422,6 +1449,10 @@ setCurrentCapacity(
         error
       );
 
+      setPendingCompletion(
+        null
+      );
+
       setPopup({
         show: true,
         title: "COMPLETION FAILED",
@@ -1437,6 +1468,20 @@ setCurrentCapacity(
         null
       );
     }
+  };
+
+  // ====================================================
+  // CANCEL SERVICE JOB COMPLETION
+  // ====================================================
+
+  const cancelCompleteJob = () => {
+    if (completingJobId) {
+      return;
+    }
+
+    setPendingCompletion(
+      null
+    );
   };
 
   const openExtensionModal = (technician) => {
@@ -2310,6 +2355,90 @@ setCurrentCapacity(
                   className="flex-1 border border-[#6e7681] text-white disabled:opacity-60 py-3 rounded-lg"
                 >
                   CANCEL
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* COMPLETE JOB CONFIRMATION MODAL */}
+
+        {pendingCompletion && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-[460px] overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#15191f] shadow-2xl shadow-black/60">
+              <div className="border-b border-[#2b313d] bg-emerald-500/5 px-6 py-5">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-2xl text-emerald-400">
+                  ✓
+                </div>
+
+                <h2 className="text-center text-xl font-black uppercase tracking-wider text-white">
+                  Confirm Job Completion
+                </h2>
+
+                <p className="mt-2 text-center text-sm leading-6 text-[#8b949e]">
+                  Please confirm that the technician has finished the repair before completing this service job.
+                </p>
+              </div>
+
+              <div className="space-y-3 px-6 py-5">
+                <div className="rounded-xl border border-[#2b313d] bg-[#0b0e14] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#6e7681]">
+                    Technician
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-white">
+                    {pendingCompletion.technicianName}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-[#2b313d] bg-[#0b0e14] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#6e7681]">
+                    Vehicle
+                  </p>
+
+                  <p className="mt-1 text-sm font-black tracking-wider text-[#3b82f6]">
+                    {pendingCompletion.vehicleNumber}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                  <p className="text-xs leading-5 text-amber-300">
+                    After confirmation, this job will be marked as COMPLETED and the technician will become available for another service job.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-[#2b313d] px-6 py-5 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={
+                    cancelCompleteJob
+                  }
+                  disabled={
+                    Boolean(
+                      completingJobId
+                    )
+                  }
+                  className="rounded-xl border border-[#3b414d] bg-[#0b0e14] px-5 py-3 text-xs font-black uppercase tracking-wider text-[#cbd5e1] transition hover:border-[#6e7681] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    confirmCompleteJob
+                  }
+                  disabled={
+                    Boolean(
+                      completingJobId
+                    )
+                  }
+                  className="rounded-xl bg-emerald-500 px-5 py-3 text-xs font-black uppercase tracking-wider text-[#07110d] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {completingJobId
+                    ? "Completing..."
+                    : "Yes, Complete Job"}
                 </button>
               </div>
             </div>

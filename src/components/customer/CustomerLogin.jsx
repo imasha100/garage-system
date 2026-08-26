@@ -643,6 +643,56 @@ export default function CustomerLogin({
         }
 
         // ==================================================
+        // COMPLETED SERVICE - RESUME CUSTOMER FEEDBACK
+        // ==================================================
+
+        if (
+          resumeStage ===
+          "feedback"
+        ) {
+          sessionStorage.setItem(
+            "customerResumeTab",
+            "audit"
+          );
+
+          sessionStorage.setItem(
+            "customerFlowStage",
+            "feedback"
+          );
+
+          sessionStorage.setItem(
+            "latestServiceRequest",
+            JSON.stringify({
+              ...restoredRequest,
+
+              jobId:
+                result.jobId ||
+                restoredRequest.jobId ||
+                null,
+
+              jobStatus:
+                result.jobStatus ||
+                restoredRequest.jobStatus ||
+                "COMPLETED",
+
+              resumeStage:
+                "feedback",
+
+              feedbackSubmitted:
+                false,
+            })
+          );
+
+          resetContinuePopup();
+
+          onNavigate(
+            "navigation-hub"
+          );
+
+          return;
+        }
+
+        // ==================================================
         // LIVE PROGRESS
         // ASSIGNED / IN_PROGRESS SERVICE JOB
         // ==================================================
