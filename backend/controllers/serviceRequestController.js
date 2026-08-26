@@ -698,7 +698,7 @@ const createServiceRequest = async (
         vehicleId
       );
     } else {
-      const [newVehicleResult] =
+            const [newVehicleResult] =
         await connection.query(
           `
             INSERT INTO vehicle (
@@ -1398,7 +1398,7 @@ const acceptServiceRequest = async (
     const [requestRows] =
       await connection.query(
         `
-          SELECT
+                  SELECT
             request_id,
             ticket_number,
             request_status,
@@ -1891,6 +1891,16 @@ const getLatestCustomerRequest =
               sj.job_status
                 AS service_job_status,
 
+              EXISTS (
+                SELECT
+                  1
+                FROM feedback f
+                WHERE
+                  f.service_job_job_id =
+                    sj.job_id
+              )
+                AS feedback_submitted,
+
               (
                 SELECT
                   td.dispatch_id
@@ -2019,44 +2029,60 @@ const getLatestCustomerRequest =
           .trim()
           .toUpperCase();
 
+      const feedbackSubmitted =
+        Number(
+          row.feedback_submitted
+        ) === 1;
+
       const requestClosed =
-        requestStatus ===
-          "COMPLETED" ||
         requestStatus ===
           "CANCELLED" ||
         requestStatus ===
           "REJECTED";
 
-      const jobClosed =
-        jobStatus ===
-          "COMPLETED" ||
-        jobStatus ===
-          "CLEARED";
+      const serviceFlowFinished =
+        (
+          jobStatus ===
+            "COMPLETED" ||
+          jobStatus ===
+            "CLEARED" ||
+          requestStatus ===
+            "COMPLETED"
+        ) &&
+        feedbackSubmitted;
 
       const canContinue =
         !requestClosed &&
-        !jobClosed;
+        !serviceFlowFinished;
 
       let continueMessage = "";
 
       if (
-        jobStatus ===
-        "COMPLETED"
+        (
+          jobStatus ===
+            "COMPLETED" ||
+          jobStatus ===
+            "CLEARED" ||
+          requestStatus ===
+            "COMPLETED"
+        ) &&
+        !feedbackSubmitted
       ) {
         continueMessage =
-          "Your vehicle repair has already been completed. Please create a new service request if you need further assistance.";
+          "Your vehicle service is completed. Please continue to view your final service details and submit customer feedback.";
       } else if (
-        jobStatus ===
-        "CLEARED"
+        (
+          jobStatus ===
+            "COMPLETED" ||
+          jobStatus ===
+            "CLEARED" ||
+          requestStatus ===
+            "COMPLETED"
+        ) &&
+        feedbackSubmitted
       ) {
         continueMessage =
-          "Your previous vehicle service has already been completed and cleared from the garage. Please create a new service request.";
-      } else if (
-        requestStatus ===
-        "COMPLETED"
-      ) {
-        continueMessage =
-          "Your previous service request has already been completed. Please create a new service request.";
+          "Your previous service is fully completed and your feedback has been submitted. Please create a new service request if you need further assistance.";
       } else if (
         requestStatus ===
         "CANCELLED"
@@ -2072,7 +2098,7 @@ const getLatestCustomerRequest =
       } else if (
         customerStage ===
           "ARRIVED_AT_GARAGE" &&
-        !jobStatus
+                  !jobStatus
       ) {
         continueMessage =
           "You have arrived at the garage. Please wait while the assistance officer assigns a technician to your vehicle.";
@@ -2090,7 +2116,20 @@ const getLatestCustomerRequest =
       let resumeStage =
         "navigation";
 
-      if (!canContinue) {
+      if (
+        (
+          jobStatus ===
+            "COMPLETED" ||
+          jobStatus ===
+            "CLEARED" ||
+          requestStatus ===
+            "COMPLETED"
+        ) &&
+        !feedbackSubmitted
+      ) {
+        resumeStage =
+          "feedback";
+      } else if (!canContinue) {
         resumeStage =
           "closed";
       } else if (
@@ -2160,6 +2199,8 @@ const getLatestCustomerRequest =
           continueMessage,
 
           resumeStage,
+
+          feedbackSubmitted,
 
           customerStage:
             row.customer_stage ||
@@ -2565,3 +2606,4 @@ module.exports = {
   updateCustomerStage,
   getVehiclesReadyForTechnician,
 };
+

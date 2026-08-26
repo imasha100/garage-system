@@ -1160,7 +1160,11 @@ const customerLocation =
           )}
 
           {activeTab === "invoice" && <InvoiceLedger />}
-          {activeTab === "audit" && <ExperienceAudit />}
+          {activeTab === "audit" && (
+  <ExperienceAudit
+    onNavigate={onNavigate}
+  />
+)}
         </main>
       </div>
     </div>

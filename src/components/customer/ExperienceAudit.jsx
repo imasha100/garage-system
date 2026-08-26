@@ -173,7 +173,9 @@ function SubmissionModal({
 // MAIN COMPONENT
 // ======================================================
 
-export default function ServiceFeedback() {
+export default function ServiceFeedback({
+  onNavigate,
+}) {
   const [rating, setRating] =
     useState(4);
 
@@ -181,6 +183,9 @@ export default function ServiceFeedback() {
     useState("");
 
   const [submitted, setSubmitted] =
+    useState(false);
+
+  const [showThankYou, setShowThankYou] =
     useState(false);
 
   const [error, setError] =
@@ -572,14 +577,140 @@ export default function ServiceFeedback() {
   // CLOSE MODAL
   // ======================================================
 
-  const handleClose =
-    () => {
-      setSubmitted(false);
-      setSubmittedFeedback(null);
-      setRating(4);
-      setNotes("");
-      setError("");
-    };
+  const handleClose = () => {
+    setSubmitted(false);
+    setSubmittedFeedback(null);
+    setRating(4);
+    setNotes("");
+    setError("");
+
+    // Do not logout immediately.
+    // Show a final thank-you screen first.
+    setShowThankYou(true);
+  };
+
+  // ======================================================
+  // FINISH CUSTOMER SERVICE JOURNEY
+  // ======================================================
+
+  const handleFinish = () => {
+    sessionStorage.removeItem(
+      "latestServiceRequest"
+    );
+
+    sessionStorage.removeItem(
+      "selectedGarage"
+    );
+
+    sessionStorage.removeItem(
+      "customerUser"
+    );
+
+    sessionStorage.removeItem(
+      "customerId"
+    );
+
+    sessionStorage.removeItem(
+      "customerResumeTab"
+    );
+
+    sessionStorage.removeItem(
+      "customerFlowStage"
+    );
+
+    sessionStorage.removeItem(
+      "latestTowDispatch"
+    );
+
+    sessionStorage.removeItem(
+      "latestCompletedJob"
+    );
+
+    sessionStorage.removeItem(
+      "latestSubmittedFeedback"
+    );
+
+    sessionStorage.removeItem(
+      "serviceRequestId"
+    );
+
+    localStorage.removeItem(
+      "currentCustomerRequest"
+    );
+
+    setShowThankYou(false);
+
+    if (
+      typeof onNavigate === "function"
+    ) {
+      onNavigate("start");
+      return;
+    }
+
+    window.location.href = "/";
+  };
+
+  // ======================================================
+  // FINAL THANK-YOU SCREEN
+  // ======================================================
+
+  if (showThankYou) {
+    return (
+      <div className="min-h-full w-full flex items-center justify-center bg-[#0a0c14] px-4 py-10">
+        <div className="w-full max-w-xl rounded-3xl border border-emerald-500/30 bg-[#0b1118] p-8 md:p-10 text-center shadow-[0_0_50px_rgba(16,185,129,0.12)]">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-emerald-400 bg-emerald-400/10">
+            <svg
+              width="38"
+              height="38"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <path
+                d="M5 13l4 4L19 7"
+                stroke="#34d399"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+
+          <p className="mt-6 text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400">
+            Service Journey Complete
+          </p>
+
+          <h1 className="mt-3 text-3xl md:text-4xl font-black text-white">
+            Thank You For Your Feedback!
+          </h1>
+
+          <p className="mx-auto mt-5 max-w-md text-sm md:text-base leading-7 text-slate-400">
+            Your feedback has been submitted successfully.
+            Thank you for choosing our garage service.
+            Your experience helps us provide better service
+            in the future.
+          </p>
+
+          <div className="mt-7 rounded-xl border border-slate-800 bg-black/20 p-4">
+            <p className="text-xs uppercase tracking-widest text-slate-500">
+              Feedback Status
+            </p>
+
+            <p className="mt-2 font-bold text-emerald-400">
+              ✓ Successfully Recorded
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleFinish}
+            className="mt-8 w-full rounded-xl bg-emerald-600 px-6 py-4 text-sm font-black uppercase tracking-widest text-white transition hover:bg-emerald-500"
+          >
+            Finish & Return Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ======================================================
   // UI

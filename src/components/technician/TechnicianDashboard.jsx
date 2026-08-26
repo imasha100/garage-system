@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Activity,
   Clock,
+  Star,
   Car,
   AlertTriangle,
   Menu,
@@ -821,6 +822,21 @@ export default function TechnicianDashboard({
     technician?.email ||
     "";
 
+  const technicianAverageRating =
+    Number(
+      technician?.averageRating
+    ) || 0;
+
+  const technicianTotalReviews =
+    Number(
+      technician?.totalReviews
+    ) || 0;
+
+  const formattedCustomerRating =
+    technicianTotalReviews > 0
+      ? `${technicianAverageRating.toFixed(1)} / 5`
+      : "No Ratings";
+
   const technicianShiftStatus =
     String(
       technician?.shiftStatus ??
@@ -878,9 +894,6 @@ export default function TechnicianDashboard({
       [jobs]
     );
 
-  // COMPLETED and CLEARED both represent finished repair jobs.
-  // CLEARED jobs must remain in historical totals after the vehicle
-  // has left the garage.
   const completedJobs =
     useMemo(
       () =>
@@ -924,8 +937,6 @@ export default function TechnicianDashboard({
       new Date()
     );
 
-  // A finished job belongs to today's completed statistics
-  // when it was actually completed today, not when it started.
   const todayCompletedJobs =
     useMemo(() => {
       return completedJobs.filter(
@@ -1047,9 +1058,6 @@ export default function TechnicianDashboard({
 
   // ======================================================
   // OVERALL EFFICIENCY CALCULATION
-  // ======================================================
-  // Expected vs actual duration.
-  // Finished within expected time = 100%.
   // ======================================================
 
   const calculateEfficiency =
@@ -1277,6 +1285,35 @@ export default function TechnicianDashboard({
 
     {
       label:
+        "Customer Rating",
+
+      value:
+        formattedCustomerRating,
+
+      sub:
+        technicianTotalReviews > 0
+          ? `Based on ${technicianTotalReviews} ${
+              technicianTotalReviews === 1
+                ? "review"
+                : "reviews"
+            }`
+          : "No customer reviews yet",
+
+      icon:
+        Star,
+
+      color:
+        "text-yellow-400",
+
+      bg:
+        "bg-yellow-500/10",
+
+      border:
+        "border-yellow-500/20",
+    },
+
+    {
+      label:
         "Total Repair Time",
 
       value:
@@ -1301,7 +1338,6 @@ export default function TechnicianDashboard({
 
   // ======================================================
   // TODAY'S QUEUE
-  // Only jobs waiting to start
   // ======================================================
 
   const queue =
@@ -1389,7 +1425,7 @@ export default function TechnicianDashboard({
       queue,
     ]);
 
-  return (
+      return (
     <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-[#0a0d14] font-mono text-slate-300">
       {/* HEADER */}
       <header className="sticky top-0 z-50 flex h-[70px] items-center gap-3 border-b border-slate-800 bg-[#111827]/95 px-4 backdrop-blur-xl sm:gap-4 sm:px-6">
@@ -1493,6 +1529,7 @@ export default function TechnicianDashboard({
                     <p className="text-xs font-black uppercase tracking-widest text-white">
                       Notifications
                     </p>
+
                     <p className="mt-1 text-[10px] text-slate-500">
                       {unreadNotificationCount} unread
                     </p>
@@ -1821,7 +1858,7 @@ export default function TechnicianDashboard({
 
         {/* STATISTICS */}
 
-        <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
           {stats.map(
             (
               card,
@@ -2301,3 +2338,5 @@ export default function TechnicianDashboard({
     </div>
   );
 }
+
+    

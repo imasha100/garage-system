@@ -564,6 +564,7 @@ const getAllTechnicians = async (req, res) => {
 
 // ======================================================
 // GET SINGLE TECHNICIAN
+// CUSTOMER OVERALL RATING INCLUDED
 // ======================================================
 
 const getTechnicianById = async (
@@ -589,20 +590,58 @@ const getTechnicianById = async (
     const [rows] = await db.query(
       `
       SELECT
-        technician_id,
-        full_name,
-        contact_number,
-        email,
-        nic,
-        experience_years,
-        specialization,
-        shift_status,
-        availability_status,
-        profile_photo,
-        role,
-        garage_garage_id
-      FROM technician
-      WHERE technician_id = ?
+        t.technician_id,
+        t.full_name,
+        t.contact_number,
+        t.email,
+        t.nic,
+        t.experience_years,
+        t.specialization,
+        t.shift_status,
+        t.availability_status,
+        t.profile_photo,
+        t.role,
+        t.garage_garage_id,
+
+        COALESCE(
+          ROUND(
+            AVG(f.rating),
+            1
+          ),
+          0
+        ) AS average_rating,
+
+        COUNT(
+          f.feedback_id
+        ) AS total_reviews
+
+      FROM technician t
+
+      LEFT JOIN service_job sj
+        ON sj.technician_technician_id =
+           t.technician_id
+
+      LEFT JOIN feedback f
+        ON f.service_job_job_id =
+           sj.job_id
+
+      WHERE
+        t.technician_id = ?
+
+      GROUP BY
+        t.technician_id,
+        t.full_name,
+        t.contact_number,
+        t.email,
+        t.nic,
+        t.experience_years,
+        t.specialization,
+        t.shift_status,
+        t.availability_status,
+        t.profile_photo,
+        t.role,
+        t.garage_garage_id
+
       LIMIT 1
       `,
       [technicianId]
@@ -616,12 +655,24 @@ const getTechnicianById = async (
       });
     }
 
+    const technician =
+      formatTechnician(
+        rows[0]
+      );
+
+    technician.averageRating =
+      Number(
+        rows[0].average_rating
+      ) || 0;
+
+    technician.totalReviews =
+      Number(
+        rows[0].total_reviews
+      ) || 0;
+
     return res.status(200).json({
       success: true,
-      technician:
-        formatTechnician(
-          rows[0]
-        ),
+      technician,
     });
   } catch (error) {
     console.error(
@@ -650,7 +701,6 @@ const getTechnicianById = async (
     });
   }
 };
-
 // ======================================================
 // UPDATE TECHNICIAN
 // ======================================================
@@ -896,15 +946,25 @@ const updateTechnician = async (req, res) => {
       "========== UPDATE TECHNICIAN ERROR =========="
     );
 
-    console.error("Code:", error.code);
-    console.error("Message:", error.message);
+    console.error(
+      "Code:",
+      error.code
+    );
+
+    console.error(
+      "Message:",
+      error.message
+    );
 
     console.error(
       "SQL Message:",
       error.sqlMessage
     );
 
-    console.error("SQL:", error.sql);
+    console.error(
+      "SQL:",
+      error.sql
+    );
 
     console.error(
       "============================================="
@@ -1070,9 +1130,14 @@ const updateTechnicianShiftStatus = async (
 // CHANGE TECHNICIAN PASSWORD
 // ======================================================
 
-const changeTechnicianPassword = async (req, res) => {
+const changeTechnicianPassword = async (
+  req,
+  res
+) => {
   try {
-    const technicianId = Number(req.params.id);
+    const technicianId = Number(
+      req.params.id
+    );
 
     const {
       currentPassword,
@@ -1091,8 +1156,12 @@ const changeTechnicianPassword = async (req, res) => {
     }
 
     if (
-      !String(currentPassword || "").trim() ||
-      !String(newPassword || "").trim()
+      !String(
+        currentPassword || ""
+      ).trim() ||
+      !String(
+        newPassword || ""
+      ).trim()
     ) {
       return res.status(400).json({
         success: false,
@@ -1107,7 +1176,9 @@ const changeTechnicianPassword = async (req, res) => {
     const cleanedNewPassword =
       String(newPassword);
 
-    if (cleanedNewPassword.length < 6) {
+    if (
+      cleanedNewPassword.length < 6
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -1128,20 +1199,27 @@ const changeTechnicianPassword = async (req, res) => {
 
     const [rows] = await db.query(
       `
-        SELECT
-          t.technician_id,
-          t.login_login_id,
-          l.password
-        FROM technician t
-        INNER JOIN login l
-          ON l.login_id = t.login_login_id
-        WHERE t.technician_id = ?
-        LIMIT 1
+      SELECT
+        t.technician_id,
+        t.login_login_id,
+        l.password
+      FROM technician t
+
+      INNER JOIN login l
+        ON l.login_id =
+           t.login_login_id
+
+      WHERE
+        t.technician_id = ?
+
+      LIMIT 1
       `,
       [technicianId]
     );
 
-    if (rows.length === 0) {
+    if (
+      rows.length === 0
+    ) {
       return res.status(404).json({
         success: false,
         message:
@@ -1149,10 +1227,13 @@ const changeTechnicianPassword = async (req, res) => {
       });
     }
 
-    const loginAccount = rows[0];
+    const loginAccount =
+      rows[0];
 
     if (
-      String(loginAccount.password) !==
+      String(
+        loginAccount.password
+      ) !==
       cleanedCurrentPassword
     ) {
       return res.status(401).json({
@@ -1164,9 +1245,9 @@ const changeTechnicianPassword = async (req, res) => {
 
     await db.query(
       `
-        UPDATE login
-        SET password = ?
-        WHERE login_id = ?
+      UPDATE login
+      SET password = ?
+      WHERE login_id = ?
       `,
       [
         cleanedNewPassword,
