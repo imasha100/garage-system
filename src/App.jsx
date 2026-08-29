@@ -18,21 +18,22 @@ import TaskHistory from "./components/technician/TaskHistory";
 
 import AssistanceDashboard from "./components/assistance/AssistanceDashboard";
 
-import GarageOwnerSidebar from "./components/garageOwner/GarageOwnerSidebar";
-import GarageOwnerNotifications from "./components/garageOwner/GarageOwnerNotifications";
-import LiveDashboard from "./components/garageOwner/LiveDashboard";
-import ResourceMatrix from "./components/garageOwner/ResourceMatrix";
-import PerformanceAudit from "./components/garageOwner/PerformanceAudit";
-import ServiceQuality from "./components/garageOwner/ServiceQuality";
-import ProfitLoss from "./components/garageOwner/ProfitLoss";
-import StockManagement from "./components/garageOwner/StockManagement";
-import OwnerProfile from "./components/garageOwner/OwnerProfile";
-import RegistrationCenter from "./components/garageOwner/RegistrationCenter";
-import TechRegistration from "./components/garageOwner/TechRegistration";
-import TruckRegistration from "./components/garageOwner/TruckRegistration";
-import AssistRegistration from "./components/garageOwner/AssistRegistration";
-import ExternalTruckRegistration from "./components/garageOwner/ExternalTruckRegistration";
-import ExternalTruckRequests from "./components/garageOwner/ExternalTruckRequests";
+import GarageOwnerSidebar from "./components/garageowner/GarageOwnerSidebar";
+import GarageOwnerNotifications from "./components/garageowner/GarageOwnerNotifications";
+import LiveDashboard from "./components/garageowner/LiveDashboard";
+import ResourceMatrix from "./components/garageowner/ResourceMatrix";
+import PerformanceAudit from "./components/garageowner/PerformanceAudit";
+import ServiceQuality from "./components/garageowner/ServiceQuality";
+import ProfitLoss from "./components/garageowner/ProfitLoss";
+import StockManagement from "./components/garageowner/StockManagement";
+import OwnerProfile from "./components/garageowner/OwnerProfile";
+import RegistrationCenter from "./components/garageowner/RegistrationCenter";
+import TechRegistration from "./components/garageowner/TechRegistration";
+import TruckRegistration from "./components/garageowner/TruckRegistration";
+import AssistRegistration from "./components/garageowner/AssistRegistration";
+import ExternalTruckRegistration from "./components/garageowner/ExternalTruckRegistration";
+import ExternalTruckRequests from "./components/garageowner/ExternalTruckRequests";
+import ContactMessages from "./components/garageowner/ContactMessages";
 
 import ExternalDriverLogin from "./components/externalDriver/ExternalDriverLogin";
 import ExternalDriverDashboard from "./components/externalDriver/ExternalDriverDashboard";
@@ -828,6 +829,24 @@ function App() {
       return (
         <GarageOwnerLayout>
           <StockManagement
+            toggleSidebar={
+              openOwnerSidebar
+            }
+            onNavigate={
+              handleNavigate
+            }
+          />
+        </GarageOwnerLayout>
+      );
+
+    // ====================================================
+    // GARAGE OWNER - CONTACT MESSAGES
+    // ====================================================
+
+    case "Contact Messages":
+      return (
+        <GarageOwnerLayout>
+          <ContactMessages
             toggleSidebar={
               openOwnerSidebar
             }

@@ -129,6 +129,14 @@ const notificationRoutes = require(
 );
 
 // ==============================
+// Contact Message Routes
+// ==============================
+
+const contactMessageRoutes = require(
+  "./routes/contactMessageRoutes"
+);
+
+// ==============================
 // Express App
 // ==============================
 
@@ -333,6 +341,15 @@ app.use(
 app.use(
   "/api",
   notificationRoutes
+);
+
+// ==============================
+// Contact Messages
+// ==============================
+
+app.use(
+  "/api/contact-messages",
+  contactMessageRoutes
 );
 
 // ==============================

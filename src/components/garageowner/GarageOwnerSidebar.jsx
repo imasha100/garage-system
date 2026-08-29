@@ -10,6 +10,7 @@ import {
   X,
   Settings2,
   PackageSearch,
+  MessageSquareText,
 } from "lucide-react";
 
 export default function GarageOwnerSidebar({
@@ -43,6 +44,15 @@ export default function GarageOwnerSidebar({
       icon: PackageSearch,
       label: "Stock Management",
     },
+
+    // ==============================
+    // CONTACT MESSAGES
+    // ==============================
+    {
+      icon: MessageSquareText,
+      label: "Contact Messages",
+    },
+
     {
       icon: Settings2,
       label: "Registration",
