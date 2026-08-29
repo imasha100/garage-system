@@ -473,7 +473,7 @@ export default function GarageOwnerNotifications({
       </button>
 
       {notificationOpen && (
-        <div className="absolute right-0 top-12 z-[100] w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-[#191923] shadow-2xl sm:w-96">
+        <div className="absolute left-0 top-12 z-[100] w-[calc(100vw-4.5rem)] max-w-sm overflow-hidden rounded-2xl border border-white/10 bg-[#191923] shadow-2xl sm:left-auto sm:right-0 sm:w-96">
 
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
 

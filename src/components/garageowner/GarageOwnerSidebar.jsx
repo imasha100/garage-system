@@ -44,15 +44,10 @@ export default function GarageOwnerSidebar({
       icon: PackageSearch,
       label: "Stock Management",
     },
-
-    // ==============================
-    // CONTACT MESSAGES
-    // ==============================
     {
       icon: MessageSquareText,
       label: "Contact Messages",
     },
-
     {
       icon: Settings2,
       label: "Registration",
@@ -72,71 +67,187 @@ export default function GarageOwnerSidebar({
   };
 
   const handleLogout = () => {
+    if (window.innerWidth < 768) {
+      closeSidebar();
+    }
+
     onNavigate("logout");
   };
 
   return (
     <>
-      {/* Mobile Overlay */}
+      {/* ================================================
+          MOBILE OVERLAY
+      ================================================= */}
       {isOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40"
+        <button
+          type="button"
+          aria-label="Close garage owner sidebar overlay"
           onClick={closeSidebar}
+          className="
+            fixed inset-0
+            z-[190]
+            bg-black/75
+            backdrop-blur-sm
+            md:hidden
+          "
         />
       )}
 
-      {/* Sidebar */}
+      {/* ================================================
+          SIDEBAR
+      ================================================= */}
       <aside
-        className={`fixed md:relative top-0 left-0 z-50
-        w-[82%] max-w-[280px] md:w-72
-        h-screen bg-black border-r border-[#1a1a1a]
-        flex flex-col overflow-hidden
-        transition-transform duration-300 ease-in-out
-        ${
-          isOpen
-            ? "translate-x-0"
-            : "-translate-x-full md:translate-x-0"
-        }`}
+        className={`
+          fixed
+          inset-y-0
+          left-0
+          z-[200]
+
+          w-[85%]
+          max-w-[300px]
+          h-[100dvh]
+
+          bg-black
+          border-r
+          border-[#1a1a1a]
+
+          flex
+          flex-col
+
+          overflow-hidden
+
+          shadow-2xl
+
+          transition-transform
+          duration-300
+          ease-in-out
+
+          md:relative
+          md:inset-auto
+          md:z-auto
+          md:w-72
+          md:max-w-none
+          md:h-screen
+          md:translate-x-0
+          md:shadow-none
+
+          ${
+            isOpen
+              ? "translate-x-0"
+              : "-translate-x-full md:translate-x-0"
+          }
+        `}
       >
-        {/* Header */}
-        <div className="p-4 md:p-6 border-b border-[#1a1a1a] shrink-0">
-          <div className="flex justify-between items-center">
-            <h1 className="text-white font-black text-lg md:text-xl tracking-widest">
+        {/* ================================================
+            HEADER
+        ================================================= */}
+        <div
+          className="
+            shrink-0
+            border-b
+            border-[#1a1a1a]
+            bg-black
+            p-4
+            md:p-6
+          "
+        >
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-lg font-black tracking-widest text-white md:text-xl">
               OWNER SYSTEM
             </h1>
 
+            {/* MOBILE CLOSE */}
             <button
               type="button"
-              className="md:hidden text-white hover:text-red-400 transition"
               onClick={closeSidebar}
+              aria-label="Close garage owner sidebar"
+              className="
+                flex
+                h-10
+                w-10
+                shrink-0
+                items-center
+                justify-center
+
+                rounded-lg
+                border
+                border-white/10
+
+                bg-white/5
+                text-white
+
+                transition
+
+                hover:border-red-500/40
+                hover:bg-red-500/10
+                hover:text-red-400
+
+                md:hidden
+              "
             >
-              <X size={22} />
+              <X size={20} />
             </button>
           </div>
         </div>
 
-        {/* Menu */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
+        {/* ================================================
+            MENU
+        ================================================= */}
+        <div
+          className="
+            min-h-0
+            flex-1
+            overflow-y-auto
+            overscroll-contain
+            p-4
+            md:p-6
+          "
+        >
           <nav className="space-y-3 md:space-y-4">
             {menuItems.map((item) => {
               const Icon = item.icon;
+              const isActive =
+                activeItem === item.label;
 
               return (
                 <button
                   type="button"
                   key={item.label}
                   onClick={() =>
-                    handleMenuClick(item.label)
+                    handleMenuClick(
+                      item.label
+                    )
                   }
-                  className={`w-full flex items-center gap-3 md:gap-4
-                  px-4 md:px-5 py-3 md:py-4
-                  text-[11px] md:text-xs font-bold tracking-widest border
-                  transition-all duration-300
-                  ${
-                    activeItem === item.label
-                      ? "bg-[#0a142e]/40 border-[#1e3a8a] text-blue-400"
-                      : "border-[#1a1a1a] text-gray-500 hover:text-gray-300 hover:border-[#333]"
-                  }`}
+                  className={`
+                    flex
+                    w-full
+                    items-center
+                    gap-3
+                    border
+
+                    px-4
+                    py-3
+
+                    text-left
+                    text-[11px]
+                    font-bold
+                    tracking-widest
+
+                    transition-all
+                    duration-300
+
+                    md:gap-4
+                    md:px-5
+                    md:py-4
+                    md:text-xs
+
+                    ${
+                      isActive
+                        ? "border-[#1e3a8a] bg-[#0a142e]/40 text-blue-400"
+                        : "border-[#1a1a1a] text-gray-500 hover:border-[#333] hover:text-gray-300"
+                    }
+                  `}
                 >
                   <Icon
                     size={18}
@@ -152,19 +263,50 @@ export default function GarageOwnerSidebar({
           </nav>
         </div>
 
-        {/* Logout */}
-        <div className="p-4 md:p-6 border-t border-[#1a1a1a] shrink-0 bg-black">
+        {/* ================================================
+            LOGOUT
+        ================================================= */}
+        <div
+          className="
+            shrink-0
+            border-t
+            border-[#1a1a1a]
+            bg-black
+            p-4
+            md:p-6
+          "
+        >
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-3
-            px-4 py-3 md:px-5 md:py-4
-            text-[11px] md:text-xs font-bold tracking-widest
-            border border-red-500 text-red-400
-            hover:bg-red-500/10 transition-all duration-300"
+            className="
+              flex
+              w-full
+              items-center
+              justify-center
+              gap-3
+
+              border
+              border-red-500
+
+              px-4
+              py-3
+
+              text-[11px]
+              font-bold
+              tracking-widest
+              text-red-400
+
+              transition-all
+
+              hover:bg-red-500/10
+
+              md:px-5
+              md:py-4
+              md:text-xs
+            "
           >
             <LogOut size={18} />
-
             LOG OUT
           </button>
         </div>

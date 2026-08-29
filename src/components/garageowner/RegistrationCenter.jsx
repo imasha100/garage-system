@@ -13,6 +13,8 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 
+import GarageOwnerNotifications from "./GarageOwnerNotifications";
+
 const API_BASE =
   "http://localhost:5000";
 
@@ -309,7 +311,7 @@ export default function RegistrationCenter({
           HEADER
       ================================================== */}
 
-      <header className="min-h-16 border-b border-white/10 bg-[#15151f] flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
+      <header className="sticky top-0 z-50 min-h-16 border-b border-white/10 bg-[#15151f]/95 backdrop-blur-xl flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 px-4 md:px-8 py-3 md:py-0 shadow-[0_8px_30px_rgba(0,0,0,0.18)]">
 
         {/* LEFT */}
 
@@ -346,11 +348,21 @@ export default function RegistrationCenter({
             DYNAMIC OWNER HEADER
         ================================================== */}
 
-        <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:justify-end md:gap-5">
+        <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:gap-3 md:w-auto md:gap-4">
 
-          <div className="h-8 w-px shrink-0 bg-white/10" />
+          <div className="hidden h-8 w-px shrink-0 bg-white/10 md:block" />
 
-          <div className="min-w-0 flex-1 text-right md:flex-none">
+          {/* NOTIFICATION */}
+
+          <div className="shrink-0">
+            <GarageOwnerNotifications
+              onNavigate={onNavigate}
+            />
+          </div>
+
+          {/* OWNER DETAILS */}
+
+          <div className="min-w-0 flex-1 text-right sm:flex-none">
 
             <p className="truncate text-xs font-bold tracking-widest">
               {ownerName}
@@ -361,6 +373,8 @@ export default function RegistrationCenter({
             </p>
 
           </div>
+
+          {/* PROFILE */}
 
           <div className="h-10 w-10 min-h-10 min-w-10 shrink-0 overflow-hidden rounded-xl border border-blue-500/30 bg-blue-500/10 text-xs flex items-center justify-center">
 

@@ -19,7 +19,6 @@ import TaskHistory from "./components/technician/TaskHistory";
 import AssistanceDashboard from "./components/assistance/AssistanceDashboard";
 
 import GarageOwnerSidebar from "./components/garageowner/GarageOwnerSidebar";
-import GarageOwnerNotifications from "./components/garageowner/GarageOwnerNotifications";
 import LiveDashboard from "./components/garageowner/LiveDashboard";
 import ResourceMatrix from "./components/garageowner/ResourceMatrix";
 import PerformanceAudit from "./components/garageowner/PerformanceAudit";
@@ -531,12 +530,6 @@ function App() {
         toggleSidebar={toggleOwnerSidebar}
         closeSidebar={closeOwnerSidebar}
       />
-
-      <div className="fixed right-4 top-4 z-[300]">
-        <GarageOwnerNotifications
-          onNavigate={handleNavigate}
-        />
-      </div>
 
       <main className="h-screen min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
         {children}

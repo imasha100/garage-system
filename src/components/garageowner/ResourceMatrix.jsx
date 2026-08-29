@@ -17,11 +17,14 @@ import {
   Users,
 } from "lucide-react";
 
+import GarageOwnerNotifications from "./GarageOwnerNotifications";
+
 const API_BASE =
   "http://localhost:5000";
 
 export default function ResourceMatrix({
   toggleSidebar,
+  onNavigate,
 }) {
   // ======================================================
   // STATES
@@ -1047,7 +1050,7 @@ export default function ResourceMatrix({
           TOP BAR
       ================================================== */}
 
-      <div className="min-h-16 border-b border-white/10 bg-[#191922] flex flex-col md:flex-row md:items-center justify-between gap-4 px-4 md:px-8 py-4 md:py-0">
+      <div className="sticky top-0 z-50 min-h-16 border-b border-white/10 bg-[#191922]/95 backdrop-blur-xl flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 px-4 md:px-8 py-3 md:py-0 shadow-[0_8px_30px_rgba(0,0,0,0.18)]">
 
         <div className="flex items-center gap-3 w-full md:w-auto">
 
@@ -1106,11 +1109,17 @@ export default function ResourceMatrix({
             DYNAMIC OWNER HEADER
         ================================================== */}
 
-        <div className="flex items-center gap-5">
+        <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:gap-3 md:w-auto md:gap-4">
 
-          <div className="h-8 w-px bg-white/10" />
+          <div className="hidden h-8 w-px shrink-0 bg-white/10 md:block" />
 
-          <div className="text-right">
+          <div className="shrink-0">
+            <GarageOwnerNotifications
+              onNavigate={onNavigate}
+            />
+          </div>
+
+          <div className="min-w-0 flex-1 text-right sm:flex-none">
 
             <p className="text-xs font-bold tracking-widest">
               {ownerName}
@@ -1122,7 +1131,7 @@ export default function ResourceMatrix({
 
           </div>
 
-          <div className="w-9 h-9 rounded-xl border border-cyan-400 flex items-center justify-center text-xs overflow-hidden bg-[#0b0b12]">
+          <div className="w-9 h-9 shrink-0 rounded-xl border border-cyan-400 flex items-center justify-center text-xs overflow-hidden bg-[#0b0b12]">
 
             {ownerProfilePhoto ? (
               <img
