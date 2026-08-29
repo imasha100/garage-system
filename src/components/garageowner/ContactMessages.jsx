@@ -22,8 +22,11 @@ import {
   Building2,
 } from "lucide-react";
 
+import GarageOwnerNotifications from "./GarageOwnerNotifications";
+
 export default function ContactMessages({
   toggleSidebar,
+  onNavigate,
 }) {
   // ======================================================
   // STATE
@@ -858,7 +861,7 @@ export default function ContactMessages({
           TOP BAR
       ================================================== */}
 
-      <div className="relative z-20 flex min-h-16 flex-col gap-4 border-b border-white/10 bg-[#15151f] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-8 md:py-0">
+      <div className="sticky top-0 z-50 flex min-h-16 flex-col gap-3 border-b border-white/10 bg-[#15151f]/95 px-4 py-3 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.18)] md:flex-row md:items-center md:justify-between md:gap-4 md:px-8 md:py-0">
         <div className="flex w-full items-center gap-3 md:w-auto">
           <button
             type="button"
@@ -911,10 +914,16 @@ export default function ContactMessages({
             OWNER HEADER
         ================================================== */}
 
-        <div className="flex w-full min-w-0 items-center gap-3 md:w-auto md:justify-end md:gap-5">
-          <div className="h-8 w-px shrink-0 bg-white/10" />
+        <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:gap-3 md:w-auto md:gap-4">
+          <div className="hidden h-8 w-px shrink-0 bg-white/10 md:block" />
 
-          <div className="min-w-0 flex-1 text-right md:flex-none">
+          <div className="shrink-0">
+            <GarageOwnerNotifications
+              onNavigate={onNavigate}
+            />
+          </div>
+
+          <div className="min-w-0 flex-1 text-right sm:flex-none">
             <p className="truncate text-xs font-bold tracking-widest">
               {ownerName}
             </p>
