@@ -698,7 +698,7 @@ const createServiceRequest = async (
         vehicleId
       );
     } else {
-            const [newVehicleResult] =
+      const [newVehicleResult] =
         await connection.query(
           `
             INSERT INTO vehicle (
@@ -1398,7 +1398,7 @@ const acceptServiceRequest = async (
     const [requestRows] =
       await connection.query(
         `
-                  SELECT
+          SELECT
             request_id,
             ticket_number,
             request_status,
@@ -2098,7 +2098,7 @@ const getLatestCustomerRequest =
       } else if (
         customerStage ===
           "ARRIVED_AT_GARAGE" &&
-                  !jobStatus
+        !jobStatus
       ) {
         continueMessage =
           "You have arrived at the garage. Please wait while the assistance officer assigns a technician to your vehicle.";
@@ -2305,11 +2305,20 @@ const updateCustomerStage = async (
       await db.query(
         `
           SELECT
-            request_id,
-            request_status,
-            customer_stage
-          FROM service_request
-          WHERE request_id = ?
+            sr.request_id,
+            sr.request_status,
+            sr.customer_stage,
+            sr.customer_name,
+            sr.vehicle_number,
+            sr.customer_customer_id,
+            sr.assistance_assistance_id,
+            sr.garage_garage_id,
+            g.garage_name
+          FROM service_request sr
+          LEFT JOIN garage g
+            ON g.garage_id =
+               sr.garage_garage_id
+          WHERE sr.request_id = ?
           LIMIT 1
         `,
         [requestId]
@@ -2351,6 +2360,21 @@ const updateCustomerStage = async (
       });
     }
 
+    const previousCustomerStage =
+      String(
+        requestRows[0]
+          .customer_stage ||
+        ""
+      )
+        .trim()
+        .toUpperCase();
+
+    const isFirstGarageArrival =
+      stage ===
+        "ARRIVED_AT_GARAGE" &&
+      previousCustomerStage !==
+        "ARRIVED_AT_GARAGE";
+
     // ==================================================
     // SAVE GARAGE ARRIVAL DATE + TIME
     // ==================================================
@@ -2382,6 +2406,217 @@ const updateCustomerStage = async (
           requestId,
         ]
       );
+
+      // ==================================================
+      // GARAGE ARRIVAL NOTIFICATIONS
+      // ==================================================
+
+      if (isFirstGarageArrival) {
+        const requestRow =
+          requestRows[0];
+
+        const garageId =
+          Number(
+            requestRow
+              .garage_garage_id
+          );
+
+        const customerId =
+          Number(
+            requestRow
+              .customer_customer_id
+          );
+
+        const assignedAssistanceId =
+          Number(
+            requestRow
+              .assistance_assistance_id
+          );
+
+        const customerName =
+          String(
+            requestRow.customer_name ||
+            "Customer"
+          ).trim();
+
+        const vehicleNumber =
+          String(
+            requestRow.vehicle_number ||
+            ""
+          ).trim();
+
+        const garageName =
+          String(
+            requestRow.garage_name ||
+            "the selected garage"
+          ).trim();
+
+        // ==================================================
+        // CUSTOMER NOTIFICATION
+        // ==================================================
+
+        if (
+          Number.isInteger(customerId) &&
+          customerId > 0 &&
+          Number.isInteger(garageId) &&
+          garageId > 0
+        ) {
+          try {
+            const result =
+              await createNotification({
+                garageId,
+
+                customerId,
+
+                notificationType:
+                  "ARRIVED_AT_GARAGE",
+
+                title:
+                  "Arrived at Garage",
+
+                message:
+                  `You have arrived at ${garageName}. Please wait while the assistance officer prepares the next service step.`,
+
+                targetPage:
+                  "arrived-at-garage",
+
+                referenceId:
+                  requestId,
+
+                priority:
+                  "HIGH",
+              });
+
+            if (
+              result &&
+              result.success === false
+            ) {
+              console.error(
+                "Customer garage arrival notification error:",
+                result.error
+              );
+            }
+          } catch (error) {
+            console.error(
+              "Customer garage arrival notification error:",
+              error
+            );
+          }
+        }
+
+        // ==================================================
+        // ASSISTANCE NOTIFICATION
+        // ==================================================
+
+        try {
+          let assistanceIds = [];
+
+          if (
+            Number.isInteger(
+              assignedAssistanceId
+            ) &&
+            assignedAssistanceId > 0
+          ) {
+            assistanceIds = [
+              assignedAssistanceId,
+            ];
+          } else if (
+            Number.isInteger(garageId) &&
+            garageId > 0
+          ) {
+            const [assistanceRows] =
+              await db.query(
+                `
+                  SELECT
+                    assistance_id
+                  FROM assistance
+                  WHERE garage_garage_id = ?
+                    AND UPPER(
+                      TRIM(
+                        COALESCE(
+                          shift_status,
+                          'OFF'
+                        )
+                      )
+                    ) = 'ON'
+                `,
+                [garageId]
+              );
+
+            assistanceIds =
+              assistanceRows
+                .map((row) =>
+                  Number(
+                    row.assistance_id
+                  )
+                )
+                .filter(
+                  (id) =>
+                    Number.isInteger(id) &&
+                    id > 0
+                );
+          }
+
+          if (
+            assistanceIds.length > 0
+          ) {
+            const assistanceMessage =
+              vehicleNumber
+                ? `${customerName} (${vehicleNumber}) has arrived at ${garageName}. Open Resource Scheduling to continue the service process.`
+                : `${customerName} has arrived at ${garageName}. Open Resource Scheduling to continue the service process.`;
+
+            const results =
+              await Promise.all(
+                assistanceIds.map(
+                  (assistanceId) =>
+                    createNotification({
+                      garageId,
+
+                      assistanceId,
+
+                      notificationType:
+                        "CUSTOMER_ARRIVED_AT_GARAGE",
+
+                      title:
+                        "Customer Arrived at Garage",
+
+                      message:
+                        assistanceMessage,
+
+                      targetPage:
+                        "resource-schedule",
+
+                      referenceId:
+                        requestId,
+
+                      priority:
+                        "HIGH",
+                    })
+                )
+              );
+
+            results.forEach(
+              (result) => {
+                if (
+                  result &&
+                  result.success ===
+                    false
+                ) {
+                  console.error(
+                    "Assistance garage arrival notification error:",
+                    result.error
+                  );
+                }
+              }
+            );
+          }
+        } catch (error) {
+          console.error(
+            "Assistance garage arrival notification error:",
+            error
+          );
+        }
+      }
     } else {
       await db.query(
         `
@@ -2606,4 +2841,3 @@ module.exports = {
   updateCustomerStage,
   getVehiclesReadyForTechnician,
 };
-

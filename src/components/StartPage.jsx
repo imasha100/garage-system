@@ -361,12 +361,23 @@ export default function StartPage({
     name: "",
     email: "",
     contactNumber: "",
+    garageId: "",
     message: "",
   });
 
   const [
     messageSent,
     setMessageSent,
+  ] = useState(false);
+
+  const [
+    contactSubmitError,
+    setContactSubmitError,
+  ] = useState("");
+
+  const [
+    isSubmittingContact,
+    setIsSubmittingContact,
   ] = useState(false);
 
   const [
@@ -543,20 +554,90 @@ export default function StartPage({
       if (messageSent) {
         setMessageSent(false);
       }
+
+      if (contactSubmitError) {
+        setContactSubmitError("");
+      }
     };
 
   const handleContactSubmit =
-    (event) => {
+    async (event) => {
       event.preventDefault();
 
-      setMessageSent(true);
+      setMessageSent(false);
+      setContactSubmitError("");
 
-      setContactForm({
-        name: "",
-        email: "",
-        contactNumber: "",
-        message: "",
-      });
+      if (!contactForm.garageId) {
+        setContactSubmitError(
+          "Please select the garage you want to contact."
+        );
+        return;
+      }
+
+      setIsSubmittingContact(true);
+
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/contact-messages",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              garageId: Number(
+                contactForm.garageId
+              ),
+              fullName:
+                contactForm.name.trim(),
+              email:
+                contactForm.email
+                  .trim()
+                  .toLowerCase(),
+              contactNumber:
+                contactForm.contactNumber.trim(),
+              message:
+                contactForm.message.trim(),
+            }),
+          }
+        );
+
+        const data =
+          await response.json();
+
+        if (
+          !response.ok ||
+          data.success === false
+        ) {
+          throw new Error(
+            data.message ||
+              "Unable to send your message."
+          );
+        }
+
+        setMessageSent(true);
+
+        setContactForm({
+          name: "",
+          email: "",
+          contactNumber: "",
+          garageId: "",
+          message: "",
+        });
+      } catch (error) {
+        console.error(
+          "Contact message submit error:",
+          error
+        );
+
+        setContactSubmitError(
+          error.message ||
+            "Unable to send your message. Please try again."
+        );
+      } finally {
+        setIsSubmittingContact(false);
+      }
     };
 
   const scrollToAbout = () => {
@@ -953,14 +1034,11 @@ export default function StartPage({
     };
 
   // ======================================================
-  // LOAD GARAGES WHEN POPUP OPENS
+  // LOAD REGISTERED GARAGES
+  // Used by Contact form and Tow Truck registration.
   // ======================================================
 
   useEffect(() => {
-    if (!truckRequestOpen) {
-      return;
-    }
-
     let isMounted = true;
 
     const loadGarages =
@@ -1032,7 +1110,7 @@ export default function StartPage({
     return () => {
       isMounted = false;
     };
-  }, [truckRequestOpen]);
+  }, []);
 
   // ======================================================
   // CHECK EXTERNAL TRUCK REGISTRATION STATUS
@@ -1724,6 +1802,19 @@ export default function StartPage({
             .garageId
         )
     );
+
+  const selectedContactGarage =
+    garages.find(
+      (garage) =>
+        Number(
+          garage.garage_id ??
+            garage.garageId
+        ) ===
+        Number(
+          contactForm.garageId
+        )
+    );
+
       const services = [
     {
       icon: Truck,
@@ -3005,6 +3096,98 @@ export default function StartPage({
 
               <div className="mt-5">
                 <label
+                  htmlFor="contact-garage"
+                  className="mb-2 block text-sm font-semibold text-slate-300"
+                >
+                  Select Garage
+                </label>
+
+                <div className="relative">
+                  <Building2 className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-teal-300" />
+
+                  <select
+                    id="contact-garage"
+                    name="garageId"
+                    value={contactForm.garageId}
+                    onChange={handleContactChange}
+                    required
+                    disabled={
+                      isLoadingGarages ||
+                      isSubmittingContact
+                    }
+                    className="w-full appearance-none rounded-xl border border-white/10 bg-white/[0.045] py-3.5 pl-12 pr-11 text-white outline-none transition focus:border-teal-400/60 focus:ring-4 focus:ring-teal-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <option
+                      value=""
+                      className="bg-slate-900"
+                    >
+                      {isLoadingGarages
+                        ? "Loading registered garages..."
+                        : "Select a registered garage"}
+                    </option>
+
+                    {garages.map((garage) => {
+                      const garageId =
+                        garage.garage_id ??
+                        garage.garageId;
+
+                      const garageName =
+                        garage.garage_name ??
+                        garage.garageName ??
+                        "Garage";
+
+                      const garageLocation =
+                        garage.address ??
+                        garage.location ??
+                        "Location not available";
+
+                      return (
+                        <option
+                          key={garageId}
+                          value={garageId}
+                          className="bg-slate-900"
+                        >
+                          {garageName} - {garageLocation}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                </div>
+
+                {garageLoadError && (
+                  <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>{garageLoadError}</p>
+                  </div>
+                )}
+
+                {selectedContactGarage && (
+                  <div className="mt-3 rounded-xl border border-teal-400/20 bg-teal-400/[0.07] p-4">
+                    <div className="flex items-start gap-3">
+                      <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-teal-300" />
+
+                      <div>
+                        <p className="font-bold text-white">
+                          {selectedContactGarage.garage_name ??
+                            selectedContactGarage.garageName ??
+                            "Selected Garage"}
+                        </p>
+
+                        <p className="mt-1 text-sm leading-6 text-slate-400">
+                          {selectedContactGarage.address ??
+                            selectedContactGarage.location ??
+                            "Location not available"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5">
+                <label
                   htmlFor="contact-message"
                   className="mb-2 block text-sm font-semibold text-slate-300"
                 >
@@ -3022,6 +3205,29 @@ export default function StartPage({
                   className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.045] px-4 py-3.5 text-white outline-none transition placeholder:text-slate-600 focus:border-teal-400/60 focus:ring-4 focus:ring-teal-400/10"
                 />
               </div>
+
+              <AnimatePresence>
+                {contactSubmitError && (
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                      y: -8,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    exit={{
+                      opacity: 0,
+                    }}
+                    role="alert"
+                    className="mt-5 flex items-start gap-3 rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-3 text-sm text-red-300"
+                  >
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    {contactSubmitError}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <AnimatePresence>
                 {messageSent && (
@@ -3056,10 +3262,21 @@ export default function StartPage({
                 whileTap={{
                   scale: 0.98,
                 }}
-                className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-4 font-black tracking-wide text-slate-950 shadow-[0_15px_40px_rgba(45,212,191,0.2)] transition hover:shadow-[0_18px_55px_rgba(45,212,191,0.3)]"
+                disabled={
+                  isSubmittingContact ||
+                  isLoadingGarages
+                }
+                className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-400 px-5 py-4 font-black tracking-wide text-slate-950 shadow-[0_15px_40px_rgba(45,212,191,0.2)] transition hover:shadow-[0_18px_55px_rgba(45,212,191,0.3)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Send className="h-5 w-5" />
-                Send Message
+                {isSubmittingContact ? (
+                  <LoaderCircle className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+
+                {isSubmittingContact
+                  ? "Sending Message..."
+                  : "Send Message"}
               </motion.button>
             </motion.form>
           </div>

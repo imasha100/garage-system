@@ -274,6 +274,19 @@ export default function GarageOwnerNotifications({
         }
 
         if (
+          targetPage ===
+            "contact-messages" ||
+          notification.notificationType ===
+            "NEW_CONTACT_INQUIRY"
+        ) {
+          onNavigate?.(
+            "Contact Messages"
+          );
+
+          return;
+        }
+
+        if (
           targetPage
         ) {
           onNavigate?.(
@@ -596,6 +609,19 @@ export default function GarageOwnerNotifications({
 
                               <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400">
                                 Open Stock Management
+                              </span>
+                            </>
+                          )}
+
+                          {notification.notificationType ===
+                            "NEW_CONTACT_INQUIRY" && (
+                            <>
+                              <span className="text-[9px] text-gray-700">
+                                •
+                              </span>
+
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-cyan-400">
+                                Open Contact Messages
                               </span>
                             </>
                           )}
