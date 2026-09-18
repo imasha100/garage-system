@@ -50,6 +50,16 @@ const ExperienceAudit = ({
   ] = useState("");
 
   const [
+    jobHistoryData,
+    setJobHistoryData,
+  ] = useState([]);
+
+  const [
+    selectedHistoryJob,
+    setSelectedHistoryJob,
+  ] = useState(null);
+
+  const [
     summary,
     setSummary,
   ] = useState({
@@ -295,7 +305,29 @@ const ExperienceAudit = ({
   };
 
   // ====================================================
-  // LOAD FEEDBACK FROM DATABASE
+  // FORMAT DATE & TIME
+  // ====================================================
+
+  const formatDateTime = (value) => {
+    if (!value) return "—";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // ====================================================
+  // LOAD FEEDBACK + JOB TECHNICIAN HISTORY
   // ====================================================
 
   const loadReviews =
@@ -307,6 +339,37 @@ const ExperienceAudit = ({
         try {
           const garageId =
             await getGarageId();
+
+          // -----------------------------------------------
+          // Load technician job history independently.
+          // This does NOT depend on customer feedback.
+          // -----------------------------------------------
+
+          try {
+            const historyResponse =
+              await fetch(
+                `${API_BASE_URL}/service-jobs/garage/${garageId}/job-history`
+              );
+
+            const historyData =
+              await historyResponse.json();
+
+            if (
+              historyResponse.ok &&
+              historyData.success !== false &&
+              Array.isArray(historyData.jobs)
+            ) {
+              setJobHistoryData(historyData.jobs);
+            } else {
+              setJobHistoryData([]);
+            }
+          } catch (historyError) {
+            console.error(
+              "Load technician job history error:",
+              historyError
+            );
+            setJobHistoryData([]);
+          }
 
           const response =
             await fetch(
@@ -511,6 +574,45 @@ const ExperienceAudit = ({
         );
       }
     );
+
+  // ====================================================
+  // JOB HISTORY SEARCH
+  // ====================================================
+
+  const filteredJobHistory =
+    jobHistoryData.filter((job) => {
+      const query =
+        searchQuery.trim().toLowerCase();
+
+      if (!query) return true;
+
+      const supportNames =
+        Array.isArray(job.supportAssistances)
+          ? job.supportAssistances
+              .map(
+                (item) =>
+                  item.supportTechnicianName || ""
+              )
+              .join(" ")
+          : "";
+
+      return [
+        job.jobId,
+        job.ticketNumber,
+        job.vehicleNumber,
+        job.vehicleType,
+        job.vehicleModel,
+        job.customerName,
+        job.jobType,
+        job.jobStatus,
+        job.mainTechnician?.technicianName,
+        supportNames,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
 
   // ====================================================
   // UI
@@ -872,7 +974,415 @@ const ExperienceAudit = ({
             </div>
           )}
 
+          {/* ==================================================
+              JOB TECHNICIAN HISTORY
+          ================================================== */}
+
+          <section className="mt-10">
+
+            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+
+              <div>
+                <h2 className="text-lg font-black uppercase tracking-[0.16em] text-[#52f0ac] md:text-xl">
+                  Job Technician History
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Completed job records showing main and support technicians.
+                </p>
+              </div>
+
+              <span className="w-fit rounded-full border border-[#52f0ac]/20 bg-[#52f0ac]/5 px-3 py-1 text-xs font-bold text-[#52f0ac]">
+                {filteredJobHistory.length} JOBS
+              </span>
+
+            </div>
+
+            {filteredJobHistory.length > 0 ? (
+
+              <div className="grid grid-cols-1 gap-4">
+
+                {filteredJobHistory.map((job) => (
+
+                  <div
+                    key={job.jobId}
+                    className="rounded-xl border border-[#1a1f26] bg-[#0b0e14] p-5 shadow-lg"
+                  >
+
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+
+                      <div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+
+                          <span className="text-lg font-black text-white">
+                            JOB #{job.jobId}
+                          </span>
+
+                          <span className="rounded-full border border-[#52f0ac]/20 bg-[#52f0ac]/10 px-2.5 py-1 text-[10px] font-bold uppercase text-[#52f0ac]">
+                            {job.jobStatus || "COMPLETED"}
+                          </span>
+
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500">
+
+                          <span className="flex items-center gap-1.5">
+                            <Car size={14} />
+                            {job.vehicleNumber || "—"}
+                            {job.vehicleType
+                              ? ` • ${job.vehicleType}`
+                              : ""}
+                          </span>
+
+                          {job.ticketNumber && (
+                            <span>
+                              Ticket: {job.ticketNumber}
+                            </span>
+                          )}
+
+                        </div>
+
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedHistoryJob(job)
+                        }
+                        className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-[#52f0ac]/25 bg-[#52f0ac]/5 px-4 py-2 text-xs font-bold uppercase text-[#52f0ac] transition hover:bg-[#52f0ac]/10"
+                      >
+                        <Eye size={15} />
+                        View Full History
+                      </button>
+
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+
+                      <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          Main Technician
+                        </p>
+
+                        <p className="mt-2 font-bold text-white">
+                          {job.mainTechnician?.technicianName ||
+                            "Not Assigned"}
+                        </p>
+
+                        {job.mainTechnician?.specialization && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            {job.mainTechnician.specialization}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                          Support Assistance
+                        </p>
+
+                        {Array.isArray(job.supportAssistances) &&
+                        job.supportAssistances.length > 0 ? (
+                          <div className="mt-2 space-y-1">
+                            {job.supportAssistances.map(
+                              (support, index) => (
+                                <p
+                                  key={
+                                    support.assistanceId ||
+                                    `${job.jobId}-${index}`
+                                  }
+                                  className="font-bold text-[#b8f7d8]"
+                                >
+                                  {support.supportTechnicianName ||
+                                    "Support Technician"}
+                                </p>
+                              )
+                            )}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm text-slate-500">
+                            No Support Assistance
+                          </p>
+                        )}
+                      </div>
+
+                    </div>
+
+                  </div>
+                ))}
+
+              </div>
+
+            ) : (
+
+              <div className="rounded-xl border border-[#1a1f26] bg-[#0b0e14] p-8 text-center">
+
+                <Wrench
+                  size={34}
+                  className="mx-auto text-[#52f0ac]"
+                />
+
+                <p className="mt-3 font-bold text-white">
+                  {searchQuery
+                    ? "No Matching Job History"
+                    : "No Completed Job History Yet"}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Completed technician job records will appear here.
+                </p>
+
+              </div>
+            )}
+
+          </section>
+
         </main>
+
+        {/* JOB HISTORY MODAL */}
+
+        {selectedHistoryJob && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+
+            <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#52f0ac]/40 bg-[#08110d] shadow-2xl">
+
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#52f0ac]/20 bg-[#08110d] p-5">
+
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-wider text-[#52f0ac]">
+                    Technician Job History
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Job #{selectedHistoryJob.jobId}
+                    {selectedHistoryJob.ticketNumber
+                      ? ` • ${selectedHistoryJob.ticketNumber}`
+                      : ""}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedHistoryJob(null)
+                  }
+                  className="cursor-pointer text-slate-400 transition hover:text-red-400"
+                  aria-label="Close job history"
+                >
+                  <X size={22} />
+                </button>
+
+              </div>
+
+              <div className="space-y-4 p-5 md:p-6">
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                      Vehicle
+                    </p>
+                    <p className="mt-1 font-bold text-white">
+                      {selectedHistoryJob.vehicleNumber || "—"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {[
+                        selectedHistoryJob.vehicleType,
+                        selectedHistoryJob.vehicleModel,
+                      ]
+                        .filter(Boolean)
+                        .join(" • ") || "—"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                      Job Status
+                    </p>
+                    <p className="mt-1 font-bold text-[#52f0ac]">
+                      {selectedHistoryJob.jobStatus || "COMPLETED"}
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="rounded-xl border border-[#52f0ac]/20 bg-[#52f0ac]/[0.04] p-5">
+
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#52f0ac]">
+                    Main Technician
+                  </p>
+
+                  <p className="mt-2 text-lg font-bold text-white">
+                    {selectedHistoryJob.mainTechnician
+                      ?.technicianName || "Not Assigned"}
+                  </p>
+
+                  {selectedHistoryJob.mainTechnician
+                    ?.specialization && (
+                    <p className="mt-1 text-sm text-slate-500">
+                      {
+                        selectedHistoryJob.mainTechnician
+                          .specialization
+                      }
+                    </p>
+                  )}
+
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-black/20 p-5">
+
+                  <div className="flex items-center justify-between gap-3">
+
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Support Assistance
+                    </p>
+
+                    <span className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-bold text-slate-400">
+                      {selectedHistoryJob.supportAssistances?.length ||
+                        0} SUPPORT
+                    </span>
+
+                  </div>
+
+                  {Array.isArray(
+                    selectedHistoryJob.supportAssistances
+                  ) &&
+                  selectedHistoryJob.supportAssistances.length >
+                    0 ? (
+
+                    <div className="mt-4 space-y-3">
+
+                      {selectedHistoryJob.supportAssistances.map(
+                        (support, index) => (
+                          <div
+                            key={
+                              support.assistanceId ||
+                              `${support.supportTechnicianId}-${index}`
+                            }
+                            className="rounded-lg border border-[#52f0ac]/15 bg-[#52f0ac]/[0.04] p-4"
+                          >
+
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+
+                              <div>
+                                <p className="font-bold text-[#b8f7d8]">
+                                  {support.supportTechnicianName ||
+                                    "Support Technician"}
+                                </p>
+
+                                {support.specialization && (
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {support.specialization}
+                                  </p>
+                                )}
+                              </div>
+
+                              <span className="w-fit rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-400">
+                                {support.assistanceStatus ||
+                                  "COMPLETED"}
+                              </span>
+
+                            </div>
+
+                            {support.reason && (
+                              <div className="mt-3 rounded-lg bg-black/20 p-3">
+                                <p className="text-[10px] uppercase tracking-wider text-slate-600">
+                                  Reason
+                                </p>
+                                <p className="mt-1 text-sm text-slate-300">
+                                  {support.reason}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-slate-400 sm:grid-cols-2">
+
+                              <p>
+                                <span className="text-slate-600">
+                                  Assigned:
+                                </span>{" "}
+                                {formatDateTime(
+                                  support.assignedAt
+                                )}
+                              </p>
+
+                              <p>
+                                <span className="text-slate-600">
+                                  Completed:
+                                </span>{" "}
+                                {formatDateTime(
+                                  support.completedAt
+                                )}
+                              </p>
+
+                            </div>
+
+                          </div>
+                        )
+                      )}
+
+                    </div>
+
+                  ) : (
+
+                    <div className="mt-4 rounded-lg border border-dashed border-white/10 p-4 text-sm text-slate-500">
+                      No support assistance was required for this job.
+                    </div>
+                  )}
+
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                      Job Started
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-white">
+                      {selectedHistoryJob.startDate
+                        ? `${formatDate(
+                            selectedHistoryJob.startDate
+                          )}${
+                            selectedHistoryJob.startTime
+                              ? ` • ${selectedHistoryJob.startTime}`
+                              : ""
+                          }`
+                        : "—"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-500">
+                      Job Completed
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-white">
+                      {formatDateTime(
+                        selectedHistoryJob.actualCompletionTime
+                      )}
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedHistoryJob(null)
+                    }
+                    className="cursor-pointer rounded-lg bg-[#52f0ac] px-6 py-2 font-bold text-black transition hover:bg-[#45d99c]"
+                  >
+                    Close
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
 
         {/* DETAILS MODAL */}
 

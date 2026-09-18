@@ -1523,8 +1523,8 @@ export default function TechnicianDashboard({
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 top-12 z-[100] w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-700 bg-[#0f1420] shadow-2xl shadow-black/50 sm:w-[380px]">
-                <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+              <div className="fixed left-3 right-3 top-[82px] z-[100] overflow-hidden rounded-2xl border border-slate-700 bg-[#0f1420] shadow-2xl shadow-black/50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[380px]">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-3 sm:px-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest text-white">
                       Notifications
@@ -1548,7 +1548,7 @@ export default function TechnicianDashboard({
                   )}
                 </div>
 
-                <div className="max-h-[420px] overflow-y-auto">
+                <div className="max-h-[calc(100vh-190px)] overflow-y-auto overscroll-contain sm:max-h-[420px]">
                   {notificationsLoading &&
                   notifications.length === 0 ? (
                     <div className="px-5 py-8 text-center text-xs text-slate-500">

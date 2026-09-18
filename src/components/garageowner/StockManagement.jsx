@@ -28,6 +28,7 @@ export default function StockManagement({
   toggleSidebar,
   onNavigate,
 }) {
+  const todayDate = new Date().toISOString().split("T")[0];
   // ======================================================
   // STATES
   // ======================================================
@@ -37,6 +38,9 @@ export default function StockManagement({
 
   const [showAddModal, setShowAddModal] =
     useState(false);
+
+  const [restockItem, setRestockItem] =
+    useState(null);
 
   const [stockItems, setStockItems] =
     useState([]);
@@ -457,6 +461,59 @@ export default function StockManagement({
   }, [loadCategories]);
 
   // ======================================================
+  // GROUP STOCK BY ITEM
+  // Shows one row per item:
+  // - Available = total from all batches
+  // - Prices / Batch = latest batch
+  // ======================================================
+
+  const groupedStockItems = useMemo(() => {
+    const groups = new Map();
+
+    stockItems.forEach((item) => {
+      const key = `${item.stockId}-${item.itemId}`;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          ...item,
+          availableQuantity: 0,
+          batches: [],
+          latestBatchId: -1,
+        });
+      }
+
+      const group = groups.get(key);
+
+      group.availableQuantity +=
+        Number(item.availableQuantity) || 0;
+
+      group.batches.push(item);
+
+      const batchId =
+        Number(item.batchId) || 0;
+
+      if (batchId > group.latestBatchId) {
+        group.latestBatchId = batchId;
+        group.batchId = item.batchId;
+        group.batchNumber =
+          item.batchNumber;
+        group.purchaseDate =
+          item.purchaseDate;
+        group.purchasePrice =
+          item.purchasePrice;
+        group.sellingPrice =
+          item.sellingPrice;
+        group.receivedQuantity =
+          item.receivedQuantity;
+        group.expiryDate =
+          item.expiryDate;
+      }
+    });
+
+    return Array.from(groups.values());
+  }, [stockItems]);
+
+  // ======================================================
   // FILTER STOCK
   // ======================================================
 
@@ -468,10 +525,10 @@ export default function StockManagement({
           .toLowerCase();
 
       if (!query) {
-        return stockItems;
+        return groupedStockItems;
       }
 
-      return stockItems.filter(
+      return groupedStockItems.filter(
         (item) =>
           `
             ${item.itemName}
@@ -486,7 +543,7 @@ export default function StockManagement({
             .includes(query)
       );
     }, [
-      stockItems,
+      groupedStockItems,
       searchText,
     ]);
 
@@ -495,10 +552,10 @@ export default function StockManagement({
   // ======================================================
 
   const totalStockItems =
-    stockItems.length;
+    groupedStockItems.length;
 
   const lowStockItems =
-    stockItems.filter(
+    groupedStockItems.filter(
       (item) =>
         Number(
           item.availableQuantity
@@ -573,6 +630,8 @@ export default function StockManagement({
   // ======================================================
 
   const resetForm = () => {
+    setRestockItem(null);
+
     setFormData({
       itemName: "",
       categoryId: "",
@@ -587,6 +646,31 @@ export default function StockManagement({
     });
 
     setFormError("");
+  };
+
+  const openRestockModal = async (item) => {
+    setFormError("");
+    setSuccessMessage("");
+    setRestockItem(item);
+
+    setFormData({
+      itemName: item.itemName || "",
+      categoryId: String(item.categoryId || ""),
+      categoryName: item.categoryName || "",
+      batchNumber: "",
+      purchasePrice: String(item.purchasePrice ?? ""),
+      sellingPrice: String(item.sellingPrice ?? ""),
+      receivedQuantity: "",
+      reorderLevel: String(item.reorderLevel ?? ""),
+      purchaseDate: "",
+      expiryDate: "",
+    });
+
+    setShowAddModal(true);
+
+    if (item.categoryId) {
+      await loadNextBatchNumber(item.categoryId);
+    }
   };
 
   // ======================================================
@@ -832,7 +916,9 @@ export default function StockManagement({
         // ----------------------------------------------
 
         setSuccessMessage(
-          "Stock added successfully."
+          restockItem
+            ? `${itemName} restocked successfully as a new batch.`
+            : "Stock added successfully."
         );
 
         resetForm();
@@ -1240,6 +1326,10 @@ export default function StockManagement({
                   <th className="px-4 py-4">
                     Status
                   </th>
+
+                  <th className="px-4 py-4">
+                    Action
+                  </th>
                 </tr>
               </thead>
 
@@ -1247,7 +1337,7 @@ export default function StockManagement({
                 {loading ? (
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan="9"
                       className="py-14 text-center text-xs tracking-[0.2em] text-gray-500"
                     >
                       LOADING STOCK DATA...
@@ -1267,10 +1357,7 @@ export default function StockManagement({
 
                       return (
                         <tr
-                          key={
-                            item.batchId ??
-                            `${item.stockId}-${item.batchNumber}`
-                          }
+                          key={`${item.stockId}-${item.itemId}`}
                           className="border-t border-white/10 hover:bg-white/[0.03]"
                         >
                           <td className="px-6 py-5 font-bold text-white">
@@ -1330,6 +1417,21 @@ export default function StockManagement({
                                 : "Available"}
                             </span>
                           </td>
+
+                          <td className="px-4 py-5">
+                            {isLow ? (
+                              <button
+                                type="button"
+                                onClick={() => openRestockModal(item)}
+                                className="inline-flex items-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-300 hover:bg-indigo-500/20"
+                              >
+                                <Plus size={13} />
+                                Add Stock
+                              </button>
+                            ) : (
+                              <span className="text-xs text-gray-600">—</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     }
@@ -1337,7 +1439,7 @@ export default function StockManagement({
                 ) : (
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan="9"
                       className="py-14 text-center text-xs tracking-[0.2em] text-gray-500"
                     >
                       {searchText
@@ -1362,12 +1464,13 @@ export default function StockManagement({
             <div className="sticky top-0 z-10 bg-[#12121a] border-b border-white/10 p-5 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold">
-                  Add New Stock
+                  {restockItem ? "Add Stock to Low Stock Item" : "Add New Stock"}
                 </h2>
 
                 <p className="mt-1 text-xs text-gray-500">
-                  Register a new stock
-                  batch for {garageName}.
+                  {restockItem
+                    ? `Create a new batch for ${restockItem.itemName}.`
+                    : `Register a new stock batch for ${garageName}.`}
                 </p>
               </div>
 
@@ -1420,6 +1523,7 @@ export default function StockManagement({
                     onChange={
                       handleChange
                     }
+                    readOnly={Boolean(restockItem)}
                     required
                     placeholder="Engine Oil"
                     className="w-full rounded-lg border border-white/10 bg-[#0b0b12] px-4 py-3 text-sm outline-none focus:border-indigo-500"
@@ -1441,7 +1545,8 @@ export default function StockManagement({
                     }
                     required
                     disabled={
-                      categoriesLoading
+                      categoriesLoading ||
+                      Boolean(restockItem)
                     }
                     className="w-full rounded-lg border border-white/10 bg-[#0b0b12] px-4 py-3 text-sm outline-none focus:border-indigo-500 disabled:opacity-50"
                   >
@@ -1508,6 +1613,7 @@ export default function StockManagement({
                     onChange={
                       handleChange
                     }
+                    readOnly={Boolean(restockItem)}
                     required
                     placeholder="3"
                     className="w-full rounded-lg border border-white/10 bg-[#0b0b12] px-4 py-3 text-sm outline-none focus:border-indigo-500"
@@ -1590,6 +1696,7 @@ export default function StockManagement({
                     name="purchaseDate"
                     value={formData.purchaseDate}
                     onChange={handleChange}
+                    min={todayDate}
                     onClick={(event) => {
                       if (event.currentTarget.showPicker) {
                         event.currentTarget.showPicker();
@@ -1666,6 +1773,8 @@ export default function StockManagement({
 
                   {saving
                     ? "SAVING..."
+                    : restockItem
+                    ? "ADD NEW BATCH"
                     : "SAVE STOCK"}
                 </button>
               </div>

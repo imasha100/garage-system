@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { X, Clock, MapPin, User, Users } from "lucide-react";
 
 import {
@@ -36,6 +36,16 @@ function RecenterMap({ center }) {
   return null;
 }
 
+function MapInstanceCapture({ onReady }) {
+  const map = useMap();
+
+  useEffect(() => {
+    onReady(map);
+  }, [map, onReady]);
+
+  return null;
+}
+
 export default function GarageMap({
   onNavigate,
   setSelectedGarage,
@@ -45,6 +55,44 @@ export default function GarageMap({
   const [isRequested, setIsRequested] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [previewGarage, setPreviewGarage] = useState(null);
+  const [mapInstance, setMapInstance] = useState(null);
+  const [previewPosition, setPreviewPosition] = useState(null);
+  const previewHideTimer = useRef(null);
+  const previewHoverTimer = useRef(null);
+
+  const cancelPreviewHide = () => {
+    if (previewHideTimer.current) {
+      window.clearTimeout(previewHideTimer.current);
+      previewHideTimer.current = null;
+    }
+  };
+
+  const schedulePreviewHide = (delay = 180) => {
+    cancelPreviewHide();
+
+    previewHideTimer.current = window.setTimeout(() => {
+      setPreviewGarage(null);
+      previewHideTimer.current = null;
+    }, delay);
+  };
+
+  const cancelPreviewHover = () => {
+    if (previewHoverTimer.current) {
+      window.clearTimeout(previewHoverTimer.current);
+      previewHoverTimer.current = null;
+    }
+  };
+
+  const schedulePreviewHover = (garage, delay = 450) => {
+    cancelPreviewHover();
+    cancelPreviewHide();
+
+    previewHoverTimer.current = window.setTimeout(() => {
+      setPreviewGarage(garage);
+      previewHoverTimer.current = null;
+    }, delay);
+  };
 
   const [loggedCustomerName, setLoggedCustomerName] =
     useState("Customer");
@@ -409,6 +457,18 @@ export default function GarageMap({
                   "District not available",
                 capacity:
                   Number(garage.capacity) || 0,
+                currentCapacity:
+                  Number(garage.current_capacity) || 0,
+                availableSlots:
+                  Number(garage.available_slots) || 0,
+                outsideVehicleCount:
+                  Number(garage.outside_vehicle_count) || 0,
+                garageWorkload:
+                  garage.garage_workload || "LOW",
+                openStatus:
+                  String(garage.open_status || "OPEN")
+                    .trim()
+                    .toUpperCase(),
                 openingTime:
                   garage.opening_time || "N/A",
                 closingTime:
@@ -418,9 +478,7 @@ export default function GarageMap({
                 shiftType:
                   garage.shift_type || "N/A",
                 workload:
-                  freeTechs.length > 0
-                    ? "AVAILABLE"
-                    : "QUEUEING",
+                  garage.garage_workload || "LOW",
                 status: "REGISTERED GARAGE",
                 specialization:
                   "General Vehicle Service",
@@ -798,6 +856,15 @@ The garage will contact you shortly. If you need immediate assistance, you may c
     };
   };
 
+  const isGarageOpen = (garage) =>
+    String(
+      garage?.openStatus ??
+        garage?.open_status ??
+        "OPEN"
+    )
+      .trim()
+      .toUpperCase() === "OPEN";
+
   const handleSelectGarage = (garage) => {
     const updatedGarage = getGarageWithLiveDistance(garage);
 
@@ -827,6 +894,13 @@ The garage will contact you shortly. If you need immediate assistance, you may c
     if (!selectedGarage?.id) {
       setRequestError(
         "Please close the form and select a valid garage again."
+      );
+      return;
+    }
+
+    if (!isGarageOpen(selectedGarage)) {
+      setRequestError(
+        "This garage is currently closed. Please select an open garage."
       );
       return;
     }
@@ -1026,12 +1100,102 @@ The garage will contact you shortly. If you need immediate assistance, you may c
         index === 0 ? "NEAREST & RECOMMENDED" : garage.status,
     }));
 
+  useEffect(() => {
+    return () => {
+      if (previewHideTimer.current) {
+        window.clearTimeout(previewHideTimer.current);
+      }
+
+      if (previewHoverTimer.current) {
+        window.clearTimeout(previewHoverTimer.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapInstance || !previewGarage) {
+      setPreviewPosition(null);
+      return;
+    }
+
+    const updatePreviewPosition = () => {
+      const point = mapInstance.latLngToContainerPoint([
+        previewGarage.lat,
+        previewGarage.lng,
+      ]);
+
+      const size = mapInstance.getSize();
+
+      const edgeGap = 12;
+      const markerGap = 18;
+      const cardWidth = Math.min(320, Math.max(220, size.x - edgeGap * 2));
+      const cardHeight = Math.min(470, Math.max(220, size.y - edgeGap * 2));
+
+      let placement = "above";
+      let top = point.y - cardHeight - markerGap;
+
+      if (top < edgeGap) {
+        placement = "below";
+        top = point.y + markerGap;
+      }
+
+      if (top + cardHeight > size.y - edgeGap) {
+        top = Math.max(
+          edgeGap,
+          Math.min(
+            point.y - cardHeight / 2,
+            size.y - cardHeight - edgeGap
+          )
+        );
+
+        placement = point.y < size.y / 2 ? "below" : "above";
+      }
+
+      let left = point.x - cardWidth / 2;
+
+      left = Math.max(
+        edgeGap,
+        Math.min(left, size.x - cardWidth - edgeGap)
+      );
+
+      const arrowX = Math.max(
+        18,
+        Math.min(point.x - left, cardWidth - 18)
+      );
+
+      setPreviewPosition({
+        left,
+        top,
+        width: cardWidth,
+        maxHeight: cardHeight,
+        arrowX,
+        placement,
+      });
+    };
+
+    updatePreviewPosition();
+
+    mapInstance.on("move zoom resize", updatePreviewPosition);
+    window.addEventListener("resize", updatePreviewPosition);
+
+    return () => {
+      mapInstance.off("move zoom resize", updatePreviewPosition);
+      window.removeEventListener("resize", updatePreviewPosition);
+    };
+  }, [mapInstance, previewGarage]);
+
   return (
     <>
       <style>{`
+        .garage-map-popup {
+          max-width: calc(100vw - 24px) !important;
+        }
+
         .garage-map-popup .leaflet-popup-content-wrapper {
           padding: 0;
           overflow: hidden;
+          width: auto;
+          max-width: calc(100vw - 24px);
           border: 1px solid rgba(99, 102, 241, 0.28);
           border-radius: 14px;
           background: #07101f;
@@ -1039,8 +1203,21 @@ The garage will contact you shortly. If you need immediate assistance, you may c
         }
 
         .garage-map-popup .leaflet-popup-content {
-          width: auto !important;
+          width: min(290px, calc(100vw - 36px)) !important;
+          max-width: calc(100vw - 36px) !important;
+          max-height: min(520px, calc(100vh - 120px));
+          overflow-y: auto;
+          overflow-x: hidden;
           margin: 0;
+          scrollbar-width: thin;
+        }
+
+        @media (max-width: 640px) {
+          .garage-map-popup .leaflet-popup-content {
+            width: min(270px, calc(100vw - 32px)) !important;
+            max-width: calc(100vw - 32px) !important;
+            max-height: calc(100vh - 100px);
+          }
         }
 
         .garage-map-popup .leaflet-popup-tip {
@@ -1098,6 +1275,8 @@ The garage will contact you shortly. If you need immediate assistance, you may c
               <RecenterMap center={userLocation} />
             )}
 
+            <MapInstanceCapture onReady={setMapInstance} />
+
             <TileLayer
               attribution="&copy; OpenStreetMap contributors"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -1128,91 +1307,173 @@ The garage will contact you shortly. If you need immediate assistance, you may c
                 key={garage.id}
                 position={[garage.lat, garage.lng]}
                 eventHandlers={{
-                  mouseover: (event) => {
-                    event.target.openPopup();
+                  mouseover: () => {
+                    schedulePreviewHover(garage, 450);
                   },
-                  mouseout: (event) => {
-                    event.target.closePopup();
+                  mouseout: () => {
+                    cancelPreviewHover();
+                    schedulePreviewHide(180);
                   },
-                  click: () => handleSelectGarage(garage),
+                  click: () => {
+                    cancelPreviewHover();
+                    cancelPreviewHide();
+                    setPreviewGarage(null);
+                    handleSelectGarage(garage);
+                  },
                 }}
-              >
-                <Popup
-                  closeButton={false}
-                  offset={[0, -8]}
-                  className="garage-map-popup"
-                >
-                  <div className="min-w-[250px] overflow-hidden rounded-xl bg-[#07101f] text-slate-200 shadow-2xl">
-                    <div className="border-b border-white/10 bg-gradient-to-r from-indigo-600/30 to-cyan-500/10 px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-black uppercase tracking-wider text-white">
-                            {garage.name}
-                          </p>
-                          <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-cyan-400">
-                            {garage.status}
-                          </p>
-                        </div>
-
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-indigo-400/30 bg-indigo-500/10 text-indigo-300">
-                          <MapPin size={17} />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 px-4 py-3 text-xs">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-500">
-                          Distance
-                        </span>
-                        <span className="font-bold text-white">
-                          {garage.distance}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-slate-500">
-                          Estimated Time
-                        </span>
-                        <span className="font-bold text-emerald-400">
-                          {garage.time}
-                        </span>
-                      </div>
-
-                      <div className="border-t border-white/10 pt-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                          Address
-                        </p>
-                        <p className="mt-1 leading-5 text-slate-300">
-                          {garage.address}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                            Contact
-                          </p>
-                          <p className="mt-1 truncate font-semibold text-slate-200">
-                            {garage.contact}
-                          </p>
-                        </div>
-
-                        <div className="rounded-lg border border-white/10 bg-black/20 p-2">
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                            Capacity
-                          </p>
-                          <p className="mt-1 font-semibold text-slate-200">
-                            {garage.capacity} vehicles
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
+              />
             ))}
           </MapContainer>
+
+          {previewGarage && previewPosition && (
+            <div
+              className="absolute z-[45] pointer-events-none"
+              style={{
+                left: `${previewPosition.left}px`,
+                top: `${previewPosition.top}px`,
+                width: `${previewPosition.width}px`,
+                maxWidth: "calc(100% - 24px)",
+              }}
+            >
+              <div
+                className="relative overflow-y-auto overflow-x-hidden rounded-xl border border-indigo-400/30 bg-[#07101f] text-slate-200 shadow-2xl"
+                style={{
+                  maxHeight: `${previewPosition.maxHeight}px`,
+                }}
+              >
+                <div className="sticky top-0 z-10 border-b border-white/10 bg-[#07101f] px-3 py-3 sm:px-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black uppercase tracking-wider text-white">
+                        {previewGarage.name}
+                      </p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-cyan-400">
+                        {previewGarage.status}
+                      </p>
+                    </div>
+
+                    <div
+                      className="shrink-0 rounded border border-slate-700/50 p-1 text-slate-600"
+                      aria-hidden="true"
+                    >
+                      <X size={16} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 px-3 py-3 text-xs sm:px-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Distance</span>
+                    <span className="font-bold text-white">
+                      {previewGarage.distance}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-slate-500">Estimated Time</span>
+                    <span className="font-bold text-emerald-400">
+                      {previewGarage.time}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-white/10 pt-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Address
+                    </p>
+                    <p className="mt-1 break-words leading-5 text-slate-300">
+                      {previewGarage.address}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                        Capacity
+                      </p>
+                      <p className="mt-1 font-semibold text-white">
+                        {previewGarage.capacity}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                        Inside Vehicles
+                      </p>
+                      <p className="mt-1 font-semibold text-indigo-300">
+                        {previewGarage.currentCapacity}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                        Available Slots
+                      </p>
+                      <p className="mt-1 font-semibold text-emerald-400">
+                        {previewGarage.availableSlots}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                        Outside Queue
+                      </p>
+                      <p className="mt-1 font-semibold text-cyan-300">
+                        {previewGarage.outsideVehicleCount} vehicles
+                      </p>
+                    </div>
+
+                    <div className="col-span-2 rounded-lg border border-white/10 bg-black/20 p-2">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                        Workload
+                      </p>
+                      <p className="mt-1 font-bold text-white">
+                        {previewGarage.garageWorkload}
+                      </p>
+                    </div>
+
+                    <div className="col-span-2 rounded-lg border border-white/10 bg-black/20 p-2">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                        Open Status
+                      </p>
+                      <p
+                        className={`mt-1 font-black ${
+                          String(
+                            previewGarage.openStatus ??
+                              previewGarage.open_status ??
+                              "OPEN"
+                          )
+                            .trim()
+                            .toUpperCase() === "OPEN"
+                            ? "text-emerald-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {String(
+                          previewGarage.openStatus ??
+                            previewGarage.open_status ??
+                            "OPEN"
+                        )
+                          .trim()
+                          .toUpperCase()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={`absolute h-0 w-0 border-l-[9px] border-r-[9px] border-l-transparent border-r-transparent ${
+                  previewPosition.placement === "above"
+                    ? "top-full border-t-[10px] border-t-[#07101f]"
+                    : "bottom-full border-b-[10px] border-b-[#07101f]"
+                }`}
+                style={{
+                  left: `${previewPosition.arrowX}px`,
+                  transform: "translateX(-50%)",
+                }}
+              />
+            </div>
+          )}
 
           <div className="absolute top-3 left-3 z-[25] max-w-[calc(100%-1.5rem)] rounded-lg border border-slate-700/70 bg-[#060b16]/95 p-3 shadow-xl backdrop-blur-md">
             <div className="flex items-start gap-3">
@@ -1347,6 +1608,81 @@ The garage will contact you shortly. If you need immediate assistance, you may c
                     )}
                   </div>
 
+
+                  <div className="mb-4 grid grid-cols-2 gap-2">
+                    <div className="rounded border border-slate-800 bg-slate-950/50 p-3 text-center">
+                      <span className="block text-[9px] font-bold uppercase text-slate-500">
+                        Capacity
+                      </span>
+                      <span className="mt-1 block text-lg font-black text-white">
+                        {selectedGarage.capacity}
+                      </span>
+                    </div>
+
+                    <div className="rounded border border-slate-800 bg-slate-950/50 p-3 text-center">
+                      <span className="block text-[9px] font-bold uppercase text-slate-500">
+                        Inside Vehicles
+                      </span>
+                      <span className="mt-1 block text-lg font-black text-indigo-300">
+                        {selectedGarage.currentCapacity}
+                      </span>
+                    </div>
+
+                    <div className="rounded border border-slate-800 bg-slate-950/50 p-3 text-center">
+                      <span className="block text-[9px] font-bold uppercase text-slate-500">
+                        Available Slots
+                      </span>
+                      <span className="mt-1 block text-lg font-black text-emerald-400">
+                        {selectedGarage.availableSlots}
+                      </span>
+                    </div>
+
+                    <div className="rounded border border-slate-800 bg-slate-950/50 p-3 text-center">
+                      <span className="block text-[9px] font-bold uppercase text-slate-500">
+                        Outside Queue
+                      </span>
+                      <span className="mt-1 block text-lg font-black text-cyan-400">
+                        {selectedGarage.outsideVehicleCount}
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 rounded border border-slate-800 bg-slate-950/50 p-3 text-center">
+                      <span className="block text-[9px] font-bold uppercase text-slate-500">
+                        Workload
+                      </span>
+                      <span className="mt-1 block text-sm font-black text-white">
+                        {selectedGarage.garageWorkload}
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 rounded border border-slate-800 bg-slate-950/50 p-3 text-center">
+                      <span className="block text-[9px] font-bold uppercase text-slate-500">
+                        Open Status
+                      </span>
+                      <span
+                        className={`mt-1 block text-sm font-black ${
+                          String(
+                            selectedGarage.openStatus ??
+                              selectedGarage.open_status ??
+                              "OPEN"
+                          )
+                            .trim()
+                            .toUpperCase() === "OPEN"
+                            ? "text-emerald-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {String(
+                          selectedGarage.openStatus ??
+                            selectedGarage.open_status ??
+                            "OPEN"
+                        )
+                          .trim()
+                          .toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="border-t border-b border-slate-900/60 my-4 py-4 md:py-3 flex flex-col gap-3 md:gap-2 text-base md:text-xs">
                     <div className="flex justify-between items-center gap-2">
                       <span className="text-slate-500 flex items-center gap-1.5 uppercase tracking-wider font-bold text-sm md:text-[10px]">
@@ -1374,6 +1710,10 @@ The garage will contact you shortly. If you need immediate assistance, you may c
                   {isRequested ? (
                     <div className="w-full py-3.5 md:py-3 bg-emerald-950/30 border border-emerald-500/50 text-emerald-400 font-bold tracking-widest text-sm md:text-xs uppercase rounded-sm text-center">
                       Request Confirmed
+                    </div>
+                  ) : !isGarageOpen(selectedGarage) ? (
+                    <div className="w-full rounded-sm border border-red-500/40 bg-red-950/30 px-4 py-3.5 text-center text-sm font-bold uppercase tracking-widest text-red-400 md:py-3 md:text-xs">
+                      Garage is currently closed
                     </div>
                   ) : (
                     <button

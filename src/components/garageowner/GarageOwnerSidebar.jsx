@@ -13,6 +13,8 @@ import {
   MessageSquareText,
 } from "lucide-react";
 
+import swiftGarageLogo from "../../assets/swiftgarage-logo.png";
+
 export default function GarageOwnerSidebar({
   activeItem,
   onNavigate,
@@ -58,6 +60,10 @@ export default function GarageOwnerSidebar({
     },
   ];
 
+  // ======================================================
+  // MENU NAVIGATION
+  // ======================================================
+
   const handleMenuClick = (label) => {
     onNavigate(label);
 
@@ -65,6 +71,10 @@ export default function GarageOwnerSidebar({
       closeSidebar();
     }
   };
+
+  // ======================================================
+  // LOGOUT
+  // ======================================================
 
   const handleLogout = () => {
     if (window.innerWidth < 768) {
@@ -79,16 +89,20 @@ export default function GarageOwnerSidebar({
       {/* ================================================
           MOBILE OVERLAY
       ================================================= */}
+
       {isOpen && (
         <button
           type="button"
           aria-label="Close garage owner sidebar overlay"
           onClick={closeSidebar}
           className="
-            fixed inset-0
+            fixed
+            inset-0
             z-[190]
+
             bg-black/75
             backdrop-blur-sm
+
             md:hidden
           "
         />
@@ -97,6 +111,7 @@ export default function GarageOwnerSidebar({
       {/* ================================================
           SIDEBAR
       ================================================= */}
+
       <aside
         className={`
           fixed
@@ -104,18 +119,18 @@ export default function GarageOwnerSidebar({
           left-0
           z-[200]
 
+          flex
+          h-[100dvh]
           w-[85%]
           max-w-[300px]
-          h-[100dvh]
-
-          bg-black
-          border-r
-          border-[#1a1a1a]
-
-          flex
           flex-col
 
           overflow-hidden
+
+          border-r
+          border-[#1a1a1a]
+
+          bg-black
 
           shadow-2xl
 
@@ -126,9 +141,9 @@ export default function GarageOwnerSidebar({
           md:relative
           md:inset-auto
           md:z-auto
+          md:h-screen
           md:w-72
           md:max-w-none
-          md:h-screen
           md:translate-x-0
           md:shadow-none
 
@@ -142,22 +157,59 @@ export default function GarageOwnerSidebar({
         {/* ================================================
             HEADER
         ================================================= */}
+
         <div
           className="
             shrink-0
+
             border-b
             border-[#1a1a1a]
+
             bg-black
+
             p-4
             md:p-6
           "
         >
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-lg font-black tracking-widest text-white md:text-xl">
-              OWNER SYSTEM
-            </h1>
+          <div className="flex items-start justify-between gap-3">
+            {/* LOGO + TITLE */}
+
+            <div className="min-w-0 flex-1">
+              <img
+                src={swiftGarageLogo}
+                alt="SwiftGarage AI"
+                className="
+                  h-14
+                  w-auto
+                  max-w-[185px]
+                  object-contain
+                  object-left
+
+                  md:h-16
+                  md:max-w-[200px]
+                "
+              />
+
+              <h1
+                className="
+                  mt-3
+
+                  whitespace-nowrap
+
+                  text-lg
+                  font-black
+                  tracking-widest
+                  text-white
+
+                  md:text-xl
+                "
+              >
+                OWNER SYSTEM
+              </h1>
+            </div>
 
             {/* MOBILE CLOSE */}
+
             <button
               type="button"
               onClick={closeSidebar}
@@ -170,23 +222,19 @@ export default function GarageOwnerSidebar({
                 items-center
                 justify-center
 
-                rounded-lg
-                border
-                border-white/10
-
-                bg-white/5
                 text-white
 
                 transition
 
-                hover:border-red-500/40
-                hover:bg-red-500/10
                 hover:text-red-400
 
                 md:hidden
               "
             >
-              <X size={20} />
+              <X
+                size={26}
+                strokeWidth={2.2}
+              />
             </button>
           </div>
         </div>
@@ -194,19 +242,24 @@ export default function GarageOwnerSidebar({
         {/* ================================================
             MENU
         ================================================= */}
+
         <div
           className="
             min-h-0
             flex-1
+
             overflow-y-auto
             overscroll-contain
+
             p-4
+
             md:p-6
           "
         >
           <nav className="space-y-3 md:space-y-4">
             {menuItems.map((item) => {
               const Icon = item.icon;
+
               const isActive =
                 activeItem === item.label;
 
@@ -223,13 +276,16 @@ export default function GarageOwnerSidebar({
                     flex
                     w-full
                     items-center
+
                     gap-3
+
                     border
 
                     px-4
                     py-3
 
                     text-left
+
                     text-[11px]
                     font-bold
                     tracking-widest
@@ -244,8 +300,18 @@ export default function GarageOwnerSidebar({
 
                     ${
                       isActive
-                        ? "border-[#1e3a8a] bg-[#0a142e]/40 text-blue-400"
-                        : "border-[#1a1a1a] text-gray-500 hover:border-[#333] hover:text-gray-300"
+                        ? `
+                            border-[#1e3a8a]
+                            bg-[#0a142e]/40
+                            text-blue-400
+                          `
+                        : `
+                            border-[#1a1a1a]
+                            text-gray-500
+
+                            hover:border-[#333]
+                            hover:text-gray-300
+                          `
                     }
                   `}
                 >
@@ -266,13 +332,18 @@ export default function GarageOwnerSidebar({
         {/* ================================================
             LOGOUT
         ================================================= */}
+
         <div
           className="
             shrink-0
+
             border-t
             border-[#1a1a1a]
+
             bg-black
+
             p-4
+
             md:p-6
           "
         >
@@ -284,6 +355,7 @@ export default function GarageOwnerSidebar({
               w-full
               items-center
               justify-center
+
               gap-3
 
               border
@@ -307,6 +379,7 @@ export default function GarageOwnerSidebar({
             "
           >
             <LogOut size={18} />
+
             LOG OUT
           </button>
         </div>

@@ -519,6 +519,7 @@ const registerAssistance = async (
     }
   }
 };
+
 // ======================================================
 // GET ALL ASSISTANCE OFFICERS
 //
@@ -625,7 +626,6 @@ const getAllAssistances = async (
   }
 };
 
-
 // ======================================================
 // GET SINGLE ASSISTANCE OFFICER
 //
@@ -717,7 +717,6 @@ const getAssistanceById = async (
     });
   }
 };
-
 
 // ======================================================
 // GET LOGGED-IN ASSISTANCE PROFILE
@@ -878,7 +877,6 @@ const getAssistanceProfileByLoginId =
       });
     }
   };
-
 
 // ======================================================
 // UPDATE ASSISTANCE OFFICER
@@ -1257,15 +1255,17 @@ const updateAssistance = async (
   }
 };
 
-
 // ======================================================
 // UPDATE ASSISTANCE SHIFT STATUS
 //
 // PUT /api/assistances/:id/shift-status
+// ALSO SAVES SHIFT HISTORY
 // ======================================================
 
 const updateAssistanceShiftStatus =
   async (req, res) => {
+    let connection;
+
     try {
       const assistanceId =
         Number(req.params.id);
@@ -1309,18 +1309,24 @@ const updateAssistanceShiftStatus =
         });
       }
 
+      connection =
+        await db.getConnection();
+
+      await connection.beginTransaction();
+
       const [existingRows] =
-        await db.query(
+        await connection.query(
           `
-          SELECT
-            assistance_id
+            SELECT
+              assistance_id,
+              shift_status,
+              garage_garage_id
 
-          FROM assistance
+            FROM assistance
 
-          WHERE
-            assistance_id = ?
+            WHERE assistance_id = ?
 
-          LIMIT 1
+            LIMIT 1
           `,
           [assistanceId]
         );
@@ -1328,6 +1334,8 @@ const updateAssistanceShiftStatus =
       if (
         existingRows.length === 0
       ) {
+        await connection.rollback();
+
         return res.status(404).json({
           success: false,
           message:
@@ -1335,15 +1343,62 @@ const updateAssistanceShiftStatus =
         });
       }
 
-      await db.query(
+      const currentAssistance =
+        existingRows[0];
+
+      const currentShiftStatus =
+        String(
+          currentAssistance
+            .shift_status || ""
+        )
+          .trim()
+          .toUpperCase();
+
+      const garageId =
+        Number(
+          currentAssistance
+            .garage_garage_id
+        );
+
+      // ==================================================
+      // PREVENT DUPLICATE HISTORY
+      // ==================================================
+
+      if (
+        currentShiftStatus ===
+        normalizedShiftStatus
+      ) {
+        await connection.commit();
+
+        return res.status(200).json({
+          success: true,
+
+          message:
+            `Assistance shift is already ${normalizedShiftStatus}.`,
+
+          assistance: {
+            assistanceId,
+            shiftStatus:
+              normalizedShiftStatus,
+          },
+
+          historySaved: false,
+        });
+      }
+
+      // ==================================================
+      // UPDATE CURRENT SHIFT STATUS
+      // ==================================================
+
+      await connection.query(
         `
-        UPDATE assistance
+          UPDATE assistance
 
-        SET
-          shift_status = ?
+          SET
+            shift_status = ?
 
-        WHERE
-          assistance_id = ?
+          WHERE
+            assistance_id = ?
         `,
         [
           normalizedShiftStatus,
@@ -1351,30 +1406,64 @@ const updateAssistanceShiftStatus =
         ]
       );
 
-      const [updatedRows] =
-        await db.query(
-          `
-          SELECT
-            assistance_id,
-            full_name,
-            email,
-            contact_number,
-            nic,
-            profile_photo,
+      // ==================================================
+      // SAVE SHIFT HISTORY
+      // ==================================================
+
+      await connection.query(
+        `
+          INSERT INTO staff_shift_history (
+            garage_id,
+            staff_type,
+            staff_id,
             shift_status,
-            role,
-            login_login_id,
-            garage_garage_id
+            changed_at
+          )
 
-          FROM assistance
+          VALUES (
+            ?,
+            'ASSISTANCE',
+            ?,
+            ?,
+            NOW()
+          )
+        `,
+        [
+          garageId,
+          assistanceId,
+          normalizedShiftStatus,
+        ]
+      );
 
-          WHERE
-            assistance_id = ?
+      // ==================================================
+      // GET UPDATED ASSISTANCE
+      // ==================================================
 
-          LIMIT 1
+      const [updatedRows] =
+        await connection.query(
+          `
+            SELECT
+              assistance_id,
+              full_name,
+              email,
+              contact_number,
+              nic,
+              profile_photo,
+              shift_status,
+              role,
+              login_login_id,
+              garage_garage_id
+
+            FROM assistance
+
+            WHERE assistance_id = ?
+
+            LIMIT 1
           `,
           [assistanceId]
         );
+
+      await connection.commit();
 
       return res.status(200).json({
         success: true,
@@ -1386,8 +1475,21 @@ const updateAssistanceShiftStatus =
           formatAssistance(
             updatedRows[0]
           ),
+
+        historySaved: true,
       });
     } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error(
+            "Assistance shift rollback failed:",
+            rollbackError
+          );
+        }
+      }
+
       console.error(
         "========== UPDATE ASSISTANCE SHIFT ERROR =========="
       );
@@ -1422,9 +1524,12 @@ const updateAssistanceShiftStatus =
           error.sqlMessage ||
           "Unable to update assistance shift status.",
       });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
     }
   };
-
 
 // ======================================================
 // UPLOAD ASSISTANCE PROFILE PHOTO
@@ -1643,7 +1748,6 @@ const uploadAssistanceProfilePhoto =
     }
   };
 
-
 // ======================================================
 // CHANGE ASSISTANCE PASSWORD
 //
@@ -1832,7 +1936,6 @@ const changeAssistancePassword = async (
     });
   }
 };
-
 
 // ======================================================
 // EXPORTS

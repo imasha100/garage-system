@@ -711,7 +711,7 @@ export default function MobilityRecovery({
     [parkedTrucks]
   );
 
-  const calculateTowPrice = (distanceKm) => 3500 + distanceKm * 600;
+  const calculateTowPrice = (distanceKm) => 2000 + distanceKm * 500;
 
   const formatLKR = (amount) =>
     `LKR ${Math.round(amount).toLocaleString("en-LK")}`;

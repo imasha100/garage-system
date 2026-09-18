@@ -62,6 +62,14 @@ const serviceJobRoutes = require(
   "./routes/serviceJobRoutes"
 );
 
+// ==============================
+// Technician Assistance
+// ==============================
+
+const technicianAssistanceRoutes = require(
+  "./routes/technicianAssistanceRoutes"
+);
+
 // Tow Dispatch
 const towDispatchRoutes = require(
   "./routes/towDispatchRoutes"
@@ -134,6 +142,14 @@ const notificationRoutes = require(
 
 const contactMessageRoutes = require(
   "./routes/contactMessageRoutes"
+);
+
+// ==============================
+// Shift History Routes
+// ==============================
+
+const shiftHistoryRoutes = require(
+  "./routes/shiftHistoryRoutes"
 );
 
 // ==============================
@@ -245,12 +261,30 @@ app.use(
 );
 
 // ==============================
+// Technician Assistance
+// ==============================
+
+app.use(
+  "/api",
+  technicianAssistanceRoutes
+);
+
+// ==============================
 // Time Extension
 // ==============================
 
 app.use(
   "/api",
   timeExtensionRoutes
+);
+
+// ==============================
+// Shift History
+// ==============================
+
+app.use(
+  "/api",
+  shiftHistoryRoutes
 );
 
 // ==============================

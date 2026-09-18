@@ -1,4 +1,5 @@
 const express = require("express");
+
 const router = express.Router();
 
 const {
@@ -9,8 +10,10 @@ const {
   clearCompletedVehicle,
   getGarageLiveDashboard,
   getGaragePerformanceAudit,
+  getGarageJobHistory,
   getCustomerLiveProgress,
   getCompletedJobsForBilling,
+  getCompletedVehiclesForClear,
 } = require("../controllers/serviceJobController");
 
 // ======================================================
@@ -54,6 +57,16 @@ router.get(
 );
 
 // ======================================================
+// GARAGE JOB TECHNICIAN HISTORY
+// GET /api/service-jobs/garage/:garageId/job-history
+// ======================================================
+
+router.get(
+  "/service-jobs/garage/:garageId/job-history",
+  getGarageJobHistory
+);
+
+// ======================================================
 // COMPLETED JOBS FOR ASSISTANCE BILLING
 // GET /api/service-jobs/garage/:garageId/completed-for-billing
 // ======================================================
@@ -61,6 +74,16 @@ router.get(
 router.get(
   "/service-jobs/garage/:garageId/completed-for-billing",
   getCompletedJobsForBilling
+);
+
+// ======================================================
+// COMPLETED VEHICLES WAITING TO BE CLEARED
+// GET /api/service-jobs/garage/:garageId/completed-for-clear
+// ======================================================
+
+router.get(
+  "/service-jobs/garage/:garageId/completed-for-clear",
+  getCompletedVehiclesForClear
 );
 
 // ======================================================
@@ -74,7 +97,7 @@ router.get(
 );
 
 // ======================================================
-// START SERVICE JOB / ADD TO ACTIVE WORKLOAD
+// START SERVICE JOB
 // PUT /api/service-jobs/:jobId/start
 // ======================================================
 

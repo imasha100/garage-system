@@ -8,6 +8,7 @@ import React, {
 import {
   AlertCircle,
   Bell,
+  Camera,
   Building2,
   CheckCircle2,
   ChevronRight,
@@ -31,7 +32,6 @@ import {
   ShieldCheck,
   Truck,
   UserRound,
-  Wrench,
   X,
 } from "lucide-react";
 
@@ -39,6 +39,8 @@ import {
   AnimatePresence,
   motion,
 } from "framer-motion";
+
+import swiftGarageLogo from "../../assets/swiftgarage-logo.png";
 
 import {
   CircleMarker,
@@ -2054,25 +2056,13 @@ export default function ExternalDriverDashboard({
         >
           {/* LOGO */}
 
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl border border-teal-400/20 bg-teal-400/10 p-2.5">
-                <Wrench className="h-5 w-5 text-teal-300" />
-              </div>
-
-              <div>
-                <p className="font-black">
-                  SwiftGarage{" "}
-
-                  <span className="text-teal-400">
-                    AI
-                  </span>
-                </p>
-
-                <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                  External Driver
-                </p>
-              </div>
+          <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+            <div className="flex min-w-0 items-center">
+              <img
+                src={swiftGarageLogo}
+                alt="SwiftGarage AI - Smarter Roadside Support"
+                className="h-16 w-auto max-w-[205px] object-contain"
+              />
             </div>
 
             <button
@@ -5621,8 +5611,140 @@ function GarageSection({
 
 function ProfileSection({
   driver,
-  onChangePassword,
 }) {
+  const fileInputRef = useRef(null);
+
+  const storageKey =
+    `externalDriverProfilePhoto_${
+      driver?.driverId ||
+      driver?.externalDriverId ||
+      driver?.username ||
+      "driver"
+    }`;
+
+  const [
+    profilePhoto,
+    setProfilePhoto,
+  ] = useState("");
+
+  const [
+    photoError,
+    setPhotoError,
+  ] = useState("");
+
+  // =====================================================
+  // LOAD SAVED PROFILE PHOTO
+  // =====================================================
+
+  useEffect(() => {
+    try {
+      const savedPhoto =
+        localStorage.getItem(
+          storageKey
+        );
+
+      setProfilePhoto(
+        savedPhoto || ""
+      );
+    } catch (error) {
+      console.error(
+        "Load profile photo error:",
+        error
+      );
+    }
+  }, [storageKey]);
+
+  // =====================================================
+  // PROFILE PHOTO UPLOAD / CHANGE
+  // =====================================================
+
+  const handlePhotoUpload =
+    (event) => {
+      const file =
+        event.target.files?.[0];
+
+      setPhotoError("");
+
+      if (!file) {
+        return;
+      }
+
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ];
+
+      if (
+        !allowedTypes.includes(
+          file.type
+        )
+      ) {
+        setPhotoError(
+          "Please select a JPG, PNG or WEBP image."
+        );
+
+        event.target.value = "";
+
+        return;
+      }
+
+      const maxSize =
+        2 * 1024 * 1024;
+
+      if (
+        file.size > maxSize
+      ) {
+        setPhotoError(
+          "Profile photo must be smaller than 2 MB."
+        );
+
+        event.target.value = "";
+
+        return;
+      }
+
+      const reader =
+        new FileReader();
+
+      reader.onload = () => {
+        try {
+          const imageData =
+            reader.result;
+
+          localStorage.setItem(
+            storageKey,
+            imageData
+          );
+
+          setProfilePhoto(
+            imageData
+          );
+        } catch (error) {
+          console.error(
+            "Save profile photo error:",
+            error
+          );
+
+          setPhotoError(
+            "Unable to save profile photo."
+          );
+        }
+      };
+
+      reader.onerror = () => {
+        setPhotoError(
+          "Unable to read selected image."
+        );
+      };
+
+      reader.readAsDataURL(
+        file
+      );
+
+      event.target.value = "";
+    };
+
   return (
     <div className="mx-auto max-w-6xl">
       <SectionHeading
@@ -5631,101 +5753,166 @@ function ProfileSection({
         description="Personal and account information linked to your External Driver profile."
       />
 
-      <div className="mt-7 grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-6 text-center">
-          <CircleUserRound className="mx-auto h-20 w-20 text-teal-300" />
+      {/* =================================================
+          CENTERED PROFILE + INFORMATION CARD
+      ================================================= */}
 
-          <h3 className="mt-5 text-xl font-black">
-            {driver.fullName ||
-              "External Driver"}
-          </h3>
+      <div className="mt-8 flex justify-center">
+        <div className="w-full max-w-5xl rounded-3xl border border-white/10 bg-white/[0.025] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:p-8">
 
-          <p className="mt-2 font-mono text-sm text-teal-300">
-            {driver.externalDriverId ||
-              driver.username}
-          </p>
+          <div className="grid items-center gap-8 lg:grid-cols-[240px_1fr] lg:gap-10">
 
-          <button
-            type="button"
-            onClick={
-              onChangePassword
-            }
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm font-black text-cyan-300"
-          >
-            <KeyRound className="h-4 w-4" />
+            {/* =============================================
+                PROFILE PHOTO
+            ============================================= */}
 
-            Change Password
-          </button>
-        </div>
+            <div className="flex flex-col items-center justify-center">
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.025] p-5 sm:p-7">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <DetailCard
-              icon={
-                UserRound
-              }
-              label="Full Name"
-              value={
-                driver.fullName
-              }
-            />
+              <div className="relative h-36 w-36">
 
-            <DetailCard
-              icon={
-                UserRound
-              }
-              label="NIC"
-              value={
-                driver.nic
-              }
-            />
+                {profilePhoto ? (
+                  <img
+                    src={profilePhoto}
+                    alt="Driver Profile"
+                    className="h-36 w-36 rounded-full border-4 border-teal-400/30 object-cover shadow-[0_0_35px_rgba(45,212,191,0.16)]"
+                  />
+                ) : (
+                  <div className="flex h-36 w-36 items-center justify-center rounded-full border-4 border-teal-400/20 bg-teal-400/10">
+                    <CircleUserRound className="h-24 w-24 text-teal-300" />
+                  </div>
+                )}
 
-            <DetailCard
-              icon={
-                Mail
-              }
-              label="Email"
-              value={
-                driver.email
-              }
-            />
+                {/* CAMERA BUTTON - UPLOAD / CHANGE PHOTO */}
 
-            <DetailCard
-              icon={
-                Phone
-              }
-              label="Contact Number"
-              value={
-                driver.contactNumber
-              }
-            />
+                <button
+                  type="button"
+                  onClick={() =>
+                    fileInputRef.current?.click()
+                  }
+                  className="absolute bottom-1 right-1 flex h-11 w-11 items-center justify-center rounded-full border-4 border-[#080d14] bg-teal-400 text-slate-950 shadow-lg transition hover:scale-105 hover:bg-teal-300"
+                  title={
+                    profilePhoto
+                      ? "Change profile photo"
+                      : "Upload profile photo"
+                  }
+                  aria-label={
+                    profilePhoto
+                      ? "Change profile photo"
+                      : "Upload profile photo"
+                  }
+                >
+                  <Camera className="h-5 w-5" />
+                </button>
+              </div>
 
-            <DetailCard
-              icon={
-                ShieldCheck
-              }
-              label="Licence Number"
-              value={
-                driver.licenseNumber
-              }
-            />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={
+                  handlePhotoUpload
+                }
+                className="hidden"
+              />
 
-            <DetailCard
-              icon={
-                Clock3
-              }
-              label="Experience"
-              value={
-                driver.experienceYears !==
-                  null &&
-                driver.experienceYears !==
-                  undefined &&
-                driver.experienceYears !==
-                  ""
-                  ? `${driver.experienceYears} Years`
-                  : ""
-              }
-            />
+              {/* VERIFIED BADGE */}
+
+              <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-2 text-xs font-bold text-emerald-300">
+                <ShieldCheck className="h-4 w-4" />
+
+                Verified External Driver
+              </div>
+
+              {/* PHOTO ERROR */}
+
+              {photoError && (
+                <div className="mt-4 flex max-w-[240px] items-start gap-2 rounded-xl border border-red-400/20 bg-red-400/[0.07] p-3 text-left text-xs text-red-300">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+
+                  <span>
+                    {photoError}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* =============================================
+                DRIVER INFORMATION
+            ============================================= */}
+
+            <div>
+              <div className="mb-5">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-teal-400">
+                  Personal Information
+                </p>
+
+                <h3 className="mt-2 text-2xl font-black">
+                  Driver Details
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Verified personal and licence information for this external driver account.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+
+                <DetailCard
+                  icon={UserRound}
+                  label="Full Name"
+                  value={
+                    driver.fullName
+                  }
+                />
+
+                <DetailCard
+                  icon={UserRound}
+                  label="NIC"
+                  value={
+                    driver.nic
+                  }
+                />
+
+                <DetailCard
+                  icon={Mail}
+                  label="Email"
+                  value={
+                    driver.email
+                  }
+                />
+
+                <DetailCard
+                  icon={Phone}
+                  label="Contact Number"
+                  value={
+                    driver.contactNumber
+                  }
+                />
+
+                <DetailCard
+                  icon={ShieldCheck}
+                  label="Licence Number"
+                  value={
+                    driver.licenseNumber
+                  }
+                />
+
+                <DetailCard
+                  icon={Clock3}
+                  label="Experience"
+                  value={
+                    driver.experienceYears !==
+                      null &&
+                    driver.experienceYears !==
+                      undefined &&
+                    driver.experienceYears !==
+                      ""
+                      ? `${driver.experienceYears} Years`
+                      : ""
+                  }
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -1578,6 +1578,17 @@ export default function TechRegistration({
       </div>
 
       <main className="p-4 md:p-8">
+        <div className="mx-auto mb-4 w-full max-w-4xl">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#15151f] px-4 py-2.5 text-sm font-bold text-gray-300 transition hover:border-emerald-500/40 hover:text-emerald-400"
+          >
+            <ArrowLeft size={18} />
+            Back to Registration
+          </button>
+        </div>
+
         {ownerError && (
           <div className="mx-auto mb-6 max-w-4xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {ownerError}

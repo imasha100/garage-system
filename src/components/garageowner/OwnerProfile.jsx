@@ -63,6 +63,30 @@ export default function OwnerProfile({
   ] = useState("");
 
   // ======================================================
+  // GARAGE OPEN / CLOSED STATUS
+  // ======================================================
+
+  const [
+    openStatus,
+    setOpenStatus,
+  ] = useState("OPEN");
+
+  const [
+    updatingOpenStatus,
+    setUpdatingOpenStatus,
+  ] = useState(false);
+
+  const [
+    openStatusError,
+    setOpenStatusError,
+  ] = useState("");
+
+  const [
+    openStatusSuccess,
+    setOpenStatusSuccess,
+  ] = useState("");
+
+  // ======================================================
   // OWNER DATA
   // ======================================================
 
@@ -287,6 +311,58 @@ export default function OwnerProfile({
         setOwnerData(
           data
         );
+
+        // ==============================================
+        // LOAD GARAGE OPEN / CLOSED STATUS
+        // ==============================================
+
+        const loadedGarageId =
+          Number(
+            garage.garageId
+          );
+
+        if (
+          Number.isInteger(
+            loadedGarageId
+          ) &&
+          loadedGarageId > 0
+        ) {
+          try {
+            const statusResponse =
+              await fetch(
+                `${API_BASE}/api/garages/${loadedGarageId}/live-status`
+              );
+
+            const statusResult =
+              await statusResponse.json();
+
+            if (
+              statusResponse.ok &&
+              statusResult.success !== false
+            ) {
+              const currentOpenStatus =
+                String(
+                  statusResult.data
+                    ?.open_status ||
+                    "OPEN"
+                )
+                  .trim()
+                  .toUpperCase();
+
+              setOpenStatus(
+                currentOpenStatus ===
+                  "CLOSED"
+                  ? "CLOSED"
+                  : "OPEN"
+              );
+            }
+          } catch (statusError) {
+            console.error(
+              "Garage open status load error:",
+              statusError
+            );
+          }
+        }
 
         // ==============================================
         // LOAD SAVED PROFILE PHOTO
@@ -705,6 +781,139 @@ export default function OwnerProfile({
       })
     );
   };
+
+  // ======================================================
+  // UPDATE GARAGE OPEN / CLOSED STATUS
+  // ======================================================
+
+  const handleOpenStatusChange =
+    async (nextStatus) => {
+      const numericGarageId =
+        Number(
+          ownerData?.garage
+            ?.garageId
+        );
+
+      if (
+        !Number.isInteger(
+          numericGarageId
+        ) ||
+        numericGarageId < 1
+      ) {
+        setOpenStatusError(
+          "Unable to identify the garage."
+        );
+
+        return;
+      }
+
+      const normalizedStatus =
+        String(
+          nextStatus || ""
+        )
+          .trim()
+          .toUpperCase();
+
+      if (
+        normalizedStatus !== "OPEN" &&
+        normalizedStatus !== "CLOSED"
+      ) {
+        return;
+      }
+
+      if (
+        normalizedStatus ===
+        openStatus
+      ) {
+        return;
+      }
+
+      try {
+        setUpdatingOpenStatus(
+          true
+        );
+
+        setOpenStatusError("");
+        setOpenStatusSuccess("");
+
+        const response =
+          await fetch(
+            `${API_BASE}/api/garages/${numericGarageId}/open-status`,
+            {
+              method: "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                open_status:
+                  normalizedStatus,
+              }),
+            }
+          );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to update garage status."
+          );
+        }
+
+        setOpenStatus(
+          normalizedStatus
+        );
+
+        setOpenStatusSuccess(
+          `Garage is now ${normalizedStatus}.`
+        );
+
+        setOwnerData(
+          (previous) => {
+            if (!previous) {
+              return previous;
+            }
+
+            return {
+              ...previous,
+
+              garage: {
+                ...previous.garage,
+                openStatus:
+                  normalizedStatus,
+              },
+            };
+          }
+        );
+
+        setTimeout(() => {
+          setOpenStatusSuccess(
+            ""
+          );
+        }, 3000);
+      } catch (statusError) {
+        console.error(
+          "Garage open status update error:",
+          statusError
+        );
+
+        setOpenStatusError(
+          statusError.message ||
+            "Unable to update garage status."
+        );
+      } finally {
+        setUpdatingOpenStatus(
+          false
+        );
+      }
+    };
 
   // ======================================================
   // PROFILE PHOTO UPLOAD
@@ -1163,6 +1372,38 @@ export default function OwnerProfile({
         )}
 
         {/* ==================================================
+            OPEN STATUS ERROR
+        ================================================== */}
+
+        {openStatusError && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+
+            <AlertCircle
+              size={17}
+            />
+
+            {openStatusError}
+
+          </div>
+        )}
+
+        {/* ==================================================
+            OPEN STATUS SUCCESS
+        ================================================== */}
+
+        {openStatusSuccess && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+
+            <CheckCircle
+              size={17}
+            />
+
+            {openStatusSuccess}
+
+          </div>
+        )}
+
+        {/* ==================================================
             PAGE TITLE
         ================================================== */}
 
@@ -1227,6 +1468,98 @@ export default function OwnerProfile({
                 </button>
               </>
             )}
+
+          </div>
+
+        </div>
+
+        {/* ==================================================
+            GARAGE OPEN / CLOSED CONTROL
+        ================================================== */}
+
+        <div className="mb-8 rounded-2xl border border-white/10 bg-[#111118] p-5 md:p-6">
+
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+
+            <div>
+
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-gray-500">
+                Garage Open Status
+              </p>
+
+              <div className="flex items-center gap-3">
+
+                <span
+                  className={`h-3 w-3 rounded-full ${
+                    openStatus === "OPEN"
+                      ? "bg-emerald-400"
+                      : "bg-red-400"
+                  }`}
+                />
+
+                <h2
+                  className={`text-2xl font-black ${
+                    openStatus === "OPEN"
+                      ? "text-emerald-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {openStatus}
+                </h2>
+
+              </div>
+
+              <p className="mt-2 text-sm text-gray-500">
+                Customers will see this status on the garage map.
+              </p>
+
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:flex">
+
+              <button
+                type="button"
+                disabled={
+                  updatingOpenStatus
+                }
+                onClick={() =>
+                  handleOpenStatusChange(
+                    "OPEN"
+                  )
+                }
+                className={`rounded-xl border px-5 py-3 text-xs font-bold tracking-widest transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  openStatus === "OPEN"
+                    ? "border-emerald-400/50 bg-emerald-500/25 text-emerald-300"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-emerald-400/30 hover:text-emerald-300"
+                }`}
+              >
+                {updatingOpenStatus
+                  ? "PLEASE WAIT"
+                  : "OPEN"}
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  updatingOpenStatus
+                }
+                onClick={() =>
+                  handleOpenStatusChange(
+                    "CLOSED"
+                  )
+                }
+                className={`rounded-xl border px-5 py-3 text-xs font-bold tracking-widest transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                  openStatus === "CLOSED"
+                    ? "border-red-400/50 bg-red-500/25 text-red-300"
+                    : "border-white/10 bg-white/5 text-gray-400 hover:border-red-400/30 hover:text-red-300"
+                }`}
+              >
+                {updatingOpenStatus
+                  ? "PLEASE WAIT"
+                  : "CLOSED"}
+              </button>
+
+            </div>
 
           </div>
 

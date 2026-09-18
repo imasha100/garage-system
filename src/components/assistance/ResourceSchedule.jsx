@@ -461,6 +461,38 @@ const [
 
 const [activeTechs, setActiveTechs] = useState([]);
 
+const [technicianJobs, setTechnicianJobs] = useState([]);
+
+const [
+  technicianAssistance,
+  setTechnicianAssistance,
+] = useState([]);
+
+const [
+  supportForm,
+  setSupportForm,
+] = useState({
+  jobId: "",
+  mainTechnicianId: "",
+  supportTechnicianId: "",
+  reason: "",
+});
+
+const [
+  supportActionLoading,
+  setSupportActionLoading,
+] = useState(false);
+
+const [
+  startingAssistanceId,
+  setStartingAssistanceId,
+] = useState(null);
+
+const [
+  completingAssistanceId,
+  setCompletingAssistanceId,
+] = useState(null);
+
 const [offShiftTechs, setOffShiftTechs] = useState([]);
 
 const [techniciansLoading, setTechniciansLoading] = useState(false);
@@ -873,41 +905,136 @@ setOffShiftTechs(
   offShiftTechnicians
 );
 
-const activeTechniciansWithJobs = await Promise.all(
-  busyTechnicians.map(async (technician) => {
-    try {
-      const jobsResponse = await fetch(
-        `http://localhost:5000/api/service-jobs/technician/${technician.technicianId}`
-      );
+const onShiftTechnicians =
+  garageTechnicians.filter(
+    isTechnicianOnShift
+  );
 
-      const jobsResult = await jobsResponse.json();
+const techniciansWithJobs =
+  await Promise.all(
+    onShiftTechnicians.map(
+      async (technician) => {
+        try {
+          const jobsResponse =
+            await fetch(
+              `http://localhost:5000/api/service-jobs/technician/${technician.technicianId}`
+            );
 
-      if (!jobsResponse.ok || jobsResult.success === false) {
-        return { ...technician, jobId: null, jobStatus: "", vehicleNumber: "", ticketNumber: "", estimatedCompletionTime: null };
+          const jobsResult =
+            await jobsResponse.json();
+
+          if (
+            !jobsResponse.ok ||
+            jobsResult.success === false
+          ) {
+            return {
+              technician,
+              jobs: [],
+            };
+          }
+
+          const jobs = Array.isArray(
+            jobsResult.jobs
+          )
+            ? jobsResult.jobs
+            : [];
+
+          return {
+            technician,
+            jobs,
+          };
+        } catch (error) {
+          console.error(
+            "Load technician jobs error:",
+            error
+          );
+
+          return {
+            technician,
+            jobs: [],
+          };
+        }
       }
+    )
+  );
 
-      const technicianJobs = Array.isArray(jobsResult.jobs) ? jobsResult.jobs : [];
-      const activeJob =
-        technicianJobs.find((job) => String(job.jobStatus || "").toUpperCase() === "IN_PROGRESS") ||
-        technicianJobs.find((job) => String(job.jobStatus || "").toUpperCase() === "ASSIGNED") ||
-        null;
+const allActiveJobs =
+  techniciansWithJobs.flatMap(
+    ({ technician, jobs }) =>
+      jobs
+        .filter((job) =>
+          ["ASSIGNED", "IN_PROGRESS"].includes(
+            String(
+              job.jobStatus || ""
+            )
+              .trim()
+              .toUpperCase()
+          )
+        )
+        .map((job) => ({
+          ...job,
+          technicianId:
+            technician.technicianId,
+          technicianName:
+            technician.fullName ||
+            technician.name ||
+            `Technician ${technician.technicianId}`,
+        }))
+  );
+
+setTechnicianJobs(allActiveJobs);
+
+const activeTechniciansWithJobs =
+  onShiftTechnicians
+    .map((technician) => {
+      const activeJobs = allActiveJobs.filter(
+        (job) =>
+          Number(job.technicianId) ===
+          Number(technician.technicianId)
+      );
 
       return {
         ...technician,
-        jobId: activeJob?.jobId ?? null,
-        jobStatus: activeJob?.jobStatus || "",
-        vehicleNumber: activeJob?.vehicleNumber || "",
-        ticketNumber: activeJob?.ticketNumber || "",
-        estimatedCompletionTime: activeJob?.estimatedCompletionTime || null,
+        activeJobs,
+        activeJobCount: activeJobs.length,
       };
-    } catch (error) {
-      console.error("Load technician active job error:", error);
-      return { ...technician, jobId: null, jobStatus: "", vehicleNumber: "", ticketNumber: "", estimatedCompletionTime: null };
-    }
-  })
+    })
+    .filter(
+      (technician) =>
+        technician.activeJobCount > 0
+    );
+
+setActiveTechs(
+  activeTechniciansWithJobs
 );
 
-setActiveTechs(activeTechniciansWithJobs);
+// Load support-technician assistance records.
+const technicianAssistanceResponse =
+  await fetch(
+    `http://localhost:5000/api/technician-assistance/garage/${relatedGarageId}`
+  );
+
+const technicianAssistanceResult =
+  await technicianAssistanceResponse.json();
+
+if (
+  !technicianAssistanceResponse.ok ||
+  technicianAssistanceResult.success ===
+    false
+) {
+  throw new Error(
+    technicianAssistanceResult.message ||
+      "Unable to load technician assistance."
+  );
+}
+
+setTechnicianAssistance(
+  Array.isArray(
+    technicianAssistanceResult.assistance
+  )
+    ? technicianAssistanceResult.assistance
+    : []
+);
 
 setTechniciansLoading(false);
 
@@ -1307,6 +1434,342 @@ setCurrentCapacity(
       setActionLoading(false);
     }
   };
+
+  // ====================================================
+  // SUPPORT TECHNICIAN ASSISTANCE
+  // ====================================================
+
+  const handleSupportJobChange = (
+    event
+  ) => {
+    const jobId = event.target.value;
+
+    const selectedJob =
+      technicianJobs.find(
+        (job) =>
+          Number(job.jobId) ===
+          Number(jobId)
+      );
+
+    setSupportForm(
+      (previous) => ({
+        ...previous,
+        jobId,
+        mainTechnicianId:
+          selectedJob
+            ? String(
+                selectedJob.technicianId
+              )
+            : "",
+        supportTechnicianId: "",
+      })
+    );
+  };
+
+  const handleAssignSupportTechnician =
+    async () => {
+      const jobId = Number(
+        supportForm.jobId
+      );
+
+      const mainTechnicianId = Number(
+        supportForm.mainTechnicianId
+      );
+
+      const supportTechnicianId =
+        Number(
+          supportForm.supportTechnicianId
+        );
+
+      const reason =
+        supportForm.reason.trim();
+
+      if (
+        !jobId ||
+        !mainTechnicianId ||
+        !supportTechnicianId ||
+        !reason
+      ) {
+        setPopup({
+          show: true,
+          title: "DETAILS REQUIRED",
+          message:
+            "Please select an active job, assistance reason, and support technician.",
+          color: "#e78181",
+          showCancel: false,
+          requestData: null,
+        });
+        return;
+      }
+
+      try {
+        setSupportActionLoading(true);
+
+        const response = await fetch(
+          "http://localhost:5000/api/technician-assistance/assign",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              garageId,
+              jobId,
+              mainTechnicianId,
+              supportTechnicianId,
+              reason,
+            }),
+          }
+        );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to assign support technician."
+          );
+        }
+
+        setSupportForm({
+          jobId: "",
+          mainTechnicianId: "",
+          supportTechnicianId: "",
+          reason: "",
+        });
+
+        setPopup({
+          show: true,
+          title:
+            "SUPPORT TECHNICIAN ASSIGNED",
+          message:
+            "The support technician was assigned successfully.",
+          color: "#52f0ac",
+          showCancel: false,
+          requestData: null,
+        });
+
+        await loadRequests();
+      } catch (error) {
+        console.error(
+          "Assign support technician error:",
+          error
+        );
+
+        setPopup({
+          show: true,
+          title: "ASSIGNMENT FAILED",
+          message:
+            error.message ||
+            "Unable to assign support technician.",
+          color: "#e78181",
+          showCancel: false,
+          requestData: null,
+        });
+      } finally {
+        setSupportActionLoading(false);
+      }
+    };
+
+  const handleStartAssistance =
+    async (item) => {
+      const recordId = Number(
+        item?.assistanceId
+      );
+
+      if (
+        !recordId ||
+        startingAssistanceId
+      ) {
+        return;
+      }
+
+      try {
+        setStartingAssistanceId(
+          recordId
+        );
+
+        const response = await fetch(
+          `http://localhost:5000/api/technician-assistance/${recordId}/start`,
+          {
+            method: "PUT",
+          }
+        );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to start technician assistance."
+          );
+        }
+
+        setPopup({
+          show: true,
+          title: "ASSISTANCE STARTED",
+          message:
+            "The support technician assistance is now in progress.",
+          color: "#52f0ac",
+          showCancel: false,
+          requestData: null,
+        });
+
+        await loadRequests();
+      } catch (error) {
+        console.error(
+          "Start technician assistance error:",
+          error
+        );
+
+        setPopup({
+          show: true,
+          title: "ASSISTANCE START FAILED",
+          message:
+            error.message ||
+            "Unable to start technician assistance.",
+          color: "#e78181",
+          showCancel: false,
+          requestData: null,
+        });
+      } finally {
+        setStartingAssistanceId(
+          null
+        );
+      }
+    };
+
+  const handleCompleteAssistance =
+    async (item) => {
+      const recordId = Number(
+        item?.assistanceId
+      );
+
+      if (
+        !recordId ||
+        completingAssistanceId
+      ) {
+        return;
+      }
+
+      try {
+        setCompletingAssistanceId(
+          recordId
+        );
+
+        const response = await fetch(
+          `http://localhost:5000/api/technician-assistance/${recordId}/complete`,
+          {
+            method: "PUT",
+          }
+        );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to complete technician assistance."
+          );
+        }
+
+        setPopup({
+          show: true,
+          title:
+            "ASSISTANCE COMPLETED",
+          message:
+            "The support technician has been released from this assistance task.",
+          color: "#52f0ac",
+          showCancel: false,
+          requestData: null,
+        });
+
+        await loadRequests();
+      } catch (error) {
+        console.error(
+          "Complete technician assistance error:",
+          error
+        );
+
+        setPopup({
+          show: true,
+          title:
+            "ASSISTANCE COMPLETION FAILED",
+          message:
+            error.message ||
+            "Unable to complete technician assistance.",
+          color: "#e78181",
+          showCancel: false,
+          requestData: null,
+        });
+      } finally {
+        setCompletingAssistanceId(
+          null
+        );
+      }
+    };
+
+  const selectedSupportJob =
+    technicianJobs.find(
+      (job) =>
+        Number(job.jobId) ===
+        Number(supportForm.jobId)
+    ) || null;
+
+  const supportTechnicianOptions =
+    availableTechs.filter(
+      (technician) =>
+        Number(
+          technician.technicianId
+        ) !==
+        Number(
+          supportForm.mainTechnicianId
+        )
+    );
+
+  const activeAssistance =
+    technicianAssistance.filter(
+      (item) => {
+        const status = String(
+          item.assistanceStatus ??
+            item.assistance_status ??
+            ""
+        )
+          .trim()
+          .toUpperCase();
+
+        return [
+          "ASSIGNED",
+          "IN_PROGRESS",
+        ].includes(status);
+      }
+    );
+
+  const completedAssistance =
+    technicianAssistance.filter(
+      (item) =>
+        String(
+          item.assistanceStatus ??
+            item.assistance_status ??
+            ""
+        )
+          .trim()
+          .toUpperCase() ===
+        "COMPLETED"
+    );
 
   // ====================================================
   // MARK SERVICE JOB AS COMPLETED
@@ -2823,6 +3286,456 @@ setCurrentCapacity(
             )}
           </div>
 
+          {/* TECHNICIAN ASSISTANCE */}
+
+          <div className="bg-[#15191f] rounded-xl border border-[#1a1f26] p-5 md:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-5">
+              <div>
+                <h2 className="text-[#a78bfa] font-bold">
+                  TECHNICIAN ASSISTANCE
+                </h2>
+                <p className="text-xs text-[#6e7681] mt-1">
+                  Assign an available support technician to help an active service job.
+                </p>
+              </div>
+
+              <span className="w-fit rounded-full border border-[#a78bfa]/30 bg-[#a78bfa]/10 px-3 py-1 text-xs font-bold text-[#c4b5fd]">
+                {activeAssistance.length} ACTIVE
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-[#6e7681] mb-2">
+                  ACTIVE VEHICLE / JOB
+                </label>
+
+                <select
+                  value={supportForm.jobId}
+                  onChange={handleSupportJobChange}
+                  disabled={supportActionLoading}
+                  className="w-full bg-[#0b0e14] border border-[#2b313d] text-white p-3 rounded-lg text-sm"
+                >
+                  <option value="">
+                    Select Active Vehicle
+                  </option>
+
+                  {technicianJobs.map(
+                    (job) => (
+                      <option
+                        key={`support-job-${job.jobId}`}
+                        value={job.jobId}
+                      >
+                        {job.vehicleNumber ||
+                          "Vehicle"}{" "}
+                        -{" "}
+                        {job.ticketNumber ||
+                          `Job ${job.jobId}`}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#6e7681] mb-2">
+                  MAIN TECHNICIAN
+                </label>
+
+                <div className="min-h-[46px] flex items-center bg-[#0b0e14] border border-[#2b313d] text-white p-3 rounded-lg text-sm">
+                  {selectedSupportJob
+                    ? selectedSupportJob.technicianName
+                    : "Select an active vehicle first"}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#6e7681] mb-2">
+                  REASON FOR ASSISTANCE
+                </label>
+
+                <select
+                  value={supportForm.reason}
+                  onChange={(event) =>
+                    setSupportForm(
+                      (previous) => ({
+                        ...previous,
+                        reason:
+                          event.target.value,
+                      })
+                    )
+                  }
+                  disabled={supportActionLoading}
+                  className="w-full bg-[#0b0e14] border border-[#2b313d] text-white p-3 rounded-lg text-sm"
+                >
+                  <option value="">
+                    Select Reason
+                  </option>
+                  <option value="Engine Repair">
+                    Engine Repair
+                  </option>
+                  <option value="Electrical">
+                    Electrical
+                  </option>
+                  <option value="Heavy Work">
+                    Heavy Work
+                  </option>
+                  <option value="Diagnostics">
+                    Diagnostics
+                  </option>
+                  <option value="Other">
+                    Other
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#6e7681] mb-2">
+                  SUPPORT TECHNICIAN
+                </label>
+
+                <select
+                  value={
+                    supportForm.supportTechnicianId
+                  }
+                  onChange={(event) =>
+                    setSupportForm(
+                      (previous) => ({
+                        ...previous,
+                        supportTechnicianId:
+                          event.target.value,
+                      })
+                    )
+                  }
+                  disabled={
+                    supportActionLoading ||
+                    !supportForm.jobId
+                  }
+                  className="w-full bg-[#0b0e14] border border-[#2b313d] text-white p-3 rounded-lg text-sm disabled:opacity-50"
+                >
+                  <option value="">
+                    Select Available Technician
+                  </option>
+
+                  {supportTechnicianOptions.map(
+                    (technician) => (
+                      <option
+                        key={`support-tech-${technician.technicianId}`}
+                        value={
+                          technician.technicianId
+                        }
+                      >
+                        {technician.fullName ||
+                          technician.name ||
+                          `Technician ${technician.technicianId}`}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={
+                handleAssignSupportTechnician
+              }
+              disabled={
+                supportActionLoading
+              }
+              className="mt-5 w-full sm:w-auto bg-[#7c3aed] text-white px-5 py-3 rounded-lg text-xs font-bold hover:bg-[#8b5cf6] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {supportActionLoading
+                ? "ASSIGNING..."
+                : "ASSIGN SUPPORT TECHNICIAN"}
+            </button>
+
+            <div className="mt-6 space-y-3">
+              {activeAssistance.length > 0 ? (
+                activeAssistance.map(
+                  (item) => {
+                    const mainTech =
+                      [
+                        ...availableTechs,
+                        ...activeTechs,
+                        ...offShiftTechs,
+                      ].find(
+                        (technician) =>
+                          Number(
+                            technician.technicianId
+                          ) ===
+                          Number(
+                            item.mainTechnicianId
+                          )
+                      );
+
+                    const supportTech =
+                      [
+                        ...availableTechs,
+                        ...activeTechs,
+                        ...offShiftTechs,
+                      ].find(
+                        (technician) =>
+                          Number(
+                            technician.technicianId
+                          ) ===
+                          Number(
+                            item.supportTechnicianId
+                          )
+                      );
+
+                    const assistanceStatus =
+                      String(
+                        item.assistanceStatus ??
+                          item.assistance_status ??
+                          "ASSIGNED"
+                      )
+                        .trim()
+                        .toUpperCase();
+
+                    const isStarting =
+                      Number(
+                        startingAssistanceId
+                      ) ===
+                      Number(
+                        item.assistanceId
+                      );
+
+                    const isCompleting =
+                      Number(
+                        completingAssistanceId
+                      ) ===
+                      Number(
+                        item.assistanceId
+                      );
+
+                    return (
+                      <div
+                        key={`active-support-${item.assistanceId}`}
+                        className="bg-[#0b0e14] border border-[#2b313d] rounded-lg p-4"
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <p className="text-white font-bold">
+                              {item.vehicleNumber ||
+                                "Vehicle"}
+                            </p>
+
+                            <p className="text-xs text-[#6e7681] mt-1">
+                              Main:{" "}
+                              <span className="text-white">
+                                {mainTech?.fullName ||
+                                  mainTech?.name ||
+                                  `Technician ${item.mainTechnicianId}`}
+                              </span>
+                              {" • "}
+                              Support:{" "}
+                              <span className="text-[#c4b5fd]">
+                                {supportTech?.fullName ||
+                                  supportTech?.name ||
+                                  `Technician ${item.supportTechnicianId}`}
+                              </span>
+                            </p>
+
+                            <p className="text-xs text-[#6e7681] mt-1">
+                              Reason:{" "}
+                              {item.reason ||
+                                "Not available"}
+                            </p>
+
+                            <p className="text-xs text-[#6e7681] mt-2">
+                              Status:{" "}
+                              <span
+                                className={
+                                  assistanceStatus ===
+                                  "IN_PROGRESS"
+                                    ? "font-bold text-[#52f0ac]"
+                                    : "font-bold text-[#f59e0b]"
+                                }
+                              >
+                                {assistanceStatus ===
+                                "IN_PROGRESS"
+                                  ? "IN PROGRESS"
+                                  : "ASSIGNED"}
+                              </span>
+                            </p>
+                          </div>
+
+                          <div className="w-full lg:w-auto">
+                            {assistanceStatus ===
+                              "ASSIGNED" && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleStartAssistance(
+                                    item
+                                  )
+                                }
+                                disabled={
+                                  isStarting
+                                }
+                                className="w-full lg:w-auto border border-[#a78bfa] bg-[#a78bfa]/10 text-[#c4b5fd] px-4 py-2 rounded text-xs font-bold hover:bg-[#a78bfa]/20 disabled:opacity-50"
+                              >
+                                {isStarting
+                                  ? "STARTING..."
+                                  : "START ASSISTANCE"}
+                              </button>
+                            )}
+
+                            {assistanceStatus ===
+                              "IN_PROGRESS" && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCompleteAssistance(
+                                    item
+                                  )
+                                }
+                                disabled={
+                                  isCompleting
+                                }
+                                className="w-full lg:w-auto border border-[#52f0ac] bg-[#52f0ac]/10 text-[#52f0ac] px-4 py-2 rounded text-xs font-bold hover:bg-[#52f0ac]/20 disabled:opacity-50"
+                              >
+                                {isCompleting
+                                  ? "COMPLETING..."
+                                  : "COMPLETE ASSISTANCE"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                )
+              ) : (
+                <p className="text-sm text-[#6e7681]">
+                  No active technician assistance.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-7 border-t border-[#2b313d] pt-6">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-[#52f0ac] text-sm font-bold">
+                    COMPLETED ASSISTANCE HISTORY
+                  </h3>
+
+                  <p className="mt-1 text-xs text-[#6e7681]">
+                    Previously completed support-technician assistance tasks.
+                  </p>
+                </div>
+
+                <span className="w-fit rounded-full border border-[#52f0ac]/30 bg-[#52f0ac]/10 px-3 py-1 text-xs font-bold text-[#52f0ac]">
+                  {completedAssistance.length} COMPLETED
+                </span>
+              </div>
+
+              {completedAssistance.length > 0 ? (
+                <div className="space-y-3">
+                  {completedAssistance.map(
+                    (item) => {
+                      const mainTech =
+                        [
+                          ...availableTechs,
+                          ...activeTechs,
+                          ...offShiftTechs,
+                        ].find(
+                          (technician) =>
+                            Number(
+                              technician.technicianId
+                            ) ===
+                            Number(
+                              item.mainTechnicianId
+                            )
+                        );
+
+                      const supportTech =
+                        [
+                          ...availableTechs,
+                          ...activeTechs,
+                          ...offShiftTechs,
+                        ].find(
+                          (technician) =>
+                            Number(
+                              technician.technicianId
+                            ) ===
+                            Number(
+                              item.supportTechnicianId
+                            )
+                        );
+
+                      const completedAt =
+                        item.completedAt ??
+                        item.completed_at ??
+                        null;
+
+                      const completedText =
+                        completedAt
+                          ? new Date(
+                              completedAt
+                            ).toLocaleString()
+                          : "Completed";
+
+                      return (
+                        <div
+                          key={`completed-support-${item.assistanceId}`}
+                          className="rounded-lg border border-[#52f0ac]/20 bg-[#0b0e14] p-4"
+                        >
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                              <p className="font-bold text-white">
+                                {item.vehicleNumber ||
+                                  "Vehicle"}
+                              </p>
+
+                              <p className="mt-1 text-xs text-[#6e7681]">
+                                Main:{" "}
+                                <span className="text-white">
+                                  {mainTech?.fullName ||
+                                    mainTech?.name ||
+                                    `Technician ${item.mainTechnicianId}`}
+                                </span>
+                                {" • "}
+                                Support:{" "}
+                                <span className="text-[#c4b5fd]">
+                                  {supportTech?.fullName ||
+                                    supportTech?.name ||
+                                    `Technician ${item.supportTechnicianId}`}
+                                </span>
+                              </p>
+
+                              <p className="mt-1 text-xs text-[#6e7681]">
+                                Reason:{" "}
+                                {item.reason ||
+                                  "Not available"}
+                              </p>
+
+                              <p className="mt-2 text-xs text-[#6e7681]">
+                                Completed:{" "}
+                                <span className="text-[#9ca3af]">
+                                  {completedText}
+                                </span>
+                              </p>
+                            </div>
+
+                            <span className="w-fit rounded border border-[#52f0ac]/30 bg-[#52f0ac]/10 px-3 py-2 text-xs font-bold text-[#52f0ac]">
+                              COMPLETED
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-[#6e7681]">
+                  No completed technician assistance yet.
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* TECHNICIAN SECTIONS */}
 
           <div className="grid xl:grid-cols-2 gap-6">
@@ -2928,111 +3841,182 @@ setCurrentCapacity(
               </h2>
 
               {techniciansLoading ? (
-                <p className="text-sm text-[#6e7681]">Loading active technicians...</p>
+                <p className="text-sm text-[#6e7681]">
+                  Loading active technicians...
+                </p>
               ) : techniciansError ? (
-                <p className="text-sm text-[#e78181]">{techniciansError}</p>
+                <p className="text-sm text-[#e78181]">
+                  {techniciansError}
+                </p>
               ) : activeTechs.length > 0 ? (
-                activeTechs.map((technician) => {
-                  const isInProgress =
-                    String(technician.jobStatus || "").toUpperCase() === "IN_PROGRESS";
+                activeTechs.map((technician) => (
+                  <div
+                    key={technician.technicianId}
+                    className="bg-[#0b0e14] rounded-lg border border-[#1a1f26] p-4 mb-4"
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex gap-3 items-start">
+                        <User size={35} />
 
-                  return (
-                    <div
-                      key={technician.technicianId}
-                      className="bg-[#0b0e14] rounded-lg border border-[#1a1f26] p-4 mb-4"
-                    >
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex gap-3 items-start">
-                          <User size={35} />
-                          <div>
-                            <p className="text-white font-bold">
-                              {technician.fullName || technician.name || "Technician"}
-                            </p>
-                            <p className="text-xs text-[#6e7681] mt-1">
-                              {technician.specialization?.length > 0
-                                ? technician.specialization.join(", ")
-                                : "Active Technician"}
-                            </p>
-                          </div>
+                        <div>
+                          <p className="text-white font-bold">
+                            {technician.fullName ||
+                              technician.name ||
+                              "Technician"}
+                          </p>
+
+                          <p className="text-xs text-[#6e7681] mt-1">
+                            {Array.isArray(
+                              technician.specialization
+                            ) &&
+                            technician.specialization.length > 0
+                              ? technician.specialization.join(", ")
+                              : technician.specialization ||
+                                "Active Technician"}
+                          </p>
                         </div>
+                      </div>
 
+                      <div className="text-right">
                         <p className="text-[#e78181] text-xs font-bold uppercase">
-                          {technician.jobStatus || technician.availabilityStatus || "BUSY"}
+                          {technician.availabilityStatus ||
+                            technician.availability_status ||
+                            "AVAILABLE"}
+                        </p>
+
+                        <p className="text-[10px] text-[#6e7681] mt-1">
+                          {technician.activeJobCount} ACTIVE MAIN JOB
+                          {technician.activeJobCount !== 1 ? "S" : ""}
                         </p>
                       </div>
-
-                      <div className="mt-4 bg-[#15191f] border border-[#1a1f26] rounded-lg p-3 space-y-2 text-xs">
-                        <div className="flex justify-between gap-3">
-                          <span className="text-[#6e7681]">Vehicle</span>
-                          <span className="text-white font-bold text-right">
-                            {technician.vehicleNumber || "Waiting for job start"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <span className="text-[#6e7681]">Ticket</span>
-                          <span className="text-[#3b82f6] text-right">
-                            {technician.ticketNumber || "Not available"}
-                          </span>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <span className="text-[#6e7681]">Estimated Completion</span>
-                          <span className="text-white text-right">
-                            {technician.estimatedCompletionTime
-                              ? new Date(technician.estimatedCompletionTime).toLocaleString()
-                              : "Not set yet"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openExtensionModal(
-                              technician
-                            )
-                          }
-                          disabled={
-                            !isInProgress ||
-                            !technician.jobId ||
-                            completingJobId ===
-                              technician.jobId
-                          }
-                          className="w-full border border-[#f59e0b] text-[#f59e0b] px-4 py-2 rounded text-xs font-bold hover:bg-[#f59e0b]/10 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          {isInProgress
-                            ? "EXTEND TIME"
-                            : "WAITING FOR JOB START"}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleCompleteJob(
-                              technician
-                            )
-                          }
-                          disabled={
-                            !isInProgress ||
-                            !technician.jobId ||
-                            completingJobId ===
-                              technician.jobId
-                          }
-                          className="w-full border border-[#52f0ac] bg-[#52f0ac]/10 text-[#52f0ac] px-4 py-2 rounded text-xs font-bold hover:bg-[#52f0ac]/20 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          {completingJobId ===
-                          technician.jobId
-                            ? "COMPLETING..."
-                            : isInProgress
-                            ? "MARK AS COMPLETED"
-                            : "COMPLETE UNAVAILABLE"}
-                        </button>
-                      </div>
                     </div>
-                  );
-                })
+
+                    <div className="mt-4 space-y-3">
+                      {technician.activeJobs.map((job, jobIndex) => {
+                        const isInProgress =
+                          String(job.jobStatus || "")
+                            .trim()
+                            .toUpperCase() === "IN_PROGRESS";
+
+                        const jobForActions = {
+                          ...technician,
+                          ...job,
+                          technicianId:
+                            technician.technicianId,
+                          fullName:
+                            technician.fullName ||
+                            technician.name ||
+                            job.technicianName ||
+                            "Technician",
+                        };
+
+                        return (
+                          <div
+                            key={job.jobId}
+                            className="bg-[#15191f] border border-[#1a1f26] rounded-lg p-3"
+                          >
+                            <div className="flex justify-between items-center gap-3 mb-3">
+                              <p className="text-[#3b82f6] text-xs font-bold">
+                                MAIN JOB {jobIndex + 1}
+                              </p>
+
+                              <span
+                                className={`text-[10px] font-bold px-2 py-1 rounded-full border ${
+                                  isInProgress
+                                    ? "text-[#52f0ac] border-[#52f0ac]/40 bg-[#52f0ac]/10"
+                                    : "text-[#f59e0b] border-[#f59e0b]/40 bg-[#f59e0b]/10"
+                                }`}
+                              >
+                                {job.jobStatus || "ASSIGNED"}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between gap-3">
+                                <span className="text-[#6e7681]">
+                                  Vehicle
+                                </span>
+                                <span className="text-white font-bold text-right">
+                                  {job.vehicleNumber ||
+                                    "Waiting for job start"}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between gap-3">
+                                <span className="text-[#6e7681]">
+                                  Ticket
+                                </span>
+                                <span className="text-[#3b82f6] text-right">
+                                  {job.ticketNumber ||
+                                    "Not available"}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between gap-3">
+                                <span className="text-[#6e7681]">
+                                  Estimated Completion
+                                </span>
+                                <span className="text-white text-right">
+                                  {job.estimatedCompletionTime
+                                    ? new Date(
+                                        job.estimatedCompletionTime
+                                      ).toLocaleString()
+                                    : "Not set yet"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openExtensionModal(
+                                    jobForActions
+                                  )
+                                }
+                                disabled={
+                                  !isInProgress ||
+                                  !job.jobId ||
+                                  completingJobId === job.jobId
+                                }
+                                className="w-full border border-[#f59e0b] text-[#f59e0b] px-4 py-2 rounded text-xs font-bold hover:bg-[#f59e0b]/10 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {isInProgress
+                                  ? "EXTEND TIME"
+                                  : "WAITING FOR JOB START"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCompleteJob(
+                                    jobForActions
+                                  )
+                                }
+                                disabled={
+                                  !isInProgress ||
+                                  !job.jobId ||
+                                  completingJobId === job.jobId
+                                }
+                                className="w-full border border-[#52f0ac] bg-[#52f0ac]/10 text-[#52f0ac] px-4 py-2 rounded text-xs font-bold hover:bg-[#52f0ac]/20 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                {completingJobId === job.jobId
+                                  ? "COMPLETING..."
+                                  : isInProgress
+                                  ? "MARK AS COMPLETED"
+                                  : "COMPLETE UNAVAILABLE"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
               ) : (
-                <p className="text-sm text-[#6e7681]">No active field technicians.</p>
+                <p className="text-sm text-[#6e7681]">
+                  No active field technicians.
+                </p>
               )}
             </div>
 

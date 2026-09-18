@@ -552,6 +552,10 @@ const createServiceRequest = async (
     // FIND OR CREATE CUSTOMER
     // ==================================================
 
+        // ==================================================
+    // FIND OR CREATE CUSTOMER
+    // ==================================================
+
     const normalizedContact =
       String(contact || "")
         .trim()
@@ -580,13 +584,46 @@ const createServiceRequest = async (
     if (
       customerRows.length > 0
     ) {
+      const existingCustomer =
+        customerRows[0];
+
+      const normalizedEnteredName =
+        String(customerName || "")
+          .trim()
+          .replace(/\s+/g, " ")
+          .toLowerCase();
+
+      const normalizedExistingName =
+        String(
+          existingCustomer.full_name || ""
+        )
+          .trim()
+          .replace(/\s+/g, " ")
+          .toLowerCase();
+
+      // Prevent a request from being linked to
+      // another customer who owns this contact number.
+      if (
+        normalizedEnteredName !==
+        normalizedExistingName
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+          code:
+            "CUSTOMER_NAME_CONTACT_MISMATCH",
+          message:
+            "This contact number is already registered under another customer name. Please enter the correct customer name or use another contact number.",
+        });
+      }
+
       customerId = Number(
-        customerRows[0]
-          .customer_id
+        existingCustomer.customer_id
       );
 
       console.log(
-        "Existing customer found:",
+        "Existing customer found and name matched:",
         customerId
       );
     } else {

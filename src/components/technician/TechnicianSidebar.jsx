@@ -9,6 +9,8 @@ import {
   Lock,
 } from "lucide-react";
 
+import swiftGarageLogo from "../../assets/swiftgarage-logo.png";
+
 export default function TechnicianSidebar({
   activeItem,
   onNavigate,
@@ -44,23 +46,35 @@ export default function TechnicianSidebar({
     },
   ];
 
+  // ======================================================
+  // NAVIGATION
+  // ======================================================
+
   const handleNavigation = (item) => {
     const isLocked =
       item.requiresShift &&
       !isCheckingShift &&
       !isShiftOn;
 
-    if (isLocked) {
+    const isDisabled =
+      isLocked ||
+      (item.requiresShift &&
+        isCheckingShift);
+
+    if (isDisabled) {
       return;
     }
 
     onNavigate(item.id);
 
-    // Mobile sidebar එක item එක click කළාම close වෙනවා
     if (window.innerWidth < 768) {
       onClose();
     }
   };
+
+  // ======================================================
+  // LOGOUT
+  // ======================================================
 
   const handleLogout = () => {
     onNavigate("start");
@@ -72,31 +86,68 @@ export default function TechnicianSidebar({
 
   return (
     <>
-      {/* Mobile dark overlay */}
+      {/* ==================================================
+          MOBILE DARK OVERLAY
+      ================================================== */}
+
       {isOpen && (
         <button
           type="button"
-          aria-label="Close sidebar overlay"
+          aria-label="Close technician sidebar overlay"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/70 md:hidden"
+          className="
+            fixed
+            inset-0
+            z-[110]
+            bg-black/65
+            md:hidden
+          "
         />
       )}
 
-      {/* Sidebar */}
+      {/* ==================================================
+          SIDEBAR
+      ================================================== */}
+
       <aside
         className={`
-          fixed md:sticky
-          top-0 left-0
-          z-50
-          w-[85%] max-w-72 md:w-72
-          h-screen
-          bg-[#070b0f]
-          text-slate-400
-          flex flex-col justify-between
-          border-r-2 border-emerald-500
+          fixed
+          left-0
+          top-0
+          z-[120]
+
+          flex
+          h-[100dvh]
+          w-[81vw]
+          max-w-[365px]
+          flex-col
+
+          overflow-hidden
+
+          border-r
+          border-cyan-500/35
+
+          bg-[#050505]
+
           font-mono
-          overflow-y-auto
-          transition-transform duration-300 ease-in-out
+          text-slate-400
+
+          shadow-[12px_0_35px_rgba(0,0,0,0.55)]
+
+          transition-transform
+          duration-300
+          ease-in-out
+
+          md:sticky
+          md:top-0
+          md:z-30
+          md:h-screen
+          md:w-72
+          md:max-w-none
+          md:shrink-0
+          md:translate-x-0
+          md:shadow-none
+
           ${
             isOpen
               ? "translate-x-0"
@@ -104,59 +155,153 @@ export default function TechnicianSidebar({
           }
         `}
       >
-        {/* Main Section */}
-        <div className="p-5 sm:p-6 md:p-8">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-white font-black text-xl sm:text-2xl tracking-widest">
-                TECHSUITE
+        {/* ==================================================
+            HEADER
+        ================================================== */}
+
+        <div className="shrink-0 px-6 pb-5 pt-6 md:px-6 md:pt-7">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <img
+                src={swiftGarageLogo}
+                alt="SwiftGarage AI"
+                className="
+                  h-14
+                  w-auto
+                  max-w-[190px]
+                  object-contain
+                  object-left
+                "
+              />
+
+              <h1
+                className="
+                  mt-4
+                  whitespace-nowrap
+                  text-[22px]
+                  font-black
+                  tracking-[0.08em]
+                  text-white
+                  md:text-xl
+                "
+              >
+                TECHNICIANS
               </h1>
 
-              <p className="text-[10px] sm:text-xs text-emerald-500 uppercase tracking-[0.2em] mt-2">
-                Precision Ops
-              </p>
+              {/* SHIFT STATUS */}
 
               <div
-                className={`mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${
-                  isCheckingShift
-                    ? "border-slate-700 bg-slate-800/60 text-slate-400"
-                    : isShiftOn
-                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                    : "border-rose-500/30 bg-rose-500/10 text-rose-400"
-                }`}
+                className={`
+                  mt-4
+                  inline-flex
+                  items-center
+                  gap-2
+                  rounded-full
+                  border
+                  px-3.5
+                  py-1.5
+                  text-[12px]
+                  font-black
+                  uppercase
+                  tracking-[0.06em]
+
+                  ${
+                    isCheckingShift
+                      ? "border-slate-700 bg-slate-900 text-slate-400"
+                      : isShiftOn
+                      ? "border-emerald-500/70 bg-emerald-500/10 text-emerald-400"
+                      : "border-rose-500/70 bg-rose-500/10 text-rose-400"
+                  }
+                `}
               >
                 <span
-                  className={`h-2 w-2 rounded-full ${
-                    isCheckingShift
-                      ? "bg-slate-500"
-                      : isShiftOn
-                      ? "bg-emerald-400"
-                      : "bg-rose-400"
-                  }`}
+                  className={`
+                    h-2.5
+                    w-2.5
+                    rounded-full
+                    ${
+                      isCheckingShift
+                        ? "bg-slate-500"
+                        : isShiftOn
+                        ? "bg-emerald-400"
+                        : "bg-rose-400"
+                    }
+                  `}
                 />
 
-                {isCheckingShift
-                  ? "CHECKING SHIFT"
-                  : `SHIFT ${isShiftOn ? "ON" : "OFF"}`}
+                <span className="whitespace-nowrap">
+                  {isCheckingShift
+                    ? "CHECKING"
+                    : `SHIFT ${
+                        isShiftOn
+                          ? "ON"
+                          : "OFF"
+                      }`}
+                </span>
               </div>
             </div>
 
-            {/* Mobile Close Button */}
+            {/* MOBILE CLOSE BUTTON */}
+
             <button
               type="button"
               onClick={onClose}
               aria-label="Close sidebar"
-              className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl border border-emerald-500/40 bg-[#0a0e1a] text-emerald-300 hover:text-white hover:border-emerald-400 hover:bg-emerald-500/10 transition-all duration-300"
+              className="
+                relative
+                z-[130]
+                mt-1
+                flex
+                h-10
+                w-10
+                shrink-0
+                items-center
+                justify-center
+                text-white
+                transition
+                hover:text-cyan-300
+                md:hidden
+              "
             >
-              <X className="w-5 h-5" />
+              <X
+                size={28}
+                strokeWidth={2.3}
+              />
             </button>
           </div>
+        </div>
 
-          {/* Navigation */}
-          <nav className="flex flex-col gap-3 sm:gap-4 mt-8 md:mt-10">
+        {/* ==================================================
+            TOP DIVIDER
+        ================================================== */}
+
+        <div
+          className="
+            mx-6
+            shrink-0
+            border-t
+            border-slate-800
+          "
+        />
+
+        {/* ==================================================
+            NAVIGATION AREA
+        ================================================== */}
+
+        <div
+          className="
+            min-h-0
+            flex-1
+            overflow-y-auto
+            overscroll-contain
+            px-6
+            py-5
+          "
+        >
+          <nav className="space-y-5">
             {menuItems.map((item) => {
               const Icon = item.icon;
+
               const isActive =
                 activeItem === item.id;
 
@@ -165,73 +310,186 @@ export default function TechnicianSidebar({
                 !isCheckingShift &&
                 !isShiftOn;
 
+              const isDisabled =
+                isLocked ||
+                (item.requiresShift &&
+                  isCheckingShift);
+
               return (
                 <button
-                  type="button"
                   key={item.id}
+                  type="button"
+                  disabled={isDisabled}
                   onClick={() =>
                     handleNavigation(item)
                   }
-                  disabled={
-                    isLocked ||
-                    (item.requiresShift &&
-                      isCheckingShift)
-                  }
                   className={`
+                    flex
+                    min-h-[65px]
                     w-full
-                    flex items-center gap-3 sm:gap-4
-                    px-4 sm:px-5
-                    py-3.5 sm:py-4
-                    rounded-xl
+                    items-center
+                    gap-5
                     border
-                    transition-all duration-300
+                    px-6
+                    text-left
+                    transition-all
+                    duration-200
+
                     ${
                       isLocked
-                        ? "cursor-not-allowed border-slate-800 bg-[#080b10] text-slate-600 opacity-65"
+                        ? `
+                            cursor-not-allowed
+                            border-slate-800
+                            bg-[#060606]
+                            text-slate-600
+                            opacity-65
+                          `
                         : isActive
-                        ? "cursor-pointer border-emerald-500 bg-emerald-500/10 text-emerald-300 shadow-lg shadow-emerald-500/10"
-                        : "cursor-pointer border-emerald-900/40 bg-[#0a0e1a] text-emerald-300/60 hover:text-emerald-300 hover:border-emerald-500/50 hover:bg-emerald-500/5"
+                        ? `
+                            border-blue-500
+                            bg-[#07101f]
+                            text-blue-400
+                          `
+                        : `
+                            border-slate-800
+                            bg-[#050505]
+                            text-slate-500
+                            hover:border-slate-700
+                            hover:text-slate-300
+                          `
                     }
                   `}
                 >
-                  <Icon className="w-5 h-5 shrink-0" />
+                  <Icon
+                    size={23}
+                    strokeWidth={1.8}
+                    className="shrink-0"
+                  />
 
-                  <span className="flex-1 text-xs sm:text-sm font-bold uppercase tracking-wider text-left">
+                  <span
+                    className="
+                      min-w-0
+                      flex-1
+                      truncate
+                      text-[14px]
+                      font-black
+                      uppercase
+                      tracking-[0.08em]
+                    "
+                  >
                     {item.label}
                   </span>
 
                   {isLocked && (
-                    <Lock className="h-4 w-4 shrink-0 text-rose-400/70" />
+                    <Lock
+                      size={17}
+                      className="
+                        shrink-0
+                        text-rose-500/70
+                      "
+                    />
                   )}
                 </button>
               );
             })}
           </nav>
 
+          {/* ==================================================
+              SHIFT OFF INFO
+          ================================================== */}
+
           {!isCheckingShift &&
             !isShiftOn && (
-              <div className="mt-6 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
+              <div
+                className="
+                  mt-5
+                  border
+                  border-rose-500/25
+                  bg-rose-500/[0.04]
+                  p-4
+                "
+              >
+                <p
+                  className="
+                    text-[10px]
+                    font-bold
+                    uppercase
+                    tracking-[0.12em]
+                    text-rose-400
+                  "
+                >
                   Work Access Disabled
                 </p>
 
-                <p className="mt-2 text-[10px] leading-5 text-slate-500">
+                <p
+                  className="
+                    mt-2
+                    text-[10px]
+                    leading-5
+                    text-slate-600
+                  "
+                >
                   Open Profile and turn your shift ON to access technician work pages.
                 </p>
               </div>
             )}
         </div>
 
-        {/* Footer */}
-        <div className="p-5 sm:p-6 border-t border-emerald-500/20">
+        {/* ==================================================
+            FOOTER
+        ================================================== */}
+
+        <div
+          className="
+            shrink-0
+            px-6
+            pb-7
+            pt-3
+            md:pb-6
+          "
+        >
+          <div
+            className="
+              mb-6
+              border-t
+              border-slate-800
+            "
+          />
+
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 sm:py-4 rounded-xl border cursor-pointer border-emerald-500/40 bg-[#0a0e1a] text-emerald-300 hover:text-red-400 hover:bg-red-500/5 hover:border-red-500/50 transition-all duration-300"
+            className="
+              flex
+              min-h-[65px]
+              w-full
+              items-center
+              gap-5
+              border
+              border-red-500/60
+              bg-red-950/20
+              px-6
+              text-left
+              text-red-400
+              transition
+              hover:border-red-400
+              hover:bg-red-950/35
+              hover:text-red-300
+            "
           >
-            <LogOut className="w-5 h-5 shrink-0" />
+            <LogOut
+              size={23}
+              strokeWidth={1.8}
+            />
 
-            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider">
+            <span
+              className="
+                text-[14px]
+                font-black
+                uppercase
+                tracking-[0.08em]
+              "
+            >
               Logout
             </span>
           </button>

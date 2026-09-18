@@ -462,6 +462,11 @@ export default function AssistanceDashboard({
   ] = useState([]);
 
   const [
+    completedVehicles,
+    setCompletedVehicles,
+  ] = useState([]);
+
+  const [
     technicians,
     setTechnicians,
   ] = useState([]);
@@ -484,6 +489,11 @@ export default function AssistanceDashboard({
   const [
     actionLoadingId,
     setActionLoadingId,
+  ] = useState(null);
+
+  const [
+    clearConfirmJob,
+    setClearConfirmJob,
   ] = useState(null);
 
   const [
@@ -1300,6 +1310,7 @@ export default function AssistanceDashboard({
             garagesResponse,
             requestsResponse,
             techniciansResponse,
+            completedVehiclesResponse,
           ] = await Promise.all([
             fetch(
               `${API_BASE_URL}/garages`
@@ -1312,16 +1323,22 @@ export default function AssistanceDashboard({
             fetch(
               `${API_BASE_URL}/technicians?garageId=${numericGarageId}`
             ),
+
+            fetch(
+              `${API_BASE_URL}/service-jobs/garage/${numericGarageId}/completed-for-clear`
+            ),
           ]);
 
           const [
             garagesResult,
             requestsResult,
             techniciansResult,
+            completedVehiclesResult,
           ] = await Promise.all([
             garagesResponse.json(),
             requestsResponse.json(),
             techniciansResponse.json(),
+            completedVehiclesResponse.json(),
           ]);
 
           if (
@@ -1354,6 +1371,17 @@ export default function AssistanceDashboard({
             throw new Error(
               techniciansResult.message ||
                 "Unable to load technicians."
+            );
+          }
+
+          if (
+            !completedVehiclesResponse.ok ||
+            completedVehiclesResult.success ===
+              false
+          ) {
+            throw new Error(
+              completedVehiclesResult.message ||
+                "Unable to load completed vehicles."
             );
           }
 
@@ -1415,6 +1443,14 @@ export default function AssistanceDashboard({
 
           setServiceRequests(
             requests
+          );
+
+          setCompletedVehicles(
+            Array.isArray(
+              completedVehiclesResult.jobs
+            )
+              ? completedVehiclesResult.jobs
+              : []
           );
         } catch (error) {
           console.error(
@@ -1919,6 +1955,101 @@ export default function AssistanceDashboard({
           "Reject Failed",
           error.message ||
             "Unable to reject the request."
+        );
+      } finally {
+        setActionLoadingId(null);
+      }
+    };
+
+  // ====================================================
+  // CLEAR COMPLETED VEHICLE
+  // ====================================================
+
+  const handleClearVehicle =
+    (job) => {
+      if (!isShiftOn) {
+        showNotification(
+          "error",
+          "Shift Is OFF",
+          "Please start your shift from Assistance Profile before clearing a vehicle."
+        );
+
+        return;
+      }
+
+      if (
+        !job?.jobId ||
+        actionLoadingId
+      ) {
+        return;
+      }
+
+      setClearConfirmJob(job);
+    };
+
+  const confirmClearVehicle =
+    async () => {
+      const job = clearConfirmJob;
+
+      if (
+        !job?.jobId ||
+        actionLoadingId
+      ) {
+        return;
+      }
+
+      try {
+        setActionLoadingId(
+          `clear-${job.jobId}`
+        );
+
+        const response = await fetch(
+          `${API_BASE_URL}/service-jobs/${job.jobId}/clear`,
+          {
+            method: "PUT",
+          }
+        );
+
+        const result =
+          await response.json();
+
+        if (
+          !response.ok ||
+          result.success === false
+        ) {
+          throw new Error(
+            result.message ||
+              "Unable to clear the vehicle."
+          );
+        }
+
+        setClearConfirmJob(null);
+
+        showNotification(
+          "success",
+          "Vehicle Cleared Successfully",
+          `${
+            job.vehicleNumber ||
+            "Vehicle"
+          } has been cleared. One garage slot is now available.`
+        );
+
+        await loadDashboardData(
+          garageId
+        );
+      } catch (error) {
+        console.error(
+          "Clear completed vehicle error:",
+          error
+        );
+
+        setClearConfirmJob(null);
+
+        showNotification(
+          "error",
+          "Clear Failed",
+          error.message ||
+            "Unable to clear the vehicle."
         );
       } finally {
         setActionLoadingId(null);
@@ -2472,6 +2603,159 @@ export default function AssistanceDashboard({
                 </div>
               )}
             </section>
+
+            {/* COMPLETED VEHICLES WAITING TO LEAVE GARAGE */}
+
+            <section>
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-white">
+                    Completed Vehicles
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Clear a vehicle only after it has physically left the garage
+                  </p>
+                </div>
+
+                <span className="w-fit rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300">
+                  {completedVehicles.length}{" "}
+                  WAITING TO CLEAR
+                </span>
+              </div>
+
+              {completedVehicles.length > 0 ? (
+                <div className="space-y-4">
+                  {completedVehicles.map(
+                    (job) => {
+                      const isClearing =
+                        actionLoadingId ===
+                        `clear-${job.jobId}`;
+
+                      return (
+                        <div
+                          key={`completed-${job.jobId}`}
+                          className="rounded-xl border border-emerald-900/40 bg-black p-4 sm:p-5"
+                        >
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                                  COMPLETED
+                                </span>
+
+                                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                  {job.ticketNumber ||
+                                    `JOB-${job.jobId}`}
+                                </span>
+                              </div>
+
+                              <h3 className="mt-3 text-lg font-bold text-white">
+                                {job.vehicleNumber ||
+                                  "Vehicle"}
+                              </h3>
+
+                              <p className="mt-1 text-sm text-slate-400">
+                                {job.vehicleType ||
+                                  "Vehicle"}{" "}
+                                •{" "}
+                                {job.customerName ||
+                                  "Customer"}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleClearVehicle(
+                                  job
+                                )
+                              }
+                              disabled={
+                                isClearing ||
+                                !isShiftOn ||
+                                Boolean(
+                                  actionLoadingId
+                                )
+                              }
+                              className="w-full rounded-lg bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-wider text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+                            >
+                              {isClearing
+                                ? "CLEARING..."
+                                : "CLEAR VEHICLE"}
+                            </button>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-800 bg-emerald-950/10 p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                              <p className="text-xs uppercase text-slate-500">
+                                Customer
+                              </p>
+                              <p className="mt-1 text-white">
+                                {job.customerName ||
+                                  "Not available"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs uppercase text-slate-500">
+                                Contact
+                              </p>
+                              <p className="mt-1 text-white">
+                                {job.contactNumber ||
+                                  "Not available"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs uppercase text-slate-500">
+                                Completed Date
+                              </p>
+                              <p className="mt-1 text-white">
+                                {formatDate(
+                                  job.completedDate
+                                )}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs uppercase text-slate-500">
+                                Completed Time
+                              </p>
+                              <p className="mt-1 text-white">
+                                {formatTime(
+                                  job.completedTime
+                                ) ||
+                                  "Not available"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <p className="mt-3 text-xs text-amber-300/80">
+                            Only press CLEAR VEHICLE after confirming the customer has collected the vehicle and it has exited the garage.
+                          </p>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-emerald-900/30 bg-black p-8 text-center">
+                  <CheckCircle
+                    size={34}
+                    className="mx-auto text-emerald-400"
+                  />
+
+                  <h3 className="mt-3 font-bold text-white">
+                    No Vehicles Waiting to Clear
+                  </h3>
+
+                  <p className="mt-2 text-sm text-slate-500">
+                    Completed vehicles that are still inside the garage will appear here automatically.
+                  </p>
+                </div>
+              )}
+            </section>
           </main>
         );
     }
@@ -2603,11 +2887,11 @@ export default function AssistanceDashboard({
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         {/* COMMON HEADER */}
 
-        <header className="h-16 shrink-0 flex items-center justify-between px-3 sm:px-6 bg-black border-b border-blue-900/40">
-          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+        <header className="min-h-16 shrink-0 flex items-center justify-between gap-2 px-3 py-2 sm:h-16 sm:px-6 sm:py-0 bg-black border-b border-blue-900/40">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
             <button
               type="button"
-              className="md:hidden shrink-0 text-slate-300 hover:text-white"
+              className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-[#0b0e14] text-slate-300 transition hover:border-blue-500/40 hover:text-white"
               onClick={() =>
                 setIsSidebarOpen(
                   true
@@ -2618,8 +2902,8 @@ export default function AssistanceDashboard({
               <Menu size={21} />
             </button>
 
-            <div className="min-w-0 shrink-0">
-              <p className="truncate text-sm font-black uppercase tracking-wider text-white">
+            <div className="min-w-0 flex-1 sm:flex-none">
+              <p className="truncate text-[12px] font-black uppercase tracking-[0.12em] text-white sm:text-sm sm:tracking-wider">
                 {view ===
                 "Dashboard"
                   ? "Assistance Dashboard"
@@ -2642,7 +2926,7 @@ export default function AssistanceDashboard({
                 "Counter Ledger" ||
               view ===
                 "Experience Audit") && (
-              <div className="relative ml-2 w-full max-w-md">
+              <div className="relative ml-2 hidden w-full max-w-md md:block">
                 <Search
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
                   size={16}
@@ -2701,7 +2985,7 @@ export default function AssistanceDashboard({
             )}
           </div>
 
-          <div className="ml-3 flex shrink-0 items-center gap-3 sm:gap-6">
+          <div className="ml-1 flex shrink-0 items-center gap-1.5 sm:ml-3 sm:gap-6">
             <span className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
               ONLINE
@@ -2726,7 +3010,7 @@ export default function AssistanceDashboard({
                       !previous
                   )
                 }
-                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-slate-800 bg-[#0b0e14] text-slate-400 transition hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-300"
+                className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-800 bg-[#0b0e14] text-slate-400 transition hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-300 sm:h-9 sm:w-9"
                 aria-label="Tow notifications"
               >
                 <Bell
@@ -2757,8 +3041,8 @@ export default function AssistanceDashboard({
                     className="fixed inset-0 z-[1090] cursor-default bg-transparent"
                   />
 
-                  <div className="absolute right-0 top-12 z-[1100] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-blue-900/50 bg-[#0b0e14] shadow-[0_25px_80px_rgba(0,0,0,0.65)]">
-                    <div className="flex items-center justify-between border-b border-slate-800 p-4">
+                  <div className="fixed left-3 right-3 top-[76px] z-[1100] overflow-hidden rounded-2xl border border-blue-900/50 bg-[#0b0e14] shadow-[0_25px_80px_rgba(0,0,0,0.65)] sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[min(400px,calc(100vw-2rem))]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 p-3 sm:p-4">
                       <div>
                         <p className="text-sm font-black text-white">
                           Tow Notifications
@@ -2783,7 +3067,7 @@ export default function AssistanceDashboard({
                       )}
                     </div>
 
-                    <div className="max-h-[430px] overflow-y-auto">
+                    <div className="max-h-[calc(100vh-180px)] overflow-y-auto sm:max-h-[430px]">
                       {towNotifications.length ===
                       0 ? (
                         <div className="px-6 py-12 text-center">
@@ -2922,7 +3206,7 @@ export default function AssistanceDashboard({
                   "Assistance Profile"
                 )
               }
-              className="group flex items-center gap-3 rounded-xl border border-transparent px-2 py-1.5 text-left transition hover:border-blue-900/50 hover:bg-blue-950/20"
+              className="group flex shrink-0 items-center gap-0 rounded-xl border border-transparent p-0 text-left transition hover:border-blue-900/50 hover:bg-blue-950/20 sm:gap-3 sm:px-2 sm:py-1.5"
               aria-label="Open assistance profile"
             >
               <div className="hidden max-w-[180px] text-right sm:block">
@@ -2937,7 +3221,7 @@ export default function AssistanceDashboard({
                 </p>
               </div>
 
-              <div className="flex h-9 w-9 min-h-9 min-w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-700 bg-[#0b0e14] text-xs font-bold text-slate-300 transition group-hover:border-blue-500 group-hover:text-white">
+              <div className="flex h-10 w-10 min-h-10 min-w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-700 bg-[#0b0e14] text-xs font-bold text-slate-300 transition group-hover:border-blue-500 group-hover:text-white sm:h-9 sm:w-9 sm:min-h-9 sm:min-w-9">
                 {officerProfilePhoto ? (
                   <img
                     src={officerProfilePhoto}
@@ -2951,6 +3235,52 @@ export default function AssistanceDashboard({
             </button>
           </div>
         </header>
+
+        {(view === "Dashboard" ||
+          view === "Customer Comms" ||
+          view === "Resource Schedule" ||
+          view === "Counter Ledger" ||
+          view === "Experience Audit") && (
+          <div className="shrink-0 border-b border-slate-800 bg-[#0b0e14] px-3 py-3 md:hidden">
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                size={16}
+              />
+
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) =>
+                  setSearchQuery(event.target.value)
+                }
+                placeholder={
+                  view === "Customer Comms"
+                    ? "Search customer or vehicle..."
+                    : view === "Resource Schedule"
+                    ? "Search ticket, customer, contact or vehicle..."
+                    : view === "Counter Ledger"
+                    ? "Search token, customer, item or transaction..."
+                    : view === "Experience Audit"
+                    ? "Search customer, review, rating or time..."
+                    : "Search live service requests..."
+                }
+                className="w-full rounded-xl border border-slate-800 bg-[#070b12] py-3 pl-10 pr-10 text-xs text-white outline-none placeholder:text-slate-600 focus:border-blue-500"
+              />
+
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                  aria-label="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 min-h-0 overflow-hidden">
           {renderContent()}
@@ -3206,6 +3536,52 @@ export default function AssistanceDashboard({
             >
               Open Assistance Profile
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* CLEAR VEHICLE CONFIRMATION POPUP */}
+
+      {clearConfirmJob && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-500/40 bg-[#0b0e14] p-6 shadow-2xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
+              <CheckCircle size={30} />
+            </div>
+
+            <h2 className="mt-4 text-center text-xl font-bold text-white">
+              Clear Vehicle?
+            </h2>
+
+            <p className="mt-3 text-center text-sm leading-6 text-slate-400">
+              Confirm that
+              <span className="mx-1 font-bold text-white">
+                {clearConfirmJob.vehicleNumber || "this vehicle"}
+              </span>
+              has physically left the garage. Clearing this vehicle will free one garage slot.
+            </p>
+
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setClearConfirmJob(null)}
+                disabled={Boolean(actionLoadingId)}
+                className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-bold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                CANCEL
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmClearVehicle}
+                disabled={Boolean(actionLoadingId)}
+                className="rounded-lg bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {actionLoadingId === `clear-${clearConfirmJob.jobId}`
+                  ? "CLEARING..."
+                  : "YES, CLEAR VEHICLE"}
+              </button>
+            </div>
           </div>
         </div>
       )}
