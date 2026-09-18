@@ -42,6 +42,11 @@ export default function ResourceMatrix({
   const [liveJobs, setLiveJobs] =
     useState([]);
 
+  const [
+    technicianAssistances,
+    setTechnicianAssistances,
+  ] = useState([]);
+
   const [ownerData, setOwnerData] =
     useState(null);
 
@@ -464,6 +469,44 @@ export default function ResourceMatrix({
             : [];
 
         setLiveJobs(jobs);
+
+        // ================================================
+        // TECHNICIAN SUPPORT ASSISTANCE
+        // ================================================
+
+        const technicianAssistanceResponse =
+          await fetch(
+            `${API_BASE}/api/technician-assistance/garage/${numericGarageId}`
+          );
+
+        const technicianAssistanceResult =
+          await technicianAssistanceResponse.json();
+
+        if (
+          !technicianAssistanceResponse.ok ||
+          technicianAssistanceResult.success ===
+            false
+        ) {
+          throw new Error(
+            technicianAssistanceResult.message ||
+              "Unable to load technician assistance."
+          );
+        }
+
+        const receivedTechnicianAssistances =
+          Array.isArray(
+            technicianAssistanceResult?.assistance
+          )
+            ? technicianAssistanceResult.assistance
+            : Array.isArray(
+                technicianAssistanceResult?.data
+              )
+            ? technicianAssistanceResult.data
+            : [];
+
+        setTechnicianAssistances(
+          receivedTechnicianAssistances
+        );
       } catch (error) {
         console.error(
           "Resource Matrix error:",
@@ -539,6 +582,42 @@ export default function ResourceMatrix({
   };
 
   // ======================================================
+  // ACTIVE SUPPORT ASSISTANCE FINDER
+  // ======================================================
+
+  const getActiveSupportAssistanceForTechnician = (
+    technicianId
+  ) => {
+    return technicianAssistances.find(
+      (assistance) => {
+        const supportTechnicianId =
+          Number(
+            assistance.supportTechnicianId ??
+              assistance.support_technician_id
+          );
+
+        const status =
+          String(
+            assistance.assistanceStatus ??
+              assistance.assistance_status ??
+              ""
+          )
+            .trim()
+            .toUpperCase();
+
+        return (
+          supportTechnicianId ===
+            Number(technicianId) &&
+          [
+            "ASSIGNED",
+            "IN_PROGRESS",
+          ].includes(status)
+        );
+      }
+    );
+  };
+
+  // ======================================================
   // FORMAT TECHNICIANS
   // ======================================================
 
@@ -554,6 +633,11 @@ export default function ResourceMatrix({
 
           const activeJob =
             getActiveJobForTechnician(
+              technicianId
+            );
+
+          const activeSupportAssistance =
+            getActiveSupportAssistanceForTechnician(
               technicianId
             );
 
@@ -575,24 +659,17 @@ export default function ResourceMatrix({
               .trim()
               .toUpperCase();
 
-          let status =
-            "OFF SHIFT";
+          let status = "OFF SHIFT";
 
-          if (
-            shiftStatus === "ON"
-          ) {
-            if (
-              activeJob ||
-              availability ===
-                "BUSY"
-            ) {
-              status =
-                "BUSY";
-            } else {
-              status =
-                "FREE";
-            }
-          }
+if (shiftStatus === "ON") {
+  if (availability === "BUSY") {
+    status = "BUSY";
+  } else if (availability === "AVAILABLE") {
+    status = "FREE";
+  } else {
+    status = availability || "FREE";
+  }
+}
 
           const experience =
             tech.experience ??
@@ -638,6 +715,39 @@ export default function ResourceMatrix({
             status,
 
             activeJob,
+
+            activeSupportAssistance,
+
+            supportVehicle:
+              activeSupportAssistance
+                ?.vehicleNumber ??
+              activeSupportAssistance
+                ?.vehicle_number ??
+              "— None —",
+
+            supportStatus:
+              String(
+                activeSupportAssistance
+                  ?.assistanceStatus ??
+                  activeSupportAssistance
+                    ?.assistance_status ??
+                  ""
+              )
+                .trim()
+                .toUpperCase() ||
+              "NO ACTIVE ASSISTANCE",
+
+            supportReason:
+              activeSupportAssistance
+                ?.reason ??
+              "—",
+
+            supportMainTechnicianId:
+              activeSupportAssistance
+                ?.mainTechnicianId ??
+              activeSupportAssistance
+                ?.main_technician_id ??
+              null,
 
             vehicle:
               activeJob
@@ -689,6 +799,7 @@ export default function ResourceMatrix({
     }, [
       technicians,
       liveJobs,
+      technicianAssistances,
     ]);
 
   // ======================================================
@@ -780,6 +891,9 @@ export default function ResourceMatrix({
             ${tech.shiftStatus}
             ${tech.vehicle}
             ${tech.jobStatus}
+            ${tech.supportVehicle}
+            ${tech.supportStatus}
+            ${tech.supportReason}
           `
             .toLowerCase()
             .includes(query)
@@ -1540,6 +1654,49 @@ export default function ResourceMatrix({
                           </div>
 
                         )}
+
+                      </div>
+
+                    )}
+
+                    {tech.activeSupportAssistance && (
+
+                      <div className="mt-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5 p-4">
+
+                        <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
+                          Support Assistance
+                        </p>
+
+                        <Info
+                          label="Supporting Vehicle"
+                          value={
+                            tech.supportVehicle
+                          }
+                          className="font-mono text-cyan-300"
+                        />
+
+                        <Info
+                          label="Assistance Status"
+                          value={
+                            tech.supportStatus ===
+                            "IN_PROGRESS"
+                              ? "IN PROGRESS"
+                              : tech.supportStatus
+                          }
+                          className={
+                            tech.supportStatus ===
+                            "IN_PROGRESS"
+                              ? "text-emerald-400"
+                              : "text-amber-400"
+                          }
+                        />
+
+                        <Info
+                          label="Reason"
+                          value={
+                            tech.supportReason
+                          }
+                        />
 
                       </div>
 

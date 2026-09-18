@@ -10,10 +10,19 @@ import {
   ShieldCheck,
   Truck,
   UserRound,
-  Wrench,
   AlertCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
+
+// =====================================================
+// SWIFTGARAGE AI LOGO
+// =====================================================
+// ExternalDriverLogin.jsx is inside:
+// src/components/externalDriver/
+// Logo is inside:
+// src/assets/swiftgarage-logo.png
+
+import swiftGarageLogo from "../../assets/swiftgarage-logo.png";
 
 export default function ExternalDriverLogin({
   onNavigate,
@@ -335,6 +344,7 @@ export default function ExternalDriverLogin({
         );
 
         // Remove temporary prefill after successful login.
+
         sessionStorage.removeItem(
           "externalDriverPrefill"
         );
@@ -369,51 +379,59 @@ export default function ExternalDriverLogin({
   return (
     <div className="min-h-screen overflow-y-auto bg-[#05080d] text-white">
       <div className="relative min-h-screen overflow-hidden">
-        {/* BACKGROUND DECORATION */}
+
+        {/* =================================================
+            BACKGROUND DECORATION
+        ================================================= */}
 
         <div className="pointer-events-none absolute -left-40 top-0 h-[500px] w-[500px] rounded-full bg-teal-500/10 blur-[150px]" />
 
         <div className="pointer-events-none absolute -right-40 bottom-0 h-[500px] w-[500px] rounded-full bg-cyan-500/10 blur-[150px]" />
 
-        {/* HEADER */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
         <header className="relative z-20 border-b border-white/10 bg-[#05080d]/80 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8 lg:px-12">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 sm:px-8 lg:px-12">
+
+            {/* BACK BUTTON */}
+
             <button
               type="button"
               onClick={handleBack}
               className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-bold text-slate-300 transition hover:border-teal-400/30 hover:bg-teal-400/10 hover:text-teal-200"
             >
               <ArrowLeft className="h-4 w-4" />
+
               Back
             </button>
 
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl border border-teal-400/20 bg-teal-400/10 p-2.5">
-                <Wrench className="h-5 w-5 text-teal-300" />
-              </div>
+            {/* =============================================
+                NEW SWIFTGARAGE AI LOGO
+            ============================================= */}
 
-              <div>
-                <p className="font-black tracking-wide">
-                  SwiftGarage{" "}
-                  <span className="text-teal-400">
-                    AI
-                  </span>
-                </p>
-
-                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
-                  External Partner Portal
-                </p>
-              </div>
+            <div className="flex items-center justify-end">
+              <img
+                src={swiftGarageLogo}
+                alt="SwiftGarage AI - Smarter Roadside Support"
+                className="h-16 w-auto max-w-[220px] object-contain sm:h-20 sm:max-w-[280px]"
+              />
             </div>
           </div>
         </header>
 
-        {/* LOGIN CONTENT */}
+        {/* =================================================
+            LOGIN CONTENT
+        ================================================= */}
 
         <main className="relative z-10 flex min-h-[calc(100vh-81px)] items-center justify-center px-4 py-10 sm:px-6 lg:px-10">
+
           <div className="grid w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 shadow-[0_35px_120px_rgba(0,0,0,0.55)] backdrop-blur-xl lg:grid-cols-[0.9fr_1.1fr]">
-            {/* LEFT SIDE */}
+
+            {/* =================================================
+                LEFT SIDE
+            ================================================= */}
 
             <motion.div
               initial={{
@@ -432,11 +450,17 @@ export default function ExternalDriverLogin({
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-teal-400/[0.08] via-transparent to-cyan-400/[0.05]" />
 
               <div className="relative z-10">
+
+                {/* APPROVED PARTNER BADGE */}
+
                 <div className="inline-flex items-center gap-2 rounded-full border border-teal-400/20 bg-teal-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-teal-300">
+
                   <Truck className="h-4 w-4" />
 
                   Approved Tow Partner
                 </div>
+
+                {/* TITLE */}
 
                 <h1 className="mt-7 text-3xl font-black leading-tight sm:text-4xl lg:text-5xl">
                   External Driver
@@ -452,8 +476,14 @@ export default function ExternalDriverLogin({
                   truck registration was approved.
                 </p>
 
+                {/* INFORMATION CARDS */}
+
                 <div className="mt-8 space-y-4">
+
+                  {/* SECURE ACCESS */}
+
                   <div className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+
                     <div className="rounded-xl bg-teal-400/10 p-2.5 text-teal-300">
                       <ShieldCheck className="h-5 w-5" />
                     </div>
@@ -471,7 +501,10 @@ export default function ExternalDriverLogin({
                     </div>
                   </div>
 
+                  {/* CHANGE PASSWORD */}
+
                   <div className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
+
                     <div className="rounded-xl bg-cyan-400/10 p-2.5 text-cyan-300">
                       <KeyRound className="h-5 w-5" />
                     </div>
@@ -492,7 +525,9 @@ export default function ExternalDriverLogin({
               </div>
             </motion.div>
 
-            {/* RIGHT SIDE - LOGIN FORM */}
+            {/* =================================================
+                RIGHT SIDE - LOGIN FORM
+            ================================================= */}
 
             <motion.div
               initial={{
@@ -510,7 +545,11 @@ export default function ExternalDriverLogin({
               className="flex items-center p-6 sm:p-10 lg:p-12"
             >
               <div className="mx-auto w-full max-w-md">
+
+                {/* LOGIN FORM HEADER */}
+
                 <div className="mb-8">
+
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-teal-400/20 bg-teal-400/10 text-teal-300">
                     <UserRound className="h-7 w-7" />
                   </div>
@@ -525,10 +564,15 @@ export default function ExternalDriverLogin({
                   </p>
                 </div>
 
+                {/* =================================================
+                    LOGIN FORM
+                ================================================= */}
+
                 <form
                   onSubmit={handleLogin}
                   className="space-y-5"
                 >
+
                   {/* DRIVER ID */}
 
                   <div>
@@ -540,6 +584,7 @@ export default function ExternalDriverLogin({
                     </label>
 
                     <div className="relative">
+
                       <UserRound className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
 
                       <input
@@ -568,6 +613,7 @@ export default function ExternalDriverLogin({
                     </label>
 
                     <div className="relative">
+
                       <LockKeyhole className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
 
                       <input
@@ -586,6 +632,8 @@ export default function ExternalDriverLogin({
                         required
                         className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-3.5 pl-12 pr-12 text-white outline-none transition placeholder:text-slate-600 focus:border-teal-400/60 focus:ring-4 focus:ring-teal-400/10 disabled:cursor-not-allowed disabled:opacity-60"
                       />
+
+                      {/* SHOW / HIDE PASSWORD */}
 
                       <button
                         type="button"
@@ -611,7 +659,9 @@ export default function ExternalDriverLogin({
                     </div>
                   </div>
 
-                  {/* ERROR */}
+                  {/* =================================================
+                      ERROR MESSAGE
+                  ================================================= */}
 
                   {loginError && (
                     <motion.div
@@ -633,7 +683,9 @@ export default function ExternalDriverLogin({
                     </motion.div>
                   )}
 
-                  {/* LOGIN BUTTON */}
+                  {/* =================================================
+                      LOGIN BUTTON
+                  ================================================= */}
 
                   <motion.button
                     type="submit"
@@ -658,19 +710,27 @@ export default function ExternalDriverLogin({
                     {isLoggingIn ? (
                       <>
                         <LoaderCircle className="h-5 w-5 animate-spin" />
+
                         Signing In...
                       </>
                     ) : (
                       <>
                         <LockKeyhole className="h-5 w-5" />
+
                         LOGIN
+
                         <ArrowRight className="h-5 w-5" />
                       </>
                     )}
                   </motion.button>
                 </form>
 
+                {/* =================================================
+                    BOTTOM INFORMATION
+                ================================================= */}
+
                 <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+
                   <p className="text-center text-xs leading-6 text-slate-500">
                     Your External Driver ID is permanent.
                     After signing in, you can change your

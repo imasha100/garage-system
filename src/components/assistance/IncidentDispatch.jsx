@@ -94,6 +94,87 @@ const statusClass = (status) => {
   return "bg-amber-500/15 text-amber-300";
 };
 
+
+const RoadRoute = ({ from, to }) => {
+  const [roadCoordinates, setRoadCoordinates] = useState([]);
+
+  useEffect(() => {
+    if (
+      !Array.isArray(from) ||
+      !Array.isArray(to) ||
+      from.length < 2 ||
+      to.length < 2 ||
+      ![from[0], from[1], to[0], to[1]].every(Number.isFinite)
+    ) {
+      setRoadCoordinates([]);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+
+    const loadRoadRoute = async () => {
+      try {
+        const [fromLatitude, fromLongitude] = from;
+        const [toLatitude, toLongitude] = to;
+
+        const routeUrl =
+          `https://router.project-osrm.org/route/v1/driving/` +
+          `${fromLongitude},${fromLatitude};${toLongitude},${toLatitude}` +
+          `?overview=full&geometries=geojson&steps=false`;
+
+        const response = await fetch(routeUrl, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Unable to load the road route.");
+        }
+
+        const result = await response.json();
+        const coordinates = result?.routes?.[0]?.geometry?.coordinates;
+
+        if (!Array.isArray(coordinates) || coordinates.length < 2) {
+          throw new Error("No road route was returned.");
+        }
+
+        setRoadCoordinates(
+          coordinates.map(([longitude, latitude]) => [
+            latitude,
+            longitude,
+          ])
+        );
+      } catch (error) {
+        if (error.name === "AbortError") return;
+
+        console.error("OSRM road route error:", error);
+
+        setRoadCoordinates([from, to]);
+      }
+    };
+
+    loadRoadRoute();
+
+    return () => controller.abort();
+  }, [from?.[0], from?.[1], to?.[0], to?.[1]]);
+
+  if (roadCoordinates.length < 2) {
+    return null;
+  }
+
+  return (
+    <Polyline
+      positions={roadCoordinates}
+      pathOptions={{
+        color: "#52f0ac",
+        weight: 5,
+        opacity: 0.95,
+        lineCap: "round",
+        lineJoin: "round",
+      }}
+    />
+  );
+};
+
 const IncidentDispatch = () => {
   const [activeTab, setActiveTab] = useState("pending");
 
@@ -485,16 +566,9 @@ const IncidentDispatch = () => {
         )}
 
         {selectedRequest?.coordinates && (
-          <Polyline
-            positions={[
-              DEFAULT_HUB_LOCATION,
-              selectedRequest.coordinates,
-            ]}
-            pathOptions={{
-              color: "#52f0ac",
-              weight: 5,
-              dashArray: "10 8",
-            }}
+          <RoadRoute
+            from={DEFAULT_HUB_LOCATION}
+            to={selectedRequest.coordinates}
           />
         )}
       </MapContainer>

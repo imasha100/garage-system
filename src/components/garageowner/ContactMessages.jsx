@@ -1185,12 +1185,6 @@ export default function ContactMessages({
                                 }
                               </p>
 
-                              <p className="mt-1 text-[10px] text-gray-600">
-                                ID #
-                                {
-                                  message.messageId
-                                }
-                              </p>
                             </div>
                           </div>
                         </td>
@@ -1376,12 +1370,6 @@ export default function ContactMessages({
                   }
                 </span>
 
-                <span className="text-xs text-gray-600">
-                  Message #
-                  {
-                    selectedMessage.messageId
-                  }
-                </span>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

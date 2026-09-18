@@ -65,6 +65,7 @@ import trackingServiceImage from "../assets/service-tracking1.jpg";
 import aiServiceImage from "../assets/service-ai.jpg";
 import recoveryServiceImage from "../assets/service-recovery.jpg";
 import managementServiceImage from "../assets/service-management.jpg";
+import swiftGarageLogo from "../assets/swiftgarage-logo.png";
 
 // ======================================================
 // LEAFLET MARKER FIX
@@ -1815,6 +1816,68 @@ export default function StartPage({
         )
     );
 
+  const registeredGarageCount = garages.length;
+
+  const activeGarageCount = garages.filter((garage) => {
+    const status = String(
+      garage.open_status ??
+        garage.openStatus ??
+        "CLOSED"
+    )
+      .trim()
+      .toUpperCase();
+
+    return status === "OPEN";
+  }).length;
+
+
+  const projectGarageToSriLankaMap = (garage) => {
+    const latitude = Number(
+      garage?.latitude ??
+        garage?.lat
+    );
+
+    const longitude = Number(
+      garage?.longitude ??
+        garage?.lng ??
+        garage?.lon
+    );
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      return null;
+    }
+
+    const minLat = 5.88;
+    const maxLat = 9.87;
+    const minLng = 79.65;
+    const maxLng = 81.92;
+
+    if (
+      latitude < minLat ||
+      latitude > maxLat ||
+      longitude < minLng ||
+      longitude > maxLng
+    ) {
+      return null;
+    }
+
+    return {
+      x:
+        25 +
+        ((longitude - minLng) /
+          (maxLng - minLng)) *
+          370,
+      y:
+        25 +
+        ((maxLat - latitude) /
+          (maxLat - minLat)) *
+          650,
+    };
+  };
+
       const services = [
     {
       icon: Truck,
@@ -1943,6 +2006,7 @@ export default function StartPage({
     ["How It Works", "how-it-works"],
     ["Services", "services"],
     ["Why Choose Us", "why-us"],
+    ["Garage Network", "garage-network"],
     ["Contact", "contact"],
   ];
 
@@ -1957,13 +2021,11 @@ export default function StartPage({
               onClick={() => setMobileMenuOpen(false)}
               className="flex items-center gap-2"
             >
-              <div className="rounded-xl border border-teal-400/20 bg-teal-400/10 p-2">
-                <Wrench className="h-5 w-5 text-teal-400" />
-              </div>
-
-              <span className="font-black tracking-wide">
-                SwiftGarage <span className="text-teal-400">AI</span>
-              </span>
+              <img
+                src={swiftGarageLogo}
+                alt="SwiftGarage AI"
+                className="h-12 w-auto object-contain sm:h-14"
+              />
             </a>
 
             <nav
@@ -2081,7 +2143,7 @@ export default function StartPage({
       {/* HERO */}
       <section
         id="top"
-        className="relative min-h-screen overflow-hidden px-4 pb-5 pt-24 sm:px-8 sm:pt-24 md:px-12 lg:h-screen lg:min-h-[720px] lg:px-16 lg:pb-4 lg:pt-20 scroll-mt-20"
+        className="relative min-h-screen overflow-hidden px-4 pb-3 pt-20 sm:px-8 sm:pb-5 sm:pt-24 md:px-12 lg:h-screen lg:min-h-[720px] lg:px-16 lg:pb-4 lg:pt-20 scroll-mt-20"
       >
         <div className="absolute inset-0">
           <img
@@ -2120,7 +2182,7 @@ export default function StartPage({
           className="pointer-events-none absolute -right-32 bottom-20 h-[460px] w-[460px] rounded-full bg-red-500/15 blur-[140px]"
         />
 
-        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-7rem)] max-w-7xl flex-col lg:h-full lg:min-h-0">
+        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5.5rem)] max-w-7xl flex-col sm:min-h-[calc(100vh-7rem)] lg:h-full lg:min-h-0">
           <motion.div
             initial={{
               opacity: 0,
@@ -2133,19 +2195,16 @@ export default function StartPage({
             transition={{
               duration: 0.65,
             }}
-            className="flex items-center justify-center gap-3 pt-1 lg:hidden"
+            className="flex items-center justify-center gap-2 pt-0 sm:gap-3 sm:pt-1 lg:hidden"
           >
-            <div className="relative rounded-2xl border border-teal-400/25 bg-slate-950/70 p-3 shadow-[0_0_35px_rgba(45,212,191,0.2)] backdrop-blur-xl">
-              <Wrench className="h-8 w-8 text-teal-400 md:h-10 md:w-10" />
-              <Cpu className="absolute -right-1 -top-1 h-4 w-4 animate-pulse text-cyan-300" />
-            </div>
-
-            <h1 className="bg-gradient-to-r from-white via-slate-100 to-teal-300 bg-clip-text text-2xl font-black uppercase tracking-wider text-transparent sm:text-4xl md:text-5xl">
-              SwiftGarage <span className="text-teal-400">AI</span>
-            </h1>
+            <img
+              src={swiftGarageLogo}
+              alt="SwiftGarage AI"
+              className="h-20 w-auto max-w-[90%] object-contain sm:h-28 md:h-32"
+            />
           </motion.div>
 
-          <div className="grid flex-1 items-center gap-8 py-8 lg:min-h-0 lg:grid-cols-[1.08fr_0.92fr] lg:gap-10 lg:py-3">
+          <div className="grid flex-1 items-center gap-4 py-4 sm:gap-8 sm:py-8 lg:min-h-0 lg:grid-cols-[1.08fr_0.92fr] lg:gap-10 lg:py-3">
             <motion.div
               initial={{
                 opacity: 0,
@@ -2161,12 +2220,12 @@ export default function StartPage({
               }}
               className="text-center lg:text-left"
             >
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-teal-400/25 bg-teal-400/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-teal-300 backdrop-blur-md sm:text-sm">
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-400/25 bg-teal-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-teal-300 backdrop-blur-md sm:mb-5 sm:px-4 sm:py-2 sm:text-sm sm:tracking-[0.22em]">
                 <Sparkles className="h-4 w-4" />
                 Intelligent roadside assistance
               </div>
 
-              <h2 className="max-w-4xl text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl">
+              <h2 className="max-w-4xl text-[2.15rem] font-black leading-[1.03] tracking-tight sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl">
                 Smarter roadside support,
 
                 <span className="mt-2 block bg-gradient-to-r from-teal-300 via-cyan-300 to-blue-400 bg-clip-text text-transparent">
@@ -2174,13 +2233,13 @@ export default function StartPage({
                 </span>
               </h2>
 
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg lg:mx-0 lg:text-base xl:text-lg">
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-5 text-slate-300 sm:mt-5 sm:text-lg sm:leading-7 lg:mx-0 lg:text-base xl:text-lg">
                 Connect with nearby garages, qualified technicians and towing
                 resources through one secure, intelligent and real-time service
                 platform.
               </p>
 
-              <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
+              <div className="mt-4 flex flex-col items-center gap-2 sm:mt-6 sm:flex-row sm:gap-3 lg:justify-start">
                 <motion.button
                   whileHover={{
                     scale: 1.025,
@@ -2192,7 +2251,7 @@ export default function StartPage({
                   onClick={() =>
                     onNavigate("customer-login")
                   }
-                  className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-red-600 via-orange-500 to-red-600 px-6 py-4 font-black uppercase tracking-wider text-white shadow-[0_18px_50px_rgba(220,38,38,0.35)] transition-shadow hover:shadow-[0_22px_70px_rgba(220,38,38,0.5)] sm:w-auto"
+                  className="group flex w-full items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-red-600 via-orange-500 to-red-600 px-5 py-3 font-black uppercase tracking-wider text-white shadow-[0_18px_50px_rgba(220,38,38,0.35)] transition-shadow hover:shadow-[0_22px_70px_rgba(220,38,38,0.5)] sm:w-auto sm:gap-3 sm:px-6 sm:py-4"
                 >
                   <ShieldAlert className="h-6 w-6 group-hover:animate-pulse" />
                   Emergency / Customer Login
@@ -2202,7 +2261,7 @@ export default function StartPage({
                 <button
                   type="button"
                   onClick={scrollToAbout}
-                  className="group flex items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-6 py-4 font-bold text-slate-100 backdrop-blur-md transition hover:border-teal-400/40 hover:bg-teal-400/10"
+                  className="group flex w-full items-center justify-center gap-2.5 rounded-2xl border border-white/15 bg-white/5 px-5 py-3 font-bold text-slate-100 backdrop-blur-md transition hover:border-teal-400/40 hover:bg-teal-400/10 sm:w-auto sm:gap-3 sm:px-6 sm:py-4"
                 >
                   Explore Platform
                   <ChevronDown className="h-5 w-5 transition-transform group-hover:translate-y-1" />
@@ -2213,7 +2272,7 @@ export default function StartPage({
                   onClick={() =>
                     onNavigate("garage-registration")
                   }
-                  className="group flex w-full items-center justify-center gap-3 rounded-2xl border border-blue-400/30 bg-blue-400/10 px-6 py-4 font-bold text-blue-200 backdrop-blur-md transition hover:border-blue-300/60 hover:bg-blue-400/15 sm:w-auto"
+                  className="group flex w-full items-center justify-center gap-2.5 rounded-2xl border border-blue-400/30 bg-blue-400/10 px-5 py-3 font-bold text-blue-200 backdrop-blur-md transition hover:border-blue-300/60 hover:bg-blue-400/15 sm:w-auto sm:gap-3 sm:px-6 sm:py-4"
                 >
                   <Building2 className="h-5 w-5" />
                   Register Your Garage
@@ -2222,7 +2281,7 @@ export default function StartPage({
                 <button
                   type="button"
                   onClick={openTruckRequest}
-                  className="group flex w-full items-center justify-center gap-3 rounded-2xl border border-teal-400/30 bg-teal-400/10 px-6 py-4 font-bold text-teal-200 backdrop-blur-md transition hover:border-teal-300/60 hover:bg-teal-400/15 sm:w-auto"
+                  className="group flex w-full items-center justify-center gap-2.5 rounded-2xl border border-teal-400/30 bg-teal-400/10 px-5 py-3 font-bold text-teal-200 backdrop-blur-md transition hover:border-teal-300/60 hover:bg-teal-400/15 sm:w-auto sm:gap-3 sm:px-6 sm:py-4"
                 >
                   <Truck className="h-5 w-5" />
                   Register Your Tow Truck
@@ -2245,7 +2304,7 @@ export default function StartPage({
                 duration: 0.85,
                 delay: 0.22,
               }}
-              className="relative mx-auto w-full max-w-xl"
+              className="relative mx-auto mt-20 w-full max-w-xl sm:mt-0"
             >
               <motion.div
                 animate={{
@@ -2927,6 +2986,264 @@ export default function StartPage({
         </div>
       </section>
 
+      {/* GARAGE NETWORK */}
+      <section
+        id="garage-network"
+        className="relative overflow-hidden bg-[#06101c] px-5 py-24 sm:px-8 md:py-32 lg:px-14 scroll-mt-20"
+      >
+        <div className="pointer-events-none absolute -left-32 top-10 h-[520px] w-[520px] rounded-full bg-cyan-500/10 blur-[170px]" />
+        <div className="pointer-events-none absolute right-0 top-1/3 h-[420px] w-[420px] rounded-full bg-blue-500/10 blur-[160px]" />
+
+        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20">
+          {/* LEFT - SRI LANKA MAP */}
+          <motion.div
+            variants={imageRevealLeft}
+            initial="hidden"
+            whileInView="visible"
+            viewport={sectionViewport}
+            className="relative mx-auto flex w-full max-w-[520px] items-center justify-center"
+          >
+            <div className="absolute inset-8 rounded-full bg-cyan-500/10 blur-[100px]" />
+
+            <svg
+              viewBox="0 0 420 700"
+              role="img"
+              aria-label="Sri Lanka garage network map"
+              className="relative z-10 h-auto w-[78%] max-w-[390px] overflow-visible drop-shadow-[0_25px_70px_rgba(0,0,0,0.55)] sm:w-[72%]"
+            >
+              <defs>
+                <linearGradient
+                  id="sriLankaAccurateGradient"
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor="#29415f" />
+                  <stop offset="48%" stopColor="#203652" />
+                  <stop offset="100%" stopColor="#14283f" />
+                </linearGradient>
+
+                <filter
+                  id="sriLankaOutlineGlow"
+                  x="-30%"
+                  y="-30%"
+                  width="160%"
+                  height="160%"
+                >
+                  <feGaussianBlur
+                    stdDeviation="4"
+                    result="blur"
+                  />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+
+                <filter
+                  id="garagePointGlow"
+                  x="-250%"
+                  y="-250%"
+                  width="600%"
+                  height="600%"
+                >
+                  <feGaussianBlur
+                    stdDeviation="7"
+                    result="blur"
+                  />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <path
+                d="M 124.01 655.92 L 123.54 655.45 L 120.69 654.37 L 120.76 650.91 L 118.45 650.23 L 117.36 652.40 L 110.84 644.93 L 110.44 646.43 L 102.96 640.18 L 91.48 624.37 L 86.87 612.15 L 86.73 602.37 L 79.81 584.73 L 83.06 585.54 L 77.49 580.79 L 78.59 571.96 L 74.77 563.00 L 76.21 564.43 L 75.19 560.55 L 74.57 561.44 L 59.97 524.04 L 56.03 503.00 L 56.78 499.81 L 57.47 502.66 L 60.24 497.03 L 62.82 496.61 L 62.48 499.13 L 63.50 496.48 L 60.65 496.35 L 52.53 458.81 L 58.64 476.73 L 58.97 473.27 L 61.14 473.41 L 60.88 467.57 L 58.31 461.18 L 55.52 461.39 L 54.22 458.74 L 56.29 448.70 L 58.46 447.75 L 56.01 447.75 L 47.37 399.28 L 47.36 394.26 L 48.11 397.17 L 49.89 393.38 L 48.73 393.44 L 49.43 380.27 L 46.32 362.76 L 33.77 320.95 L 33.21 308.60 L 34.85 307.11 L 32.40 297.46 L 33.21 294.20 L 37.29 292.71 L 39.33 284.57 L 46.73 271.88 L 42.59 280.23 L 44.49 280.63 L 42.04 283.08 L 43.12 287.42 L 37.83 292.58 L 45.98 287.69 L 44.63 294.48 L 42.39 293.59 L 39.60 297.33 L 41.36 300.45 L 37.97 307.65 L 38.38 316.33 L 42.31 319.86 L 40.15 321.22 L 39.33 327.60 L 41.92 331.74 L 53.49 334.46 L 52.61 330.32 L 54.81 326.79 L 47.61 317.42 L 49.51 317.97 L 48.43 316.21 L 54.81 308.60 L 54.54 305.21 L 52.23 303.72 L 52.50 297.06 L 48.16 293.26 L 50.87 293.53 L 47.48 291.91 L 51.02 291.09 L 55.01 281.79 L 57.26 283.63 L 55.09 277.91 L 56.72 277.79 L 55.09 277.37 L 56.99 272.62 L 56.31 261.90 L 59.84 256.20 L 60.79 243.16 L 68.47 240.52 L 69.28 238.07 L 72.33 239.23 L 69.08 237.33 L 68.94 233.66 L 73.15 228.77 L 73.82 214.79 L 75.73 212.35 L 69.89 200.40 L 72.47 198.49 L 68.80 197.55 L 71.52 189.00 L 70.71 183.98 L 72.46 183.56 L 67.58 177.32 L 71.05 175.48 L 70.57 180.71 L 73.62 180.92 L 72.47 178.14 L 75.80 173.19 L 80.89 170.81 L 80.89 167.95 L 92.99 161.43 L 93.80 151.80 L 95.70 150.44 L 94.61 146.23 L 101.54 131.58 L 100.04 121.66 L 102.90 119.08 L 96.99 113.72 L 92.58 113.11 L 90.94 103.06 L 106.50 95.39 L 112.40 88.26 L 105.28 78.69 L 90.80 69.26 L 92.64 67.42 L 110.30 78.42 L 120.21 79.65 L 128.16 86.09 L 122.65 84.94 L 127.62 89.62 L 120.28 89.62 L 128.91 93.49 L 133.13 91.60 L 136.51 92.95 L 137.73 90.64 L 139.37 91.86 L 147.04 87.45 L 146.41 82.90 L 123.20 66.48 L 110.17 60.23 L 108.19 61.93 L 110.50 63.42 L 108.81 65.39 L 111.99 65.74 L 110.98 68.10 L 94.68 59.55 L 95.36 62.54 L 104.39 67.76 L 90.33 61.45 L 85.44 61.45 L 80.55 54.39 L 79.32 55.48 L 76.89 52.63 L 73.22 54.53 L 66.77 43.59 L 81.23 34.71 L 103.78 33.62 L 103.68 37.69 L 104.73 32.94 L 116.14 31.18 L 123.41 32.74 L 127.88 42.38 L 141.41 59.01 L 191.73 98.86 L 189.89 100.69 L 187.17 97.59 L 188.40 100.69 L 194.43 103.97 L 192.62 99.73 L 214.14 119.09 L 211.43 120.52 L 214.69 119.90 L 226.09 146.23 L 222.70 144.03 L 223.10 149.35 L 225.48 151.19 L 226.49 146.91 L 245.38 177.59 L 243.07 179.63 L 246.13 177.79 L 247.35 184.18 L 247.76 181.74 L 254.68 189.88 L 258.84 189.40 L 264.26 200.67 L 262.23 201.21 L 269.08 204.54 L 273.63 210.44 L 270.66 210.79 L 268.81 209.29 L 267.38 212.07 L 268.68 210.10 L 271.94 211.73 L 272.07 214.59 L 273.84 211.06 L 282.05 223.47 L 281.10 231.35 L 283.49 235.77 L 285.45 235.15 L 285.45 241.26 L 282.40 243.09 L 282.06 236.92 L 276.75 236.91 L 279.87 247.37 L 275.47 246.90 L 274.79 242.69 L 272.67 245.17 L 276.76 253.75 L 274.59 257.69 L 279.20 256.33 L 278.46 253.69 L 282.46 254.83 L 281.31 258.03 L 283.34 254.63 L 287.21 254.57 L 283.96 255.78 L 284.98 257.35 L 288.10 254.64 L 290.95 256.12 L 290.88 247.36 L 296.80 244.59 L 297.74 247.31 L 299.16 247.50 L 299.10 250.15 L 301.01 247.84 L 300.53 249.82 L 302.84 249.68 L 309.08 271.40 L 306.80 271.66 L 310.45 289.18 L 311.19 286.95 L 321.31 321.49 L 327.36 330.38 L 331.83 332.83 L 335.58 331.54 L 331.09 335.89 L 333.13 339.28 L 328.92 343.08 L 328.51 347.15 L 329.05 343.36 L 335.51 339.48 L 340.33 343.08 L 336.11 347.01 L 339.65 354.90 L 343.38 358.90 L 346.37 358.08 L 349.56 364.66 L 360.64 374.63 L 357.04 369.41 L 360.43 371.99 L 374.15 397.51 L 378.36 417.07 L 376.39 411.84 L 375.29 415.81 L 377.27 415.57 L 382.02 425.07 L 386.91 444.36 L 385.70 462.14 L 384.41 459.89 L 385.14 462.40 L 378.90 467.02 L 382.50 473.33 L 385.70 462.96 L 385.28 477.62 L 383.39 479.10 L 385.83 478.02 L 388.54 488.75 L 387.00 491.47 L 385.01 490.24 L 386.18 492.34 L 388.14 490.65 L 386.31 496.55 L 382.84 493.63 L 384.00 497.50 L 387.04 496.89 L 385.90 499.95 L 383.79 498.25 L 385.83 500.69 L 380.67 510.87 L 382.23 511.76 L 383.65 509.38 L 383.38 514.13 L 381.14 517.18 L 379.78 514.88 L 377.68 516.58 L 382.44 519.29 L 378.09 523.64 L 379.72 524.04 L 378.36 531.65 L 379.99 531.64 L 374.15 539.11 L 375.92 540.47 L 371.03 547.26 L 369.66 558.93 L 365.66 563.89 L 363.95 563.28 L 364.30 565.65 L 362.74 564.90 L 364.23 566.54 L 361.51 567.35 L 363.55 568.70 L 359.76 575.36 L 347.86 584.93 L 348.82 581.94 L 346.04 588.26 L 337.40 595.65 L 327.35 598.10 L 323.41 605.70 L 313.92 611.40 L 311.60 610.72 L 313.10 613.03 L 309.56 615.88 L 305.90 615.06 L 306.10 617.84 L 300.73 619.68 L 298.02 623.89 L 276.01 630.26 L 276.55 626.61 L 275.60 630.27 L 266.23 636.24 L 247.76 637.87 L 241.65 641.81 L 226.97 644.66 L 222.62 649.14 L 215.70 648.19 L 209.32 654.98 L 204.16 656.21 L 202.39 660.41 L 200.08 659.47 L 198.99 662.58 L 188.40 662.85 L 178.62 669.37 L 177.81 666.24 L 170.75 664.48 L 160.01 666.52 L 155.33 665.51 L 156.42 661.70 L 154.45 660.82 L 150.50 663.40 L 144.12 662.45 L 133.12 657.29 L 124.01 655.92 Z"
+                fill="url(#sriLankaAccurateGradient)"
+                stroke="#4a6d98"
+                strokeWidth="3.5"
+                strokeLinejoin="round"
+                filter="url(#sriLankaOutlineGlow)"
+              />
+
+              <path
+                d="M 60.04 168.44 L 58.34 166.73 L 47.41 158.52 L 30.50 153.97 L 33.02 153.91 L 34.37 149.96 L 39.53 149.42 L 58.95 154.58 L 70.43 165.10 L 61.41 161.37 L 58.55 157.16 L 62.82 164.56 L 70.43 170.39 L 64.25 173.04 L 60.04 168.44 Z"
+                fill="url(#sriLankaAccurateGradient)"
+                stroke="#4a6d98"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                opacity="0.95"
+              />
+
+              {garages.map((garage, index) => {
+                const point =
+                  projectGarageToSriLankaMap(
+                    garage
+                  );
+
+                if (!point) {
+                  return null;
+                }
+
+                const isOpen =
+                  String(
+                    garage?.open_status ??
+                      garage?.openStatus ??
+                      "CLOSED"
+                  )
+                    .trim()
+                    .toUpperCase() ===
+                  "OPEN";
+
+                return (
+                  <g
+                    key={
+                      garage.garage_id ??
+                      garage.id ??
+                      `garage-map-${index}`
+                    }
+                  >
+                    <circle
+                      cx={point.x}
+                      cy={point.y}
+                      r={isOpen ? 13 : 9}
+                      fill={
+                        isOpen
+                          ? "#22d3ee"
+                          : "#6483a7"
+                      }
+                      opacity={
+                        isOpen
+                          ? 0.18
+                          : 0.12
+                      }
+                    />
+
+                    <circle
+                      cx={point.x}
+                      cy={point.y}
+                      r={isOpen ? 6.5 : 5}
+                      fill={
+                        isOpen
+                          ? "#22d3ee"
+                          : "#6483a7"
+                      }
+                      stroke={
+                        isOpen
+                          ? "#67e8f9"
+                          : "#93a9c2"
+                      }
+                      strokeWidth="1.5"
+                      filter={
+                        isOpen
+                          ? "url(#garagePointGlow)"
+                          : undefined
+                      }
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+          </motion.div>
+
+          {/* RIGHT - NETWORK DETAILS */}
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={sectionViewport}
+            className="w-full"
+          >
+            <motion.div variants={fadeUp}>
+              <p className="mb-4 text-sm font-black uppercase tracking-[0.34em] text-cyan-400">
+                Our Network
+              </p>
+
+              <h2 className="max-w-2xl text-4xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
+                SwiftGarage 
+                <span className="text-cyan-400">
+                  AI
+                </span>
+                <br />
+                Across Sri Lanka
+              </h2>
+
+              <p className="mt-6 max-w-2xl text-base leading-8 text-slate-400 sm:text-lg">
+                Our growing network of registered garages and roadside support
+                services is expanding across Sri Lanka. Find trusted garage
+                support through SwiftGarage AI.
+              </p>
+            </motion.div>
+
+            <div className="mt-10 grid gap-5 sm:grid-cols-2">
+              <motion.div
+                variants={cardReveal}
+                className="rounded-3xl border border-cyan-400/20 bg-[#0b1b2d]/80 p-7 shadow-[0_20px_65px_rgba(0,0,0,0.25)] backdrop-blur-xl"
+              >
+                <div className="mb-7 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/25 bg-cyan-400/10">
+                  <Building2 className="h-8 w-8 text-cyan-300" />
+                </div>
+
+                <div className="text-5xl font-black text-white">
+                  {isLoadingGarages
+                    ? "..."
+                    : registeredGarageCount}
+                </div>
+
+                <div className="mt-2 text-lg font-semibold text-slate-300">
+                  Registered Garages
+                </div>
+              </motion.div>
+
+              <motion.div
+                variants={cardReveal}
+                className="rounded-3xl border border-cyan-400/20 bg-[#0b1b2d]/80 p-7 shadow-[0_20px_65px_rgba(0,0,0,0.25)] backdrop-blur-xl"
+              >
+                <div className="mb-7 flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/25 bg-cyan-400/10">
+                  <CheckCircle2 className="h-8 w-8 text-cyan-300" />
+                </div>
+
+                <div className="text-5xl font-black text-white">
+                  {isLoadingGarages
+                    ? "..."
+                    : activeGarageCount}
+                </div>
+
+                <div className="mt-2 text-lg font-semibold text-slate-300">
+                  Active Garages
+                </div>
+              </motion.div>
+            </div>
+
+            <motion.div
+              variants={fadeUp}
+              className="mt-9"
+            >
+              <div className="flex items-center gap-4">
+                <div className="h-px w-16 bg-cyan-400" />
+                <span className="text-xs font-black uppercase tracking-[0.32em] text-cyan-400 sm:text-sm">
+                  Expanding Every Month
+                </span>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-x-7 gap-y-3 text-xs font-medium text-slate-400 sm:text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.9)]" />
+                  Active Garage
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-[#6483a7]" />
+                  Registered Garage
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </section>
+
       {/* CONTACT */}
       <section
         id="contact"
@@ -3285,15 +3602,12 @@ export default function StartPage({
         <footer className="border-t border-white/10 py-8">
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
             <div className="flex flex-col items-center gap-4 md:items-start">
-              <div className="flex items-center gap-2">
-                <Wrench className="h-6 w-6 text-teal-400" />
-
-                <span className="font-black tracking-wide">
-                  SwiftGarage{" "}
-                  <span className="text-teal-400">
-                    AI
-                  </span>
-                </span>
+              <div className="flex items-center">
+                <img
+                  src={swiftGarageLogo}
+                  alt="SwiftGarage AI"
+                  className="h-16 w-auto object-contain"
+                />
               </div>
 
               <div

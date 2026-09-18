@@ -75,6 +75,16 @@ export default function LiveDashboard({
   ] = useState("");
 
   const [
+    garageLiveStatus,
+    setGarageLiveStatus,
+  ] = useState(null);
+
+  const [
+    garageLiveStatusError,
+    setGarageLiveStatusError,
+  ] = useState("");
+
+  const [
     clearingJobId,
     setClearingJobId,
   ] = useState(null);
@@ -350,6 +360,93 @@ export default function LiveDashboard({
       );
     };
   }, [garageId]);
+
+  // ======================================================
+  // GARAGE LIVE STATUS - CAPACITY / INSIDE / SLOTS /
+  // OUTSIDE QUEUE / WORKLOAD
+  // ======================================================
+
+  const loadGarageLiveStatus = async (
+    selectedGarageId = garageId
+  ) => {
+    if (
+      !Number.isInteger(selectedGarageId) ||
+      selectedGarageId <= 0
+    ) {
+      return;
+    }
+
+    try {
+      setGarageLiveStatusError("");
+
+      const response = await fetch(
+        `http://localhost:5000/api/garages/${selectedGarageId}/live-status`
+      );
+
+      const result = await response.json();
+
+      if (
+        !response.ok ||
+        result.success === false
+      ) {
+        throw new Error(
+          result.message ||
+            "Unable to load garage live status."
+        );
+      }
+
+      setGarageLiveStatus(result.data || null);
+    } catch (error) {
+      console.error(
+        "Garage live status loading error:",
+        error
+      );
+
+      setGarageLiveStatusError(
+        error.message ||
+          "Unable to load garage live status."
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (
+      !Number.isInteger(garageId) ||
+      garageId <= 0
+    ) {
+      return undefined;
+    }
+
+    loadGarageLiveStatus(garageId);
+
+    const liveStatusInterval = setInterval(
+      () => {
+        loadGarageLiveStatus(garageId);
+      },
+      5000
+    );
+
+    return () => {
+      clearInterval(liveStatusInterval);
+    };
+  }, [garageId]);
+
+  const garageCapacity =
+    Number(garageLiveStatus?.capacity) || 0;
+
+  const insideVehicles =
+    Number(garageLiveStatus?.current_capacity) || 0;
+
+  const availableSlots =
+    Number(garageLiveStatus?.available_slots) || 0;
+
+  const outsideQueue =
+    Number(garageLiveStatus?.outside_vehicle_count) || 0;
+
+  const garageWorkload =
+    String(
+      garageLiveStatus?.garage_workload || "LOW"
+    ).toUpperCase();
 
   // ======================================================
   // SUMMARY
@@ -1215,10 +1312,15 @@ export default function LiveDashboard({
             <button
               type="button"
               onClick={() =>
-                loadDashboardData(
-                  garageId,
-                  true
-                )
+                Promise.all([
+                  loadDashboardData(
+                    garageId,
+                    true
+                  ),
+                  loadGarageLiveStatus(
+                    garageId
+                  ),
+                ])
               }
               disabled={
                 dashboardLoading ||
@@ -1265,6 +1367,12 @@ export default function LiveDashboard({
           </div>
         )}
 
+        {garageLiveStatusError && (
+          <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {garageLiveStatusError}
+          </div>
+        )}
+
         {clearVehicleError && (
           <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {
@@ -1280,6 +1388,60 @@ export default function LiveDashboard({
             }
           </div>
         )}
+
+        {/* ==================================================
+            GARAGE LIVE STATUS
+        ================================================== */}
+
+        <div className="mb-8 max-w-6xl">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold tracking-[0.2em] text-cyan-400">
+                GARAGE LIVE STATUS
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                Live garage capacity, queue and workload information.
+              </p>
+            </div>
+
+            <span className="w-fit rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-bold tracking-wider text-cyan-300">
+              AUTO REFRESH · 5 SEC
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <LiveStatusCard
+              label="Capacity"
+              value={garageLiveStatus ? garageCapacity : "--"}
+              helper="Total garage capacity"
+            />
+
+            <LiveStatusCard
+              label="Inside Vehicles"
+              value={garageLiveStatus ? insideVehicles : "--"}
+              helper="Currently inside"
+            />
+
+            <LiveStatusCard
+              label="Available Slots"
+              value={garageLiveStatus ? availableSlots : "--"}
+              helper="Slots available now"
+            />
+
+            <LiveStatusCard
+              label="Outside Queue"
+              value={garageLiveStatus ? outsideQueue : "--"}
+              helper="AI detected outside"
+            />
+
+            <LiveStatusCard
+              label="Workload"
+              value={garageLiveStatus ? garageWorkload : "--"}
+              helper="Inside + outside demand"
+              emphasize
+            />
+          </div>
+        </div>
 
         {/* ==================================================
             SUMMARY CARDS
@@ -2228,6 +2390,43 @@ export default function LiveDashboard({
 
       )}
 
+    </div>
+  );
+}
+
+// ======================================================
+// GARAGE LIVE STATUS CARD
+// ======================================================
+
+function LiveStatusCard({
+  label,
+  value,
+  helper,
+  emphasize = false,
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#1b1b26] p-5 shadow-xl">
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
+        {label}
+      </p>
+
+      <p
+        className={`mt-3 break-words font-mono text-2xl font-bold ${
+          emphasize
+            ? value === "HIGH"
+              ? "text-red-400"
+              : value === "MODERATE"
+              ? "text-amber-400"
+              : "text-emerald-400"
+            : "text-cyan-400"
+        }`}
+      >
+        {value}
+      </p>
+
+      <p className="mt-2 text-[10px] text-gray-600">
+        {helper}
+      </p>
     </div>
   );
 }

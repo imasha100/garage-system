@@ -163,8 +163,7 @@ const registerGarage = async (req, res) => {
     const loginId = loginResult.insertId;
 
     // =======================================
-    // Get the next garage AUTO_INCREMENT ID
-    // and create a code such as GAR-001
+    // Generate Garage Code
     // =======================================
     const [autoIncrementRows] = await connection.query(
       `
@@ -233,7 +232,6 @@ const registerGarage = async (req, res) => {
 
     const garageId = garageResult.insertId;
 
-    // Safety check
     if (garageId !== expectedGarageId) {
       throw new Error(
         `Generated garage code does not match the inserted garage ID. Expected ${expectedGarageId}, received ${garageId}.`
@@ -293,10 +291,7 @@ const registerGarage = async (req, res) => {
       try {
         await connection.rollback();
       } catch (rollbackError) {
-        console.error(
-          "Rollback error:",
-          rollbackError
-        );
+        console.error("Rollback error:", rollbackError);
       }
     }
 
@@ -305,10 +300,7 @@ const registerGarage = async (req, res) => {
     );
     console.error("Code:", error.code);
     console.error("Message:", error.message);
-    console.error(
-      "SQL Message:",
-      error.sqlMessage
-    );
+    console.error("SQL Message:", error.sqlMessage);
     console.error("SQL State:", error.sqlState);
     console.error("SQL:", error.sql);
     console.error(
@@ -333,9 +325,7 @@ const registerGarage = async (req, res) => {
       });
     }
 
-    if (
-      error.code === "ER_NO_DEFAULT_FOR_FIELD"
-    ) {
+    if (error.code === "ER_NO_DEFAULT_FOR_FIELD") {
       return res.status(500).json({
         success: false,
         message:
@@ -399,22 +389,88 @@ const getAllGarages = async (req, res) => {
         g.shift_type,
         g.district,
         g.working_days,
+        g.open_status,
 
         COUNT(
-          CASE
-            WHEN sr.request_status IN (
-              'Accepted',
-              'In Progress'
+          DISTINCT CASE
+            WHEN UPPER(COALESCE(sj.job_status, '')) IN (
+              'ASSIGNED',
+              'IN_PROGRESS',
+              'COMPLETED'
             )
-            THEN sr.request_id
+            THEN sj.job_id
           END
-        ) AS current_capacity
+        ) AS current_capacity,
+
+        GREATEST(
+          g.capacity -
+          COUNT(
+            DISTINCT CASE
+              WHEN UPPER(COALESCE(sj.job_status, '')) IN (
+                'ASSIGNED',
+                'IN_PROGRESS',
+                'COMPLETED'
+              )
+              THEN sj.job_id
+            END
+          ),
+          0
+        ) AS available_slots,
+
+        COALESCE(
+          MAX(gls.outside_vehicle_count),
+          0
+        ) AS outside_vehicle_count,
+
+        CASE
+          WHEN (
+            COUNT(
+              DISTINCT CASE
+                WHEN UPPER(COALESCE(sj.job_status, '')) IN (
+                  'ASSIGNED',
+                  'IN_PROGRESS',
+                  'COMPLETED'
+                )
+                THEN sj.job_id
+              END
+            )
+            +
+            COALESCE(
+              MAX(gls.outside_vehicle_count),
+              0
+            )
+          ) >= g.capacity
+          THEN 'HIGH'
+
+          WHEN (
+            COUNT(
+              DISTINCT CASE
+                WHEN UPPER(COALESCE(sj.job_status, '')) IN (
+                  'ASSIGNED',
+                  'IN_PROGRESS',
+                  'COMPLETED'
+                )
+                THEN sj.job_id
+              END
+            )
+            +
+            COALESCE(
+              MAX(gls.outside_vehicle_count),
+              0
+            )
+          ) >= CEIL(g.capacity / 2)
+          THEN 'MODERATE'
+
+          ELSE 'LOW'
+        END AS garage_workload
 
       FROM garage g
 
-      LEFT JOIN service_request sr
-        ON sr.garage_garage_id =
-           g.garage_id
+      LEFT JOIN service_job sj
+        ON sj.garage_garage_id = g.garage_id
+
+      LEFT JOIN garage_live_status gls
+        ON gls.garage_id = g.garage_id
 
       GROUP BY
         g.garage_id,
@@ -429,7 +485,8 @@ const getAllGarages = async (req, res) => {
         g.closing_time,
         g.shift_type,
         g.district,
-        g.working_days
+        g.working_days,
+        g.open_status
 
       ORDER BY g.garage_id ASC
     `);
@@ -439,23 +496,339 @@ const getAllGarages = async (req, res) => {
       data: garages,
     });
   } catch (error) {
+    console.error("Get garages error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load garages.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+};
+
+// =======================================
+// Update Outside Vehicle Count
+// =======================================
+const updateOutsideVehicleCount = async (req, res) => {
+  try {
+    const {
+      garage_id,
+      outside_vehicle_count,
+    } = req.body;
+
+    if (
+      garage_id === undefined ||
+      outside_vehicle_count === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "garage_id and outside_vehicle_count are required.",
+      });
+    }
+
+    const garageId = Number(garage_id);
+    const outsideCount = Number(
+      outside_vehicle_count
+    );
+
+    if (
+      !Number.isInteger(garageId) ||
+      garageId < 1 ||
+      !Number.isInteger(outsideCount) ||
+      outsideCount < 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid garage ID or outside vehicle count.",
+      });
+    }
+
+    const [garages] = await db.query(
+      `
+      SELECT
+        garage_id,
+        garage_code,
+        garage_name
+      FROM garage
+      WHERE garage_id = ?
+      LIMIT 1
+      `,
+      [garageId]
+    );
+
+    if (garages.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Garage not found.",
+      });
+    }
+
+    await db.query(
+      `
+      INSERT INTO garage_live_status
+      (
+        garage_id,
+        outside_vehicle_count
+      )
+      VALUES (?, ?)
+
+      ON DUPLICATE KEY UPDATE
+        outside_vehicle_count =
+          VALUES(outside_vehicle_count),
+        last_updated = CURRENT_TIMESTAMP
+      `,
+      [garageId, outsideCount]
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Outside vehicle count updated successfully.",
+      data: {
+        garage_id: garageId,
+        garage_code: garages[0].garage_code,
+        garage_name: garages[0].garage_name,
+        outside_vehicle_count: outsideCount,
+      },
+    });
+  } catch (error) {
     console.error(
-      "Get garages error:",
+      "Update outside vehicle count error:",
       error
     );
 
     return res.status(500).json({
       success: false,
       message:
-        "Unable to load garages.",
-      error:
-        error.sqlMessage ||
-        error.message,
+        "Unable to update outside vehicle count.",
+      error: error.sqlMessage || error.message,
     });
   }
 };
 
+// =======================================
+// Get Single Garage Live Status
+// =======================================
+const getGarageLiveStatus = async (req, res) => {
+  try {
+    const garageId = Number(req.params.garageId);
+
+    if (
+      !Number.isInteger(garageId) ||
+      garageId < 1
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid garage ID.",
+      });
+    }
+
+    const [garages] = await db.query(
+      `
+      SELECT
+        g.garage_id,
+        g.capacity,
+        g.open_status,
+
+        COUNT(
+          DISTINCT CASE
+            WHEN UPPER(COALESCE(sj.job_status, '')) IN (
+              'ASSIGNED',
+              'IN_PROGRESS',
+              'COMPLETED'
+            )
+            THEN sj.job_id
+          END
+        ) AS current_capacity,
+
+        GREATEST(
+          g.capacity -
+          COUNT(
+            DISTINCT CASE
+              WHEN UPPER(COALESCE(sj.job_status, '')) IN (
+                'ASSIGNED',
+                'IN_PROGRESS',
+                'COMPLETED'
+              )
+              THEN sj.job_id
+            END
+          ),
+          0
+        ) AS available_slots,
+
+        COALESCE(
+          MAX(gls.outside_vehicle_count),
+          0
+        ) AS outside_vehicle_count,
+
+        CASE
+          WHEN (
+            COUNT(
+              DISTINCT CASE
+                WHEN UPPER(COALESCE(sj.job_status, '')) IN (
+                  'ASSIGNED',
+                  'IN_PROGRESS',
+                  'COMPLETED'
+                )
+                THEN sj.job_id
+              END
+            )
+            +
+            COALESCE(
+              MAX(gls.outside_vehicle_count),
+              0
+            )
+          ) >= g.capacity
+          THEN 'HIGH'
+
+          WHEN (
+            COUNT(
+              DISTINCT CASE
+                WHEN UPPER(COALESCE(sj.job_status, '')) IN (
+                  'ASSIGNED',
+                  'IN_PROGRESS',
+                  'COMPLETED'
+                )
+                THEN sj.job_id
+              END
+            )
+            +
+            COALESCE(
+              MAX(gls.outside_vehicle_count),
+              0
+            )
+          ) >= CEIL(g.capacity / 2)
+          THEN 'MODERATE'
+
+          ELSE 'LOW'
+        END AS garage_workload
+
+      FROM garage g
+
+      LEFT JOIN service_job sj
+        ON sj.garage_garage_id = g.garage_id
+
+      LEFT JOIN garage_live_status gls
+        ON gls.garage_id = g.garage_id
+
+      WHERE g.garage_id = ?
+
+      GROUP BY
+        g.garage_id,
+        g.capacity,
+        g.open_status
+      `,
+      [garageId]
+    );
+
+    if (garages.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Garage not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: garages[0],
+    });
+  } catch (error) {
+    console.error(
+      "Get garage live status error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to load garage live status.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+};
+
+// =======================================
+// Update Garage Open / Closed Status
+// =======================================
+const updateGarageOpenStatus = async (req, res) => {
+  try {
+    const garageId = Number(req.params.garageId);
+
+    const openStatus = String(
+      req.body?.open_status || ""
+    )
+      .trim()
+      .toUpperCase();
+
+    if (
+      !Number.isInteger(garageId) ||
+      garageId < 1
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid garage ID.",
+      });
+    }
+
+    if (
+      openStatus !== "OPEN" &&
+      openStatus !== "CLOSED"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "open_status must be OPEN or CLOSED.",
+      });
+    }
+
+    const [result] = await db.query(
+      `
+      UPDATE garage
+      SET open_status = ?
+      WHERE garage_id = ?
+      `,
+      [openStatus, garageId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Garage not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Garage is now ${openStatus}.`,
+      data: {
+        garage_id: garageId,
+        open_status: openStatus,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Update garage open status error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to update garage open status.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+};
+
+// =======================================
+// Exports
+// =======================================
 module.exports = {
   registerGarage,
   getAllGarages,
+  updateOutsideVehicleCount,
+  getGarageLiveStatus,
+  updateGarageOpenStatus,
 };

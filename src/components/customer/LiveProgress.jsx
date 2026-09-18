@@ -176,6 +176,30 @@ export default function LiveProgress({ setActiveTab }) {
   };
 
   // ======================================================
+  // FORMAT ESTIMATED COMPLETION DATE + TIME
+  // ======================================================
+
+  const formatDateTime = (value) => {
+    if (!value) {
+      return "Not available";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleString([], {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // ======================================================
   // CALCULATE TIME LEFT
   // ======================================================
 
@@ -554,6 +578,11 @@ export default function LiveProgress({ setActiveTab }) {
           job?.estimatedCompletionTime
         );
 
+  const estimatedCompletionDateTime =
+    formatDateTime(
+      job?.estimatedCompletionTime
+    );
+
   // ======================================================
   // SERVICE STARTED POPUP ACKNOWLEDGEMENT
   // ======================================================
@@ -574,11 +603,11 @@ export default function LiveProgress({ setActiveTab }) {
   // ======================================================
 
   return (
-    <div className="relative w-full h-full overflow-hidden max-md:overflow-y-auto text-slate-300 font-mono">
+    <div className="relative w-full h-full min-h-0 overflow-hidden text-slate-300 font-mono">
 
-      <main className="w-full h-full max-md:min-h-screen flex items-center justify-center px-6 max-md:px-4 max-md:py-8">
+      <main className="w-full h-full min-h-0 overflow-y-auto px-6 max-md:px-4 py-8">
 
-        <div className="flex flex-col items-center text-center gap-10 max-md:gap-8 w-full">
+        <div className="flex min-h-full w-full flex-col items-center justify-center text-center gap-10 max-md:gap-8 py-6">
 
           {/* ==================================================
               LOADING
@@ -875,7 +904,9 @@ export default function LiveProgress({ setActiveTab }) {
 
                         <h4 className="text-4xl max-md:text-2xl font-bold text-white mt-1">
                           {
-                            completionTime
+                            isCompleted
+                              ? completionTime
+                              : estimatedCompletionDateTime
                           }
                         </h4>
 
@@ -964,7 +995,7 @@ export default function LiveProgress({ setActiveTab }) {
                 </p>
 
                 <p className="mt-2 text-xl font-black text-[#5ef7c3]">
-                  {completionTime}
+                  {estimatedCompletionDateTime}
                 </p>
 
               </div>

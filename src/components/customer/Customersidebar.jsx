@@ -21,10 +21,10 @@ export default function CustomerSidebar({
     useState(false);
 
   // ======================================================
-  // GET CURRENT CUSTOMER JOB STATUS
+  // GET CURRENT CUSTOMER SERVICE STATE
   // ======================================================
 
-  const getCurrentJobStatus = () => {
+  const getCurrentServiceState = () => {
     try {
       const latestRequest =
         JSON.parse(
@@ -37,6 +37,13 @@ export default function CustomerSidebar({
         JSON.parse(
           sessionStorage.getItem(
             "latestCompletedJob"
+          ) || "null"
+        );
+
+      const latestSubmittedFeedback =
+        JSON.parse(
+          sessionStorage.getItem(
+            "latestSubmittedFeedback"
           ) || "null"
         );
 
@@ -58,26 +65,66 @@ export default function CustomerSidebar({
           .trim()
           .toUpperCase();
 
-      return (
-        completedJobStatus ||
-        requestJobStatus ||
-        ""
-      );
+      const customerStage =
+        String(
+          latestRequest?.customerStage ||
+            latestRequest?.customer_stage ||
+            sessionStorage.getItem(
+              "customerFlowStage"
+            ) ||
+            ""
+        )
+          .trim()
+          .toUpperCase();
+
+      const feedbackSubmitted =
+        Boolean(
+          latestSubmittedFeedback ||
+            latestRequest?.feedbackSubmitted ||
+            latestRequest?.feedback_submitted
+        );
+
+      return {
+        requestJobStatus,
+        completedJobStatus,
+        customerStage,
+        hasCompletedJob: !!latestCompletedJob,
+        feedbackSubmitted,
+      };
     } catch (error) {
       console.error(
-        "Unable to read customer job status:",
+        "Unable to read customer service state:",
         error
       );
 
-      return "";
+      return {
+        requestJobStatus: "",
+        completedJobStatus: "",
+        customerStage: "",
+        hasCompletedJob: false,
+        feedbackSubmitted: false,
+      };
     }
   };
 
-  const currentJobStatus =
-    getCurrentJobStatus();
+  // Read the latest session state on every render.
+  // Opening the logout popup causes a render after the latest
+  // backend state has been refreshed.
+  const currentServiceState =
+    getCurrentServiceState();
+
+  const serviceIsCompleted =
+    currentServiceState.requestJobStatus ===
+      "COMPLETED" ||
+    currentServiceState.completedJobStatus ===
+      "COMPLETED" ||
+    currentServiceState.customerStage ===
+      "COMPLETED" ||
+    currentServiceState.hasCompletedJob;
 
   const canLeaveFeedback =
-    currentJobStatus === "COMPLETED";
+    serviceIsCompleted &&
+    !currentServiceState.feedbackSubmitted;
 
   // ======================================================
   // MENU
@@ -189,7 +236,75 @@ export default function CustomerSidebar({
   // OPEN LOGOUT POPUP
   // ======================================================
 
-  const handleLogoutClick = () => {
+  const handleLogoutClick = async () => {
+    // Refresh the latest customer request before deciding
+    // whether the feedback reminder should be shown.
+    try {
+      const storedRequest = JSON.parse(
+        sessionStorage.getItem("latestServiceRequest") || "null"
+      );
+
+      const contact = String(
+        storedRequest?.contact ||
+          storedRequest?.customerContact ||
+          ""
+      )
+        .trim()
+        .replace(/\s+/g, "");
+
+      const vehicleNumber = String(
+        storedRequest?.vehicleNumber ||
+          storedRequest?.vNo ||
+          ""
+      )
+        .trim()
+        .toUpperCase();
+
+      if (contact && vehicleNumber) {
+        const response = await fetch(
+          `http://localhost:5000/api/service-requests/customer/${encodeURIComponent(
+            contact
+          )}/latest?vehicleNumber=${encodeURIComponent(vehicleNumber)}`
+        );
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          const latestRequest = result.request || {};
+
+          sessionStorage.setItem(
+            "latestServiceRequest",
+            JSON.stringify({
+              ...storedRequest,
+              ...latestRequest,
+              jobStatus:
+                result.jobStatus ||
+                latestRequest.jobStatus ||
+                storedRequest?.jobStatus ||
+                null,
+              customerStage:
+                result.customerStage ||
+                latestRequest.customerStage ||
+                storedRequest?.customerStage ||
+                null,
+              feedbackSubmitted:
+                result.feedbackSubmitted === true ||
+                result.feedbackSubmitted === 1 ||
+                result.feedbackSubmitted === "1" ||
+                latestRequest.feedbackSubmitted === true ||
+                latestRequest.feedbackSubmitted === 1 ||
+                latestRequest.feedbackSubmitted === "1",
+            })
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Unable to refresh customer service state before logout:",
+        error
+      );
+    }
+
     setShowLogoutPopup(true);
   };
 

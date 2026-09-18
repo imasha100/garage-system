@@ -219,10 +219,10 @@ const registerTechnician = async (req, res) => {
     const [garageRows] =
       await connection.query(
         `
-        SELECT garage_id
-        FROM garage
-        WHERE garage_id = ?
-        LIMIT 1
+          SELECT garage_id
+          FROM garage
+          WHERE garage_id = ?
+          LIMIT 1
         `,
         [numericGarageId]
       );
@@ -244,16 +244,16 @@ const registerTechnician = async (req, res) => {
     const [duplicateRows] =
       await connection.query(
         `
-        SELECT
-          technician_id,
-          email,
-          contact_number,
-          nic
-        FROM technician
-        WHERE email = ?
-           OR contact_number = ?
-           OR nic = ?
-        LIMIT 1
+          SELECT
+            technician_id,
+            email,
+            contact_number,
+            nic
+          FROM technician
+          WHERE email = ?
+             OR contact_number = ?
+             OR nic = ?
+          LIMIT 1
         `,
         [
           trimmedEmail,
@@ -313,12 +313,12 @@ const registerTechnician = async (req, res) => {
     const [loginResult] =
       await connection.query(
         `
-        INSERT INTO login (
-          user_name,
-          password,
-          role
-        )
-        VALUES (?, ?, ?)
+          INSERT INTO login (
+            user_name,
+            password,
+            role
+          )
+          VALUES (?, ?, ?)
         `,
         [
           temporaryUsername,
@@ -339,21 +339,21 @@ const registerTechnician = async (req, res) => {
     const [technicianResult] =
       await connection.query(
         `
-        INSERT INTO technician (
-          full_name,
-          contact_number,
-          email,
-          nic,
-          experience_years,
-          specialization,
-          shift_status,
-          availability_status,
-          profile_photo,
-          role,
-          login_login_id,
-          garage_garage_id
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO technician (
+            full_name,
+            contact_number,
+            email,
+            nic,
+            experience_years,
+            specialization,
+            shift_status,
+            availability_status,
+            profile_photo,
+            role,
+            login_login_id,
+            garage_garage_id
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           trimmedFullName,
@@ -382,9 +382,9 @@ const registerTechnician = async (req, res) => {
 
     await connection.query(
       `
-      UPDATE login
-      SET user_name = ?
-      WHERE login_id = ?
+        UPDATE login
+        SET user_name = ?
+        WHERE login_id = ?
       `,
       [username, loginId]
     );
@@ -507,22 +507,22 @@ const getAllTechnicians = async (req, res) => {
 
     const [rows] = await db.query(
       `
-      SELECT
-        technician_id,
-        full_name,
-        contact_number,
-        email,
-        nic,
-        experience_years,
-        specialization,
-        shift_status,
-        availability_status,
-        profile_photo,
-        role,
-        garage_garage_id
-      FROM technician
-      WHERE garage_garage_id = ?
-      ORDER BY full_name ASC
+        SELECT
+          technician_id,
+          full_name,
+          contact_number,
+          email,
+          nic,
+          experience_years,
+          specialization,
+          shift_status,
+          availability_status,
+          profile_photo,
+          role,
+          garage_garage_id
+        FROM technician
+        WHERE garage_garage_id = ?
+        ORDER BY full_name ASC
       `,
       [garageId]
     );
@@ -589,60 +589,60 @@ const getTechnicianById = async (
 
     const [rows] = await db.query(
       `
-      SELECT
-        t.technician_id,
-        t.full_name,
-        t.contact_number,
-        t.email,
-        t.nic,
-        t.experience_years,
-        t.specialization,
-        t.shift_status,
-        t.availability_status,
-        t.profile_photo,
-        t.role,
-        t.garage_garage_id,
+        SELECT
+          t.technician_id,
+          t.full_name,
+          t.contact_number,
+          t.email,
+          t.nic,
+          t.experience_years,
+          t.specialization,
+          t.shift_status,
+          t.availability_status,
+          t.profile_photo,
+          t.role,
+          t.garage_garage_id,
 
-        COALESCE(
-          ROUND(
-            AVG(f.rating),
-            1
-          ),
-          0
-        ) AS average_rating,
+          COALESCE(
+            ROUND(
+              AVG(f.rating),
+              1
+            ),
+            0
+          ) AS average_rating,
 
-        COUNT(
-          f.feedback_id
-        ) AS total_reviews
+          COUNT(
+            f.feedback_id
+          ) AS total_reviews
 
-      FROM technician t
+        FROM technician t
 
-      LEFT JOIN service_job sj
-        ON sj.technician_technician_id =
-           t.technician_id
+        LEFT JOIN service_job sj
+          ON sj.technician_technician_id =
+             t.technician_id
 
-      LEFT JOIN feedback f
-        ON f.service_job_job_id =
-           sj.job_id
+        LEFT JOIN feedback f
+          ON f.service_job_job_id =
+             sj.job_id
 
-      WHERE
-        t.technician_id = ?
+        WHERE
+          t.technician_id = ?
 
-      GROUP BY
-        t.technician_id,
-        t.full_name,
-        t.contact_number,
-        t.email,
-        t.nic,
-        t.experience_years,
-        t.specialization,
-        t.shift_status,
-        t.availability_status,
-        t.profile_photo,
-        t.role,
-        t.garage_garage_id
+        GROUP BY
+          t.technician_id,
+          t.full_name,
+          t.contact_number,
+          t.email,
+          t.nic,
+          t.experience_years,
+          t.specialization,
+          t.shift_status,
+          t.availability_status,
+          t.profile_photo,
+          t.role,
+          t.garage_garage_id
 
-      LIMIT 1
+        LIMIT 1
       `,
       [technicianId]
     );
@@ -701,6 +701,7 @@ const getTechnicianById = async (
     });
   }
 };
+
 // ======================================================
 // UPDATE TECHNICIAN
 // ======================================================
@@ -839,10 +840,10 @@ const updateTechnician = async (req, res) => {
     const [existingRows] =
       await db.query(
         `
-        SELECT technician_id
-        FROM technician
-        WHERE technician_id = ?
-        LIMIT 1
+          SELECT technician_id
+          FROM technician
+          WHERE technician_id = ?
+          LIMIT 1
         `,
         [technicianId]
       );
@@ -864,15 +865,15 @@ const updateTechnician = async (req, res) => {
     const [duplicateRows] =
       await db.query(
         `
-        SELECT technician_id
-        FROM technician
-        WHERE technician_id <> ?
-          AND (
-            email = ?
-            OR contact_number = ?
-            OR nic = ?
-          )
-        LIMIT 1
+          SELECT technician_id
+          FROM technician
+          WHERE technician_id <> ?
+            AND (
+              email = ?
+              OR contact_number = ?
+              OR nic = ?
+            )
+          LIMIT 1
         `,
         [
           technicianId,
@@ -899,15 +900,15 @@ const updateTechnician = async (req, res) => {
 
     await db.query(
       `
-      UPDATE technician
-      SET
-        full_name = ?,
-        contact_number = ?,
-        email = ?,
-        nic = ?,
-        experience_years = ?,
-        specialization = ?
-      WHERE technician_id = ?
+        UPDATE technician
+        SET
+          full_name = ?,
+          contact_number = ?,
+          email = ?,
+          nic = ?,
+          experience_years = ?,
+          specialization = ?
+        WHERE technician_id = ?
       `,
       [
         trimmedFullName,
@@ -992,12 +993,15 @@ const updateTechnician = async (req, res) => {
 
 // ======================================================
 // UPDATE TECHNICIAN SHIFT STATUS
+// ALSO SAVES SHIFT HISTORY
 // ======================================================
 
 const updateTechnicianShiftStatus = async (
   req,
   res
 ) => {
+  let connection;
+
   try {
     const technicianId =
       Number(
@@ -1040,15 +1044,32 @@ const updateTechnicianShiftStatus = async (
       });
     }
 
+    // ==========================================
+    // Start transaction
+    // ==========================================
+
+    connection =
+      await db.getConnection();
+
+    await connection.beginTransaction();
+
+    // ==========================================
+    // Get current technician + garage
+    // ==========================================
+
     const [technicianRows] =
-      await db.query(
+      await connection.query(
         `
-        SELECT
-          technician_id,
-          shift_status
-        FROM technician
-        WHERE technician_id = ?
-        LIMIT 1
+          SELECT
+            technician_id,
+            shift_status,
+            garage_garage_id
+
+          FROM technician
+
+          WHERE technician_id = ?
+
+          LIMIT 1
         `,
         [technicianId]
       );
@@ -1057,6 +1078,8 @@ const updateTechnicianShiftStatus = async (
       technicianRows.length ===
       0
     ) {
+      await connection.rollback();
+
       return res.status(404).json({
         success: false,
         message:
@@ -1064,17 +1087,101 @@ const updateTechnicianShiftStatus = async (
       });
     }
 
-    await db.query(
+    const currentTechnician =
+      technicianRows[0];
+
+    const currentShiftStatus =
+      String(
+        currentTechnician.shift_status ||
+          ""
+      )
+        .trim()
+        .toUpperCase();
+
+    const garageId =
+      Number(
+        currentTechnician
+          .garage_garage_id
+      );
+
+    // ==========================================
+    // Prevent duplicate history
+    // Example: ON -> ON
+    // ==========================================
+
+    if (
+      currentShiftStatus ===
+      shiftStatus
+    ) {
+      await connection.commit();
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          `Technician shift is already ${shiftStatus}.`,
+
+        technician: {
+          technicianId,
+          shiftStatus,
+        },
+
+        historySaved: false,
+      });
+    }
+
+    // ==========================================
+    // Update current shift status
+    // ==========================================
+
+    await connection.query(
       `
-      UPDATE technician
-      SET shift_status = ?
-      WHERE technician_id = ?
+        UPDATE technician
+
+        SET shift_status = ?
+
+        WHERE technician_id = ?
       `,
       [
         shiftStatus,
         technicianId,
       ]
     );
+
+    // ==========================================
+    // Save shift history
+    // ==========================================
+
+    await connection.query(
+      `
+        INSERT INTO staff_shift_history (
+          garage_id,
+          staff_type,
+          staff_id,
+          shift_status,
+          changed_at
+        )
+
+        VALUES (
+          ?,
+          'TECHNICIAN',
+          ?,
+          ?,
+          NOW()
+        )
+      `,
+      [
+        garageId,
+        technicianId,
+        shiftStatus,
+      ]
+    );
+
+    // ==========================================
+    // Commit
+    // ==========================================
+
+    await connection.commit();
 
     return res.status(200).json({
       success: true,
@@ -1086,8 +1193,25 @@ const updateTechnicianShiftStatus = async (
         technicianId,
         shiftStatus,
       },
+
+      historySaved: true,
     });
   } catch (error) {
+    // ==========================================
+    // Rollback if anything failed
+    // ==========================================
+
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "Technician shift rollback failed:",
+          rollbackError
+        );
+      }
+    }
+
     console.error(
       "========== UPDATE SHIFT STATUS ERROR =========="
     );
@@ -1123,6 +1247,10 @@ const updateTechnicianShiftStatus = async (
         error.sqlMessage ||
         "Unable to update technician shift status.",
     });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 };
 
@@ -1199,20 +1327,20 @@ const changeTechnicianPassword = async (
 
     const [rows] = await db.query(
       `
-      SELECT
-        t.technician_id,
-        t.login_login_id,
-        l.password
-      FROM technician t
+        SELECT
+          t.technician_id,
+          t.login_login_id,
+          l.password
+        FROM technician t
 
-      INNER JOIN login l
-        ON l.login_id =
-           t.login_login_id
+        INNER JOIN login l
+          ON l.login_id =
+             t.login_login_id
 
-      WHERE
-        t.technician_id = ?
+        WHERE
+          t.technician_id = ?
 
-      LIMIT 1
+        LIMIT 1
       `,
       [technicianId]
     );
@@ -1245,9 +1373,9 @@ const changeTechnicianPassword = async (
 
     await db.query(
       `
-      UPDATE login
-      SET password = ?
-      WHERE login_id = ?
+        UPDATE login
+        SET password = ?
+        WHERE login_id = ?
       `,
       [
         cleanedNewPassword,

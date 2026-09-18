@@ -10,6 +10,11 @@ import {
   Info,
   User,
   RefreshCw,
+  History,
+  Users,
+  Wrench,
+  Clock3,
+  X,
 } from "lucide-react";
 
 import GarageOwnerNotifications from "./GarageOwnerNotifications";
@@ -56,6 +61,15 @@ export default function PerformanceAudit({
 
   const [loadError, setLoadError] =
     useState("");
+
+  const [jobHistory, setJobHistory] =
+    useState([]);
+
+  const [selectedJobHistory, setSelectedJobHistory] =
+    useState(null);
+
+  const [shiftHistory, setShiftHistory] =
+    useState([]);
 
   // ======================================================
   // GET LOGGED-IN STAFF USER
@@ -402,6 +416,62 @@ export default function PerformanceAudit({
         setAuditData(
           formatted
         );
+
+        // ================================================
+        // LOAD JOB TECHNICIAN HISTORY
+        // ================================================
+
+        const historyResponse =
+          await fetch(
+            `${API_BASE}/api/service-jobs/garage/${numericGarageId}/job-history`
+          );
+
+        const historyResult =
+          await historyResponse.json();
+
+        if (
+          !historyResponse.ok ||
+          historyResult.success === false
+        ) {
+          throw new Error(
+            historyResult.message ||
+              "Unable to load job technician history."
+          );
+        }
+
+        setJobHistory(
+          Array.isArray(historyResult?.jobs)
+            ? historyResult.jobs
+            : []
+        );
+
+        // ================================================
+        // LOAD STAFF SHIFT HISTORY
+        // ================================================
+
+        const shiftHistoryResponse =
+          await fetch(
+            `${API_BASE}/api/shift-history/garage/${numericGarageId}`
+          );
+
+        const shiftHistoryResult =
+          await shiftHistoryResponse.json();
+
+        if (
+          !shiftHistoryResponse.ok ||
+          shiftHistoryResult.success === false
+        ) {
+          throw new Error(
+            shiftHistoryResult.message ||
+              "Unable to load staff shift history."
+          );
+        }
+
+        setShiftHistory(
+          Array.isArray(shiftHistoryResult?.history)
+            ? shiftHistoryResult.history
+            : []
+        );
       } catch (error) {
         console.error(
           "Performance Audit loading error:",
@@ -472,6 +542,125 @@ export default function PerformanceAudit({
       auditData,
       searchText,
     ]);
+
+  const filteredJobHistory =
+    useMemo(() => {
+      const query =
+        searchText
+          .trim()
+          .toLowerCase();
+
+      if (!query) {
+        return jobHistory;
+      }
+
+      return jobHistory.filter((job) => {
+        const supportText =
+          Array.isArray(job.supportAssistances)
+            ? job.supportAssistances
+                .map(
+                  (support) =>
+                    `${support.supportTechnicianName || ""} ${support.reason || ""} ${support.assistanceStatus || ""}`
+                )
+                .join(" ")
+            : "";
+
+        return `
+          ${job.jobId || ""}
+          ${job.ticketNumber || ""}
+          ${job.vehicleNumber || ""}
+          ${job.vehicleType || ""}
+          ${job.vehicleModel || ""}
+          ${job.customerName || ""}
+          ${job.jobType || ""}
+          ${job.jobStatus || ""}
+          ${job.mainTechnician?.technicianName || ""}
+          ${job.mainTechnician?.specialization || ""}
+          ${supportText}
+        `
+          .toLowerCase()
+          .includes(query);
+      });
+    }, [jobHistory, searchText]);
+
+  const filteredShiftHistory =
+    useMemo(() => {
+      const query =
+        searchText.trim().toLowerCase();
+
+      if (!query) {
+        return shiftHistory;
+      }
+
+      return shiftHistory.filter((item) =>
+        `
+          ${item.staffName || ""}
+          ${item.staffType || ""}
+          ${item.staffId || ""}
+          ${item.shiftStatus || ""}
+        `
+          .toLowerCase()
+          .includes(query)
+      );
+    }, [shiftHistory, searchText]);
+
+  const formatDate = (value) => {
+    if (!value) {
+      return "N/A";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleDateString();
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) {
+      return "N/A";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return date.toLocaleString();
+  };
+
+  // ======================================================
+  // KEEP SUPPORT HISTORY STRICTLY INSIDE ONE JOB
+  // ======================================================
+
+  const getSupportAssistancesForJob = (job) => {
+    if (!job || !Array.isArray(job.supportAssistances)) {
+      return [];
+    }
+
+    const selectedJobId = Number(job.jobId ?? job.job_id);
+
+    if (!Number.isFinite(selectedJobId)) {
+      return [];
+    }
+
+    return job.supportAssistances.filter((support) => {
+      const supportJobId = Number(
+        support.jobId ??
+          support.job_id ??
+          support.serviceJobId ??
+          support.service_job_id
+      );
+
+      return (
+        Number.isFinite(supportJobId) &&
+        supportJobId === selectedJobId
+      );
+    });
+  };
 
   // ======================================================
   // OWNER DISPLAY
@@ -609,7 +798,7 @@ export default function PerformanceAudit({
                   event.target.value
                 )
               }
-              placeholder="Search technician..."
+              placeholder="Search technician / job..."
               className="w-full bg-transparent outline-none text-sm text-white placeholder:text-gray-500"
             />
 
@@ -1069,6 +1258,419 @@ export default function PerformanceAudit({
         </div>
 
         {/* ==================================================
+            JOB TECHNICIAN HISTORY
+        ================================================== */}
+
+        <div className="bg-[#181820] border border-white/10 rounded-lg overflow-hidden mb-10">
+
+          <div className="px-5 py-4 border-b border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+            <div className="flex items-center gap-3">
+
+              <div className="w-9 h-9 rounded-lg border border-indigo-500/30 bg-indigo-500/10 flex items-center justify-center text-indigo-300">
+                <History size={16} />
+              </div>
+
+              <div>
+                <p className="text-[11px] text-indigo-300 font-bold tracking-[0.25em]">
+                  JOB TECHNICIAN HISTORY
+                </p>
+
+                <p className="mt-1 text-[10px] text-gray-500">
+                  Completed and cleared jobs with main and support technician records.
+                </p>
+              </div>
+
+            </div>
+
+            <p className="text-[10px] text-gray-600">
+              {filteredJobHistory.length} JOBS
+            </p>
+
+          </div>
+
+          <div className="overflow-x-auto">
+
+            <table className="w-[1100px] md:w-full text-left">
+
+              <thead className="text-gray-400 text-[11px] tracking-widest">
+
+                <tr className="border-b border-white/10">
+                  <th className="px-6 py-5">Job</th>
+                  <th className="px-4 py-5">Vehicle</th>
+                  <th className="px-4 py-5">Main Technician</th>
+                  <th className="px-4 py-5">Support</th>
+                  <th className="px-4 py-5">Completed</th>
+                  <th className="px-4 py-5">Status</th>
+                  <th className="px-4 py-5">Action</th>
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan="7"
+                      className="py-14 text-center text-gray-500 text-xs tracking-widest"
+                    >
+                      LOADING JOB HISTORY...
+                    </td>
+                  </tr>
+                ) : filteredJobHistory.length > 0 ? (
+                  filteredJobHistory.map((job) => {
+                    const jobSupportAssistances =
+                      getSupportAssistancesForJob(job);
+
+                    const supportCount =
+                      jobSupportAssistances.length;
+
+                    return (
+                      <tr
+                        key={job.jobId}
+                        className="border-b border-white/10 hover:bg-white/[0.03] transition"
+                      >
+                        <td className="px-6 py-5">
+                          <p className="text-sm font-mono text-white">
+                            #{job.jobId}
+                          </p>
+                          <p className="mt-1 text-[9px] text-gray-600 font-mono">
+                            {job.ticketNumber || `JOB-${job.jobId}`}
+                          </p>
+                        </td>
+
+                        <td className="px-4 py-5">
+                          <p className="text-sm text-white">
+                            {job.vehicleNumber || "N/A"}
+                          </p>
+                          <p className="mt-1 text-[9px] text-gray-500">
+                            {[job.vehicleType, job.vehicleModel]
+                              .filter(Boolean)
+                              .join(" • ") || "Vehicle details not available"}
+                          </p>
+                        </td>
+
+                        <td className="px-4 py-5">
+                          <p className="text-sm text-cyan-300">
+                            {job.mainTechnician?.technicianName ||
+                              "Unknown Technician"}
+                          </p>
+                          <p className="mt-1 text-[9px] text-gray-500">
+                            TECH-{job.mainTechnician?.technicianId || "N/A"}
+                          </p>
+                        </td>
+
+                        <td className="px-4 py-5">
+                          {supportCount > 0 ? (
+                            <div>
+                              <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[9px] font-bold text-violet-300">
+                                <Users size={11} />
+                                {supportCount} SUPPORT
+                              </span>
+                              <p className="mt-2 max-w-[170px] truncate text-[10px] text-gray-400">
+                                {jobSupportAssistances
+                                  .map(
+                                    (item) =>
+                                      item.supportTechnicianName ||
+                                      "Support Technician"
+                                  )
+                                  .join(", ")}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-gray-600">
+                              No support assistance
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-5">
+                          <p className="text-xs text-gray-300">
+                            {formatDate(
+                              job.actualCompletionTime ||
+                                job.endDate
+                            )}
+                          </p>
+                          <p className="mt-1 text-[9px] text-gray-600">
+                            {job.endTime || ""}
+                          </p>
+                        </td>
+
+                        <td className="px-4 py-5">
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-[9px] font-bold tracking-wider ${
+                              String(job.jobStatus || "").toUpperCase() ===
+                              "CLEARED"
+                                ? "border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
+                                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                            }`}
+                          >
+                            {job.jobStatus || "COMPLETED"}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedJobHistory(job)
+                            }
+                            className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-[10px] font-bold tracking-wider text-cyan-300 hover:bg-cyan-500/20 transition"
+                          >
+                            VIEW FULL HISTORY
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="7"
+                      className="py-14 text-center text-gray-500 text-xs tracking-widest"
+                    >
+                      {searchText
+                        ? "NO MATCHING JOB HISTORY FOUND"
+                        : "NO COMPLETED JOB HISTORY AVAILABLE"}
+                    </td>
+                  </tr>
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+
+        {/* ==================================================
+            STAFF SHIFT HISTORY - SEPARATE CARDS
+        ================================================== */}
+
+        <div className="mb-10">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] font-bold tracking-[0.25em] text-emerald-300">
+                STAFF SHIFT HISTORY
+              </p>
+              <p className="mt-1 text-[10px] text-gray-500">
+                Technician and assistance shift activity shown separately.
+              </p>
+            </div>
+
+            <p className="text-[10px] text-gray-600">
+              {filteredShiftHistory.length} TOTAL RECORDS
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            {/* TECHNICIAN SHIFT HISTORY */}
+            <div className="bg-[#181820] border border-cyan-500/20 rounded-lg overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg border border-cyan-500/30 bg-cyan-500/10 flex items-center justify-center text-cyan-300">
+                    <Wrench size={16} />
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] text-cyan-300 font-bold tracking-[0.2em]">
+                      TECHNICIAN SHIFT HISTORY
+                    </p>
+                    <p className="mt-1 text-[10px] text-gray-500">
+                      Technician ON / OFF activity
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-gray-600">
+                  {filteredShiftHistory.filter(
+                    (item) => item.staffType === "TECHNICIAN"
+                  ).length} RECORDS
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-[620px] md:w-full text-left">
+                  <thead className="text-gray-400 text-[10px] tracking-widest">
+                    <tr className="border-b border-white/10">
+                      <th className="px-5 py-4">Technician</th>
+                      <th className="px-4 py-4">Shift</th>
+                      <th className="px-4 py-4">Date & Time</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="3" className="py-12 text-center text-gray-500 text-xs tracking-widest">
+                          LOADING...
+                        </td>
+                      </tr>
+                    ) : filteredShiftHistory.filter(
+                        (item) => item.staffType === "TECHNICIAN"
+                      ).length > 0 ? (
+                      filteredShiftHistory
+                        .filter((item) => item.staffType === "TECHNICIAN")
+                        .map((item) => (
+                          <tr
+                            key={item.shiftHistoryId}
+                            className="border-b border-white/10 hover:bg-white/[0.03] transition"
+                          >
+                            <td className="px-5 py-4">
+                              <p className="text-sm font-bold text-white">
+                                {item.staffName || "Unknown Technician"}
+                              </p>
+                              <p className="mt-1 text-[9px] text-gray-600 font-mono">
+                                TECH-{item.staffId}
+                              </p>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <span
+                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[9px] font-bold ${
+                                  item.shiftStatus === "ON"
+                                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                                    : "border-red-500/30 bg-red-500/10 text-red-300"
+                                }`}
+                              >
+                                <span
+                                  className={`h-2 w-2 rounded-full ${
+                                    item.shiftStatus === "ON"
+                                      ? "bg-emerald-400"
+                                      : "bg-red-300"
+                                  }`}
+                                />
+                                {item.shiftStatus || "OFF"}
+                              </span>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <p className="text-xs text-gray-300">
+                                {formatDateTime(item.changedAt)}
+                              </p>
+                            </td>
+                          </tr>
+                        ))
+                    ) : (
+                      <tr>
+                        <td colSpan="3" className="py-12 text-center text-gray-500 text-xs tracking-widest">
+                          {searchText
+                            ? "NO MATCHING TECHNICIAN SHIFT HISTORY"
+                            : "NO TECHNICIAN SHIFT HISTORY YET"}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ASSISTANCE SHIFT HISTORY */}
+            <div className="bg-[#181820] border border-violet-500/20 rounded-lg overflow-hidden">
+              <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg border border-violet-500/30 bg-violet-500/10 flex items-center justify-center text-violet-300">
+                    <Users size={16} />
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] text-violet-300 font-bold tracking-[0.2em]">
+                      ASSISTANCE SHIFT HISTORY
+                    </p>
+                    <p className="mt-1 text-[10px] text-gray-500">
+                      Assistance officer ON / OFF activity
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-gray-600">
+                  {filteredShiftHistory.filter(
+                    (item) => item.staffType === "ASSISTANCE"
+                  ).length} RECORDS
+                </p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-[620px] md:w-full text-left">
+                  <thead className="text-gray-400 text-[10px] tracking-widest">
+                    <tr className="border-b border-white/10">
+                      <th className="px-5 py-4">Assistance</th>
+                      <th className="px-4 py-4">Shift</th>
+                      <th className="px-4 py-4">Date & Time</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td colSpan="3" className="py-12 text-center text-gray-500 text-xs tracking-widest">
+                          LOADING...
+                        </td>
+                      </tr>
+                    ) : filteredShiftHistory.filter(
+                        (item) => item.staffType === "ASSISTANCE"
+                      ).length > 0 ? (
+                      filteredShiftHistory
+                        .filter((item) => item.staffType === "ASSISTANCE")
+                        .map((item) => (
+                          <tr
+                            key={item.shiftHistoryId}
+                            className="border-b border-white/10 hover:bg-white/[0.03] transition"
+                          >
+                            <td className="px-5 py-4">
+                              <p className="text-sm font-bold text-white">
+                                {item.staffName || "Unknown Assistance"}
+                              </p>
+                              <p className="mt-1 text-[9px] text-gray-600 font-mono">
+                                ASSIST-{item.staffId}
+                              </p>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <span
+                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[9px] font-bold ${
+                                  item.shiftStatus === "ON"
+                                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                                    : "border-red-500/30 bg-red-500/10 text-red-300"
+                                }`}
+                              >
+                                <span
+                                  className={`h-2 w-2 rounded-full ${
+                                    item.shiftStatus === "ON"
+                                      ? "bg-emerald-400"
+                                      : "bg-red-300"
+                                  }`}
+                                />
+                                {item.shiftStatus || "OFF"}
+                              </span>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <p className="text-xs text-gray-300">
+                                {formatDateTime(item.changedAt)}
+                              </p>
+                            </td>
+                          </tr>
+                        ))
+                    ) : (
+                      <tr>
+                        <td colSpan="3" className="py-12 text-center text-gray-500 text-xs tracking-widest">
+                          {searchText
+                            ? "NO MATCHING ASSISTANCE SHIFT HISTORY"
+                            : "NO ASSISTANCE SHIFT HISTORY YET"}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ==================================================
             NOTE
         ================================================== */}
 
@@ -1090,6 +1692,265 @@ export default function PerformanceAudit({
         </div>
 
       </main>
+
+      {/* ==================================================
+          JOB HISTORY MODAL
+      ================================================== */}
+
+      {selectedJobHistory &&
+        (() => {
+          const selectedJobSupportAssistances =
+            getSupportAssistancesForJob(selectedJobHistory);
+
+          return (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => setSelectedJobHistory(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-[#15151d] shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/10 bg-[#15151d]/95 px-5 py-4 backdrop-blur-xl">
+              <div>
+                <p className="text-[10px] font-bold tracking-[0.25em] text-cyan-400">
+                  JOB TECHNICIAN HISTORY
+                </p>
+                <h2 className="mt-2 text-xl font-black text-white">
+                  Job #{selectedJobHistory.jobId}
+                </h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  {selectedJobHistory.ticketNumber ||
+                    `JOB-${selectedJobHistory.jobId}`}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedJobHistory(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="p-5 md:p-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[9px] uppercase tracking-widest text-gray-600">
+                    Vehicle
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-white">
+                    {selectedJobHistory.vehicleNumber || "N/A"}
+                  </p>
+                  <p className="mt-1 text-[10px] text-gray-500">
+                    {[
+                      selectedJobHistory.vehicleType,
+                      selectedJobHistory.vehicleModel,
+                    ]
+                      .filter(Boolean)
+                      .join(" • ") || "No vehicle details"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[9px] uppercase tracking-widest text-gray-600">
+                    Customer
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-white">
+                    {selectedJobHistory.customerName || "Customer"}
+                  </p>
+                  <p className="mt-1 text-[10px] text-gray-500">
+                    {selectedJobHistory.customerContact || "No contact"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[9px] uppercase tracking-widest text-gray-600">
+                    Job Status
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-emerald-400">
+                    {selectedJobHistory.jobStatus || "COMPLETED"}
+                  </p>
+                  <p className="mt-1 text-[10px] text-gray-500">
+                    {selectedJobHistory.jobType || "GENERAL SERVICE"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.05] p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+                    <Wrench size={17} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold tracking-[0.2em] text-cyan-400">
+                      MAIN TECHNICIAN
+                    </p>
+                    <p className="mt-1 text-base font-bold text-white">
+                      {selectedJobHistory.mainTechnician?.technicianName ||
+                        "Unknown Technician"}
+                    </p>
+                    <p className="mt-1 text-[10px] text-gray-500">
+                      TECH-{selectedJobHistory.mainTechnician?.technicianId ||
+                        "N/A"}
+                      {selectedJobHistory.mainTechnician?.specialization
+                        ? ` • ${selectedJobHistory.mainTechnician.specialization}`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users size={15} className="text-violet-300" />
+                    <p className="text-[10px] font-bold tracking-[0.2em] text-violet-300">
+                      SUPPORT ASSISTANCE HISTORY
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-gray-600">
+                    {selectedJobSupportAssistances.length} RECORDS
+                  </span>
+                </div>
+
+                {selectedJobSupportAssistances.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedJobSupportAssistances.map(
+                      (support, index) => (
+                        <div
+                          key={
+                            support.assistanceId ||
+                            `${support.supportTechnicianId}-${index}`
+                          }
+                          className="rounded-xl border border-white/10 bg-black/20 p-4"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="text-sm font-bold text-white">
+                                {support.supportTechnicianName ||
+                                  "Support Technician"}
+                              </p>
+                              <p className="mt-1 text-[10px] text-gray-500">
+                                TECH-{support.supportTechnicianId || "N/A"}
+                                {support.specialization
+                                  ? ` • ${support.specialization}`
+                                  : ""}
+                              </p>
+                            </div>
+
+                            <span className="inline-flex w-fit rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[9px] font-bold text-violet-300">
+                              {support.assistanceStatus || "COMPLETED"}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                              <p className="text-[9px] uppercase tracking-wider text-gray-600">
+                                Assigned At
+                              </p>
+                              <p className="mt-1 text-xs text-gray-300">
+                                {formatDateTime(support.assignedAt)}
+                              </p>
+                            </div>
+
+                            <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                              <p className="text-[9px] uppercase tracking-wider text-gray-600">
+                                Completed At
+                              </p>
+                              <p className="mt-1 text-xs text-gray-300">
+                                {formatDateTime(support.completedAt)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                            <p className="text-[9px] uppercase tracking-wider text-gray-600">
+                              Assistance Reason
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-gray-300">
+                              {support.reason || "No reason recorded."}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-white/10 bg-black/20 p-6 text-center">
+                    <Users
+                      size={22}
+                      className="mx-auto text-gray-700"
+                    />
+                    <p className="mt-3 text-xs text-gray-500">
+                      No support technician was required for this job.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <Clock3 size={15} className="text-amber-300" />
+                  <p className="text-[10px] font-bold tracking-[0.2em] text-amber-300">
+                    JOB TIMELINE
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wider text-gray-600">
+                      Started
+                    </p>
+                    <p className="mt-1 text-xs text-gray-300">
+                      {selectedJobHistory.startDate
+                        ? `${formatDate(
+                            selectedJobHistory.startDate
+                          )} ${selectedJobHistory.startTime || ""}`
+                        : "N/A"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wider text-gray-600">
+                      Estimated Completion
+                    </p>
+                    <p className="mt-1 text-xs text-gray-300">
+                      {formatDateTime(
+                        selectedJobHistory.estimatedCompletionTime
+                      )}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] uppercase tracking-wider text-gray-600">
+                      Actual Completion
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-300">
+                      {formatDateTime(
+                        selectedJobHistory.actualCompletionTime
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedJobHistory.remarks && (
+                <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-[9px] uppercase tracking-wider text-gray-600">
+                    Remarks
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-gray-300">
+                    {selectedJobHistory.remarks}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+          );
+        })()}
 
     </div>
   );
