@@ -3,19 +3,18 @@ import cv2
 import requests
 import time
 
-# =======================================
+
 # Load YOLO Model
-# =======================================
 model = YOLO("best.pt")
 
-# =======================================
+
 # Phone Camera URL
-# =======================================
+
 camera_url = "http://192.168.8.199:8080/video"
 
-# =======================================
+
 # Garage Details
-# =======================================
+
 
 # IMPORTANT:
 # Change this if your actual garage_id is not 1
@@ -24,9 +23,9 @@ GARAGE_ID = 1
 # Node.js Backend API
 BACKEND_URL = "http://localhost:5000/api/garages/outside-count"
 
-# =======================================
+
 # Open Camera
-# =======================================
+
 cap = cv2.VideoCapture(camera_url)
 
 if not cap.isOpened():
@@ -35,18 +34,18 @@ if not cap.isOpened():
 
 print("Camera connected successfully!")
 
-# =======================================
+
 # Variables
-# =======================================
+
 last_sent_count = None
 last_sent_time = 0
 
 # Wait at least 2 seconds between backend updates
 SEND_INTERVAL = 2
 
-# =======================================
+
 # Main Detection Loop
-# =======================================
+
 while True:
 
     success, frame = cap.read()
@@ -62,17 +61,17 @@ while True:
         verbose=False
     )
 
-    # =======================================
+    
     # Count Vehicles
-    # =======================================
+    
     vehicle_count = 0
 
     if results[0].boxes is not None:
         vehicle_count = len(results[0].boxes)
 
-    # =======================================
+    
     # Send Count to Backend
-    # =======================================
+    
     current_time = time.time()
 
     if (
@@ -113,9 +112,9 @@ while True:
                 error
             )
 
-    # =======================================
+   
     # Draw Detection Results
-    # =======================================
+    
     annotated_frame = results[0].plot()
 
     cv2.putText(
@@ -138,9 +137,8 @@ while True:
         2
     )
 
-    # =======================================
     # Show Window
-    # =======================================
+    
     cv2.imshow(
         "Garage Vehicle Detection",
         annotated_frame
@@ -150,8 +148,8 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-# =======================================
+
 # Cleanup
-# =======================================
+
 cap.release()
 cv2.destroyAllWindows()
