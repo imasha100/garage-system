@@ -89,6 +89,63 @@ export default function LiveProgress({ setActiveTab }) {
   }, []);
 
   // ======================================================
+  // PARSE DATE / TIME SAFELY AS LOCAL TIME
+  // ======================================================
+
+  const parseLocalDateTime = (value) => {
+    if (!value) {
+      return null;
+    }
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime())
+        ? null
+        : value;
+    }
+
+    const raw = String(value).trim();
+
+    // MySQL DATETIME example: 2026-09-19 08:53:00
+    // Treat this value as local time.
+    const mysqlMatch = raw.match(
+      /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/
+    );
+
+    if (mysqlMatch) {
+      const [
+        ,
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second = "0",
+      ] = mysqlMatch;
+
+      const localDate = new Date(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second),
+        0
+      );
+
+      return Number.isNaN(localDate.getTime())
+        ? null
+        : localDate;
+    }
+
+    // Fallback for ISO timestamps.
+    const parsedDate = new Date(raw);
+
+    return Number.isNaN(parsedDate.getTime())
+      ? null
+      : parsedDate;
+  };
+
+  // ======================================================
   // FORMAT COUNTDOWN
   // ======================================================
 
@@ -163,9 +220,9 @@ export default function LiveProgress({ setActiveTab }) {
       });
     }
 
-    const date = new Date(value);
+    const date = parseLocalDateTime(value);
 
-    if (Number.isNaN(date.getTime())) {
+    if (!date) {
       return String(value);
     }
 
@@ -184,9 +241,9 @@ export default function LiveProgress({ setActiveTab }) {
       return "Not available";
     }
 
-    const date = new Date(value);
+    const date = parseLocalDateTime(value);
 
-    if (Number.isNaN(date.getTime())) {
+    if (!date) {
       return String(value);
     }
 
@@ -211,15 +268,17 @@ export default function LiveProgress({ setActiveTab }) {
       return 0;
     }
 
-    const completionDate = new Date(
-      currentJob.estimatedCompletionTime
-    );
+    const completionDate =
+      parseLocalDateTime(
+        currentJob.estimatedCompletionTime
+      );
 
-    if (
-      Number.isNaN(
-        completionDate.getTime()
-      )
-    ) {
+    if (!completionDate) {
+      console.error(
+        "Invalid estimated completion time:",
+        currentJob.estimatedCompletionTime
+      );
+
       return 0;
     }
 
@@ -229,7 +288,7 @@ export default function LiveProgress({ setActiveTab }) {
 
     return Math.max(
       0,
-      Math.floor(difference / 1000)
+      Math.ceil(difference / 1000)
     );
   };
 

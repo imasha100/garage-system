@@ -24,6 +24,7 @@ import {
   Route,
   Building2,
   ChevronRight,
+  ClipboardPlus,
 } from "lucide-react";
 
 import AssistanceSidebar from "./AssistanceSidebar";
@@ -495,6 +496,30 @@ export default function AssistanceDashboard({
     clearConfirmJob,
     setClearConfirmJob,
   ] = useState(null);
+
+  // ====================================================
+  // WALK-IN VEHICLE
+  // ====================================================
+
+  const [
+    isWalkInOpen,
+    setIsWalkInOpen,
+  ] = useState(false);
+
+  const [
+    isWalkInSubmitting,
+    setIsWalkInSubmitting,
+  ] = useState(false);
+
+  const [
+    walkInForm,
+    setWalkInForm,
+  ] = useState({
+    customerName: "",
+    contact: "",
+    vehicleNumber: "",
+    vehicleType: "",
+  });
 
   const [
     notification,
@@ -1962,6 +1987,185 @@ export default function AssistanceDashboard({
     };
 
   // ====================================================
+  // WALK-IN VEHICLE HANDLERS
+  // ====================================================
+
+  const resetWalkInForm = () => {
+    setWalkInForm({
+      customerName: "",
+      contact: "",
+      vehicleNumber: "",
+      vehicleType: "",
+    });
+  };
+
+  const openWalkInForm = () => {
+    if (!isShiftOn) {
+      showNotification(
+        "error",
+        "Shift Is OFF",
+        "Please start your shift from Assistance Profile before registering a walk-in vehicle."
+      );
+      return;
+    }
+
+    if (!garageId || !assistanceId) {
+      showNotification(
+        "error",
+        "Officer Details Missing",
+        "Garage or assistance officer details could not be identified."
+      );
+      return;
+    }
+
+    resetWalkInForm();
+    setIsWalkInOpen(true);
+  };
+
+  const closeWalkInForm = () => {
+    if (isWalkInSubmitting) {
+      return;
+    }
+
+    setIsWalkInOpen(false);
+    resetWalkInForm();
+  };
+
+  const handleWalkInInputChange = (event) => {
+    const { name, value } = event.target;
+
+    setWalkInForm((previous) => ({
+      ...previous,
+      [name]:
+        name === "vehicleNumber"
+          ? value.toUpperCase()
+          : value,
+    }));
+  };
+const handleWalkInSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!isShiftOn) {
+      showNotification(
+        "error",
+        "Shift Is OFF",
+        "Please start your shift before registering a walk-in vehicle."
+      );
+      return;
+    }
+
+    const customerName =
+      walkInForm.customerName.trim();
+    const contact =
+      walkInForm.contact.trim();
+    const vehicleNumber =
+      walkInForm.vehicleNumber
+        .trim()
+        .toUpperCase();
+    const vehicleType =
+      walkInForm.vehicleType.trim();
+
+    if (!customerName) {
+      showNotification(
+        "error",
+        "Customer Name Required",
+        "Please enter the walk-in customer's name."
+      );
+      return;
+    }
+
+    if (!/^0\d{9}$/.test(contact)) {
+      showNotification(
+        "error",
+        "Invalid Contact Number",
+        "Please enter a valid 10-digit contact number starting with 0."
+      );
+      return;
+    }
+
+    if (!vehicleNumber) {
+      showNotification(
+        "error",
+        "Vehicle Number Required",
+        "Please enter the vehicle registration number."
+      );
+      return;
+    }
+
+    if (!vehicleType) {
+      showNotification(
+        "error",
+        "Vehicle Type Required",
+        "Please select the vehicle type."
+      );
+      return;
+    }
+
+    try {
+      setIsWalkInSubmitting(true);
+
+      const response = await fetch(
+        `${API_BASE_URL}/service-requests/walk-in`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            customerName,
+            contact,
+            vehicleNumber,
+            vehicleType,
+            garageId: Number(garageId),
+            assistanceId: Number(assistanceId),
+            repairType: "MAJOR",
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (
+        !response.ok ||
+        result.success === false
+      ) {
+        throw new Error(
+          result.message ||
+            "Unable to register the walk-in vehicle."
+        );
+      }
+
+      setIsWalkInOpen(false);
+      resetWalkInForm();
+
+      showNotification(
+        "success",
+        "Major Walk-in Registered",
+        `${vehicleNumber} was checked in successfully and is now ready for technician assignment.`
+      );
+
+      await loadDashboardData(garageId);
+
+      setView("Resource Schedule");
+      setSearchQuery("");
+    } catch (error) {
+      console.error(
+        "Create walk-in request error:",
+        error
+      );
+
+      showNotification(
+        "error",
+        "Walk-in Registration Failed",
+        error.message ||
+          "Unable to register the walk-in vehicle."
+      );
+    } finally {
+      setIsWalkInSubmitting(false);
+    }
+  };
+
+  // ====================================================
   // CLEAR COMPLETED VEHICLE
   // ====================================================
 
@@ -2194,30 +2398,45 @@ export default function AssistanceDashboard({
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  loadDashboardData(
-                    garageId
-                  )
-                }
-                disabled={
-                  isLoadingDashboard ||
-                  !garageId
-                }
-                className="flex w-fit items-center gap-2 rounded-lg border border-blue-500/40 bg-blue-950/20 px-4 py-2 text-xs font-bold text-blue-300 transition hover:bg-blue-950/40 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RefreshCw
-                  size={16}
-                  className={
-                    isLoadingDashboard
-                      ? "animate-spin"
-                      : ""
+              <div className="flex flex-wrap items-center gap-3">
+<button
+                  type="button"
+                  onClick={openWalkInForm}
+                  disabled={
+                    !garageId ||
+                    !assistanceId ||
+                    !isShiftOn
                   }
-                />
+                  className="flex w-fit items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ClipboardPlus size={16} />
+                  REGISTER MAJOR WALK-IN VEHICLE
+                </button>
 
-                REFRESH DATA
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    loadDashboardData(
+                      garageId
+                    )
+                  }
+                  disabled={
+                    isLoadingDashboard ||
+                    !garageId
+                  }
+                  className="flex w-fit items-center gap-2 rounded-lg border border-blue-500/40 bg-blue-950/20 px-4 py-2 text-xs font-bold text-blue-300 transition hover:bg-blue-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCw
+                    size={16}
+                    className={
+                      isLoadingDashboard
+                        ? "animate-spin"
+                        : ""
+                    }
+                  />
+                  REFRESH DATA
+                </button>
+              </div>
             </section>
 
             {/* ERROR */}
@@ -3582,6 +3801,151 @@ export default function AssistanceDashboard({
                   : "YES, CLEAR VEHICLE"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* WALK-IN VEHICLE REGISTRATION MODAL */}
+
+      {isWalkInOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl border border-blue-500/30 bg-slate-950 shadow-[0_0_50px_rgba(37,99,235,0.20)]">
+            <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-400">
+                  Garage Check-in
+                </p>
+
+                <h2 className="mt-1 text-2xl font-black text-white">
+                  Register Walk-in Vehicle
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-400">
+                  Record the vehicle details and complete the initial inspection.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeWalkInForm}
+                disabled={isWalkInSubmitting}
+                className="rounded-lg border border-slate-700 p-2 text-slate-400 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+                aria-label="Close walk-in registration"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleWalkInSubmit}
+              className="max-h-[75vh] overflow-y-auto p-6"
+            >
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Customer Name
+                  </label>
+
+                  <input
+                    type="text"
+                    name="customerName"
+                    value={walkInForm.customerName}
+                    onChange={handleWalkInInputChange}
+                    placeholder="Enter customer name"
+                    className="w-full rounded-lg border border-slate-700 bg-black px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Contact Number
+                  </label>
+
+                  <input
+                    type="tel"
+                    name="contact"
+                    value={walkInForm.contact}
+                    onChange={handleWalkInInputChange}
+                    maxLength={10}
+                    placeholder="07XXXXXXXX"
+                    className="w-full rounded-lg border border-slate-700 bg-black px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Vehicle Number
+                  </label>
+
+                  <input
+                    type="text"
+                    name="vehicleNumber"
+                    value={walkInForm.vehicleNumber}
+                    onChange={handleWalkInInputChange}
+                    placeholder="ABC-1234"
+                    className="w-full rounded-lg border border-slate-700 bg-black px-4 py-3 text-sm uppercase text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Vehicle Type
+                  </label>
+
+                  <select
+                    name="vehicleType"
+                    value={walkInForm.vehicleType}
+                    onChange={handleWalkInInputChange}
+                    className="w-full rounded-lg border border-slate-700 bg-black px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500"
+                  >
+                    <option value="">
+                      Select vehicle type
+                    </option>
+                    <option value="Car">Car</option>
+                    <option value="Van">Van</option>
+                    <option value="SUV">SUV</option>
+                    <option value="Motorcycle">
+                      Motorcycle
+                    </option>
+                    <option value="Three Wheeler">
+                      Three Wheeler
+                    </option>
+                    <option value="Truck">Truck</option>
+                  </select>
+                </div>
+              </div>
+
+              
+
+              <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeWalkInForm}
+                  disabled={isWalkInSubmitting}
+                  className="rounded-lg border border-slate-700 px-5 py-3 text-xs font-bold text-slate-300 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+                >
+                  CANCEL
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isWalkInSubmitting}
+                  className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-xs font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isWalkInSubmitting ? (
+                    <>
+                      <RefreshCw
+                        size={15}
+                        className="animate-spin"
+                      />
+                      REGISTERING...
+                    </>
+                  ) : (
+                    "CHECK-IN MAJOR VEHICLE"
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
