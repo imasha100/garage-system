@@ -552,10 +552,6 @@ const createServiceRequest = async (
     // FIND OR CREATE CUSTOMER
     // ==================================================
 
-        // ==================================================
-    // FIND OR CREATE CUSTOMER
-    // ==================================================
-
     const normalizedContact =
       String(contact || "")
         .trim()
@@ -601,8 +597,6 @@ const createServiceRequest = async (
           .replace(/\s+/g, " ")
           .toLowerCase();
 
-      // Prevent a request from being linked to
-      // another customer who owns this contact number.
       if (
         normalizedEnteredName !==
         normalizedExistingName
@@ -611,8 +605,10 @@ const createServiceRequest = async (
 
         return res.status(409).json({
           success: false,
+
           code:
             "CUSTOMER_NAME_CONTACT_MISMATCH",
+
           message:
             "This contact number is already registered under another customer name. Please enter the correct customer name or use another contact number.",
         });
@@ -669,8 +665,10 @@ const createServiceRequest = async (
 
       return res.status(500).json({
         success: false,
+
         code:
           "INVALID_CUSTOMER_ID",
+
         message:
           "Unable to create or identify the customer account.",
       });
@@ -777,8 +775,10 @@ const createServiceRequest = async (
 
       return res.status(500).json({
         success: false,
+
         code:
           "INVALID_VEHICLE_ID",
+
         message:
           "Unable to create or identify the customer vehicle.",
       });
@@ -1096,6 +1096,855 @@ const createServiceRequest = async (
 };
 
 // ======================================================
+// CREATE MAJOR WALK-IN SERVICE REQUEST
+// POST /api/service-requests/walk-in
+//
+// IMPORTANT:
+// - Minor walk-in repairs do NOT use this endpoint.
+// - This endpoint is only for MAJOR walk-in repairs.
+// - Major walk-in vehicles are registered directly as
+//   Accepted + ARRIVED_AT_GARAGE so the existing
+//   technician-assignment flow can be reused.
+// ======================================================
+
+const createWalkInServiceRequest = async (
+  req,
+  res
+) => {
+  let connection;
+
+  try {
+    const customerName = String(
+      req.body.customerName || ""
+    ).trim();
+
+    const contact = String(
+      req.body.contact || ""
+    )
+      .trim()
+      .replace(/\s+/g, "");
+
+    const vehicleNumber = String(
+      req.body.vehicleNumber || ""
+    )
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, " ");
+
+    const vehicleType = String(
+      req.body.vehicleType || ""
+    ).trim();
+
+    const assistanceId = Number(
+      req.body.assistanceId
+    );
+
+    const garageId = Number(
+      req.body.garageId
+    );
+
+    const repairType = String(
+      req.body.repairType || "MAJOR"
+    )
+      .trim()
+      .toUpperCase();
+
+    const customerNameRegex =
+      /^[A-Za-z][A-Za-z\s.'-]{1,99}$/;
+
+    const contactRegex =
+      /^0\d{9}$/;
+
+    const vehicleNumberRegex =
+      /^(?:[A-Z]{2}[\s-]?[A-Z]{2,3}[\s-]?\d{4}|[A-Z]{2,3}[\s-]?\d{4}|\d{2,3}[\s-]\d{4})$/;
+
+    if (!customerName) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Customer name is required.",
+      });
+    }
+
+    if (
+      !customerNameRegex.test(
+        customerName
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Enter a valid customer name using letters only.",
+      });
+    }
+
+    if (
+      !contactRegex.test(contact)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Contact number must contain exactly 10 digits and start with 0.",
+      });
+    }
+
+    if (!vehicleNumber) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Vehicle number is required.",
+      });
+    }
+
+    if (
+      !vehicleNumberRegex.test(
+        vehicleNumber
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Enter a valid Sri Lankan vehicle number. Examples: ABC-1234, AB-1234, WP CAS 1234, 65-1234.",
+      });
+    }
+
+    if (!vehicleType) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please select a valid vehicle type.",
+      });
+    }
+
+    if (
+      !Number.isInteger(garageId) ||
+      garageId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid garage ID is required.",
+      });
+    }
+
+    if (
+      !Number.isInteger(
+        assistanceId
+      ) ||
+      assistanceId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A valid assistance ID is required.",
+      });
+    }
+
+    // Minor repair does NOT use
+    // the full service workflow.
+    if (repairType !== "MAJOR") {
+      return res.status(400).json({
+        success: false,
+
+        code:
+          "MINOR_REPAIR_NO_FULL_FLOW",
+
+        message:
+          "Minor walk-in repairs do not use the full service-request and technician-allocation flow.",
+      });
+    }
+
+    connection =
+      await db.getConnection();
+
+    await connection.beginTransaction();
+
+    // ==================================================
+    // CHECK GARAGE
+    // ==================================================
+
+    const [garageRows] =
+      await connection.query(
+        `
+          SELECT
+            garage_id,
+            garage_name,
+            garage_code,
+            address,
+            contact_number,
+            latitude,
+            longitude
+          FROM garage
+          WHERE garage_id = ?
+          LIMIT 1
+        `,
+        [garageId]
+      );
+
+    if (
+      garageRows.length === 0
+    ) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+
+        code:
+          "GARAGE_NOT_FOUND",
+
+        message:
+          "The selected garage was not found.",
+      });
+    }
+
+    const selectedGarage =
+      garageRows[0];
+
+    const garageCode =
+      String(
+        selectedGarage.garage_code ||
+          ""
+      )
+        .trim()
+        .toUpperCase();
+
+    if (!garageCode) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+
+        code:
+          "GARAGE_CODE_MISSING",
+
+        message:
+          "The selected garage does not have a valid garage code.",
+      });
+    }
+
+    // ==================================================
+    // CHECK ASSISTANCE OFFICER
+    // ==================================================
+
+    const [assistanceRows] =
+      await connection.query(
+        `
+          SELECT
+            assistance_id,
+            full_name,
+            shift_status,
+            garage_garage_id
+          FROM assistance
+          WHERE assistance_id = ?
+          LIMIT 1
+        `,
+        [assistanceId]
+      );
+
+    if (
+      assistanceRows.length === 0
+    ) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+
+        message:
+          "Assistance officer not found.",
+      });
+    }
+
+    const assistanceOfficer =
+      assistanceRows[0];
+
+    const assistanceGarageId =
+      Number(
+        assistanceOfficer
+          .garage_garage_id
+      );
+
+    if (
+      assistanceGarageId !==
+      garageId
+    ) {
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+
+        message:
+          "The assistance officer belongs to another garage.",
+      });
+    }
+
+    const assistanceShiftStatus =
+      String(
+        assistanceOfficer
+          .shift_status || "OFF"
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      assistanceShiftStatus !==
+      "ON"
+    ) {
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+
+        code:
+          "ASSISTANCE_SHIFT_OFF",
+
+        message:
+          "Your assistance shift is OFF. Please start your shift before registering a major walk-in vehicle.",
+      });
+    }
+
+    // ==================================================
+    // NORMALIZE VEHICLE NUMBER
+    // ==================================================
+
+    const normalizedVehicleNumber =
+      String(
+        vehicleNumber || ""
+      )
+        .trim()
+        .toUpperCase()
+        .replace(/[\s-]/g, "");
+
+    // ==================================================
+    // PREVENT DUPLICATE ACTIVE REQUEST
+    // ==================================================
+
+    const [activeRequestRows] =
+      await connection.query(
+        `
+          SELECT
+            request_id,
+            ticket_number,
+            request_status
+          FROM service_request
+          WHERE REPLACE(
+                  REPLACE(
+                    UPPER(
+                      TRIM(
+                        vehicle_number
+                      )
+                    ),
+                    ' ',
+                    ''
+                  ),
+                  '-',
+                  ''
+                ) = ?
+            AND UPPER(
+              TRIM(request_status)
+            ) IN (
+              'PENDING',
+              'ACCEPTED',
+              'ARRIVED AT GARAGE'
+            )
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [
+          normalizedVehicleNumber,
+        ]
+      );
+
+    if (
+      activeRequestRows.length > 0
+    ) {
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+
+        code:
+          "ACTIVE_REQUEST_EXISTS",
+
+        message:
+          "An active service request already exists for this vehicle.",
+
+        activeRequest: {
+          requestId:
+            activeRequestRows[0]
+              .request_id,
+
+          ticketNumber:
+            activeRequestRows[0]
+              .ticket_number || "",
+
+          requestStatus:
+            activeRequestRows[0]
+              .request_status,
+        },
+      });
+    }
+
+    // ==================================================
+    // GENERATE GARAGE-SPECIFIC TICKET NUMBER
+    // ==================================================
+
+    const [lastTicketRows] =
+      await connection.query(
+        `
+          SELECT
+            ticket_number
+          FROM service_request
+          WHERE garage_garage_id = ?
+            AND ticket_number IS NOT NULL
+            AND TRIM(ticket_number) <> ''
+          ORDER BY request_id DESC
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [garageId]
+      );
+
+    let nextTicketSequence = 1;
+
+    if (
+      lastTicketRows.length > 0
+    ) {
+      const lastTicketNumber =
+        String(
+          lastTicketRows[0]
+            .ticket_number || ""
+        ).trim();
+
+      const lastTicketParts =
+        lastTicketNumber.split("-");
+
+      const lastSequence =
+        Number(
+          lastTicketParts[
+            lastTicketParts.length - 1
+          ]
+        );
+
+      if (
+        Number.isInteger(
+          lastSequence
+        ) &&
+        lastSequence > 0
+      ) {
+        nextTicketSequence =
+          lastSequence + 1;
+      }
+    }
+
+    const ticketNumber =
+      `${garageCode}-${String(
+        nextTicketSequence
+      ).padStart(4, "0")}`;
+
+    // ==================================================
+    // FIND OR CREATE CUSTOMER
+    // ==================================================
+
+    const normalizedContact =
+      String(contact)
+        .trim()
+        .replace(/\s+/g, "");
+
+    let customerId = null;
+
+    const [customerRows] =
+      await connection.query(
+        `
+          SELECT
+            customer_id,
+            full_name,
+            contact_number
+          FROM customer
+          WHERE REPLACE(
+            TRIM(contact_number),
+            ' ',
+            ''
+          ) = ?
+          LIMIT 1
+        `,
+        [normalizedContact]
+      );
+
+    if (
+      customerRows.length > 0
+    ) {
+      const existingCustomer =
+        customerRows[0];
+
+      const normalizedEnteredName =
+        String(customerName)
+          .trim()
+          .replace(/\s+/g, " ")
+          .toLowerCase();
+
+      const normalizedExistingName =
+        String(
+          existingCustomer
+            .full_name || ""
+        )
+          .trim()
+          .replace(/\s+/g, " ")
+          .toLowerCase();
+
+      if (
+        normalizedEnteredName !==
+        normalizedExistingName
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+
+          code:
+            "CUSTOMER_NAME_CONTACT_MISMATCH",
+
+          message:
+            "This contact number is already registered under another customer name. Please enter the correct customer name or use another contact number.",
+        });
+      }
+
+      customerId =
+        Number(
+          existingCustomer.customer_id
+        );
+    } else {
+      const [newCustomerResult] =
+        await connection.query(
+          `
+            INSERT INTO customer (
+              full_name,
+              email,
+              contact_number,
+              address,
+              login_login_id
+            )
+            VALUES (
+              ?,
+              NULL,
+              ?,
+              NULL,
+              NULL
+            )
+          `,
+          [
+            customerName,
+            normalizedContact,
+          ]
+        );
+
+      customerId =
+        Number(
+          newCustomerResult.insertId
+        );
+    }
+
+    if (
+      !Number.isInteger(
+        customerId
+      ) ||
+      customerId <= 0
+    ) {
+      throw new Error(
+        "Unable to create or identify the walk-in customer."
+      );
+    }
+
+    // ==================================================
+    // FIND OR CREATE VEHICLE
+    // ==================================================
+
+    let vehicleId = null;
+
+    const [vehicleRows] =
+      await connection.query(
+        `
+          SELECT
+            vehicle_id
+          FROM vehicle
+          WHERE customer_customer_id = ?
+            AND REPLACE(
+                  REPLACE(
+                    UPPER(
+                      TRIM(
+                        vehicle_number
+                      )
+                    ),
+                    ' ',
+                    ''
+                  ),
+                  '-',
+                  ''
+                ) = ?
+          LIMIT 1
+        `,
+        [
+          customerId,
+          normalizedVehicleNumber,
+        ]
+      );
+
+    if (
+      vehicleRows.length > 0
+    ) {
+      vehicleId =
+        Number(
+          vehicleRows[0]
+            .vehicle_id
+        );
+    } else {
+      const [newVehicleResult] =
+        await connection.query(
+          `
+            INSERT INTO vehicle (
+              vehicle_number,
+              vehicle_type,
+              vehicle_model,
+              customer_customer_id
+            )
+            VALUES (
+              ?,
+              ?,
+              ?,
+              ?
+            )
+          `,
+          [
+            vehicleNumber,
+            vehicleType,
+            vehicleType,
+            customerId,
+          ]
+        );
+
+      vehicleId =
+        Number(
+          newVehicleResult.insertId
+        );
+    }
+
+    if (
+      !Number.isInteger(vehicleId) ||
+      vehicleId <= 0
+    ) {
+      throw new Error(
+        "Unable to create or identify the walk-in vehicle."
+      );
+    }
+
+    // ==================================================
+    // CREATE MAJOR WALK-IN REQUEST
+    //
+    // Vehicle is already at the garage.
+    // Therefore:
+    //
+    // request_status = Accepted
+    // customer_stage = ARRIVED_AT_GARAGE
+    //
+    // It can then use the existing
+    // technician assignment flow.
+    // ==================================================
+
+    const location =
+      selectedGarage.address ||
+      "Walk-in at Garage";
+
+    const garageLatitude =
+      selectedGarage.latitude !==
+        null &&
+      selectedGarage.latitude !==
+        undefined
+        ? Number(
+            selectedGarage.latitude
+          )
+        : null;
+
+    const garageLongitude =
+      selectedGarage.longitude !==
+        null &&
+      selectedGarage.longitude !==
+        undefined
+        ? Number(
+            selectedGarage.longitude
+          )
+        : null;
+
+    const [requestResult] =
+      await connection.query(
+        `
+          INSERT INTO service_request (
+            ticket_number,
+            customer_name,
+            contact_number,
+            vehicle_number,
+            vehicle_type,
+            location,
+            customer_latitude,
+            customer_longitude,
+            request_date,
+            request_time,
+            garage_id,
+            request_type,
+            request_status,
+            customer_stage,
+            estimated_distance,
+            estimated_time,
+            customer_customer_id,
+            vehicle_vehicle_id,
+            assistance_assistance_id,
+            garage_garage_id,
+            arrived_at_garage_date,
+            arrived_at_garage_time
+          )
+          VALUES (
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            CURRENT_DATE(),
+            CURRENT_TIME(),
+            ?,
+            'Walk-in Major Service',
+            'Accepted',
+            'ARRIVED_AT_GARAGE',
+            '',
+            '',
+            ?,
+            ?,
+            ?,
+            ?,
+            CURRENT_DATE(),
+            CURRENT_TIME()
+          )
+        `,
+        [
+          ticketNumber,
+          customerName,
+          normalizedContact,
+          vehicleNumber,
+          vehicleType,
+          location,
+          garageLatitude,
+          garageLongitude,
+          garageId,
+          customerId,
+          vehicleId,
+          assistanceId,
+          garageId,
+        ]
+      );
+
+    const newRequestId =
+      Number(
+        requestResult.insertId
+      );
+
+    if (
+      !Number.isInteger(
+        newRequestId
+      ) ||
+      newRequestId <= 0
+    ) {
+      throw new Error(
+        "Unable to obtain the new walk-in service request ID."
+      );
+    }
+
+    await connection.commit();
+
+    return res.status(201).json({
+      success: true,
+
+      message:
+        "Major walk-in vehicle registered successfully and is ready for technician assignment.",
+
+      request: {
+        requestId:
+          newRequestId,
+
+        ticketNumber,
+
+        requestType:
+          "Walk-in Major Service",
+
+        requestStatus:
+          "Accepted",
+
+        customerStage:
+          "ARRIVED_AT_GARAGE",
+
+        repairType:
+          "MAJOR",
+
+        customerId,
+
+        vehicleId,
+
+        customerName,
+
+        customerContact:
+          normalizedContact,
+
+        vehicleNumber,
+
+        vehicleType,
+
+        garageId,
+
+        garageName:
+          selectedGarage
+            .garage_name,
+
+        assistanceId,
+
+        assistanceName:
+          assistanceOfficer
+            .full_name,
+      },
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (
+        rollbackError
+      ) {
+        console.error(
+          "Create walk-in request rollback error:",
+          rollbackError
+        );
+      }
+    }
+
+    console.error(
+      "Create walk-in service request error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        error.sqlMessage ||
+        error.message ||
+        "Unable to register the major walk-in vehicle.",
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+};
+
+// ======================================================
 // GET SERVICE REQUESTS
 // GET /api/service-requests
 // ======================================================
@@ -1273,7 +2122,6 @@ const getServiceRequests = async (
     });
   }
 };
-
 // ======================================================
 // GET SINGLE SERVICE REQUEST
 // GET /api/service-requests/:id
@@ -2279,7 +3127,7 @@ const getLatestCustomerRequest =
     }
   };
 
-// ======================================================
+  // ======================================================
 // UPDATE CUSTOMER FLOW STAGE
 // PUT /api/service-requests/:id/customer-stage
 // ======================================================
@@ -2701,7 +3549,6 @@ const updateCustomerStage = async (
     });
   }
 };
-
 // ======================================================
 // GET VEHICLES READY FOR TECHNICIAN ASSIGNMENT
 // GET /api/service-requests/garage/:garageId/ready-for-technician
@@ -2729,6 +3576,10 @@ const getVehiclesReadyForTechnician = async (
       });
     }
 
+    // ==================================================
+    // CHECK GARAGE
+    // ==================================================
+
     const [garageRows] =
       await db.query(
         `
@@ -2752,11 +3603,19 @@ const getVehiclesReadyForTechnician = async (
     ) {
       return res.status(404).json({
         success: false,
-        code: "GARAGE_NOT_FOUND",
+
+        code:
+          "GARAGE_NOT_FOUND",
+
         message:
           "The selected garage was not found.",
       });
     }
+
+    // ==================================================
+    // GET VEHICLES THAT HAVE ARRIVED AT GARAGE
+    // AND DO NOT YET HAVE A SERVICE JOB
+    // ==================================================
 
     const [rows] =
       await db.query(
@@ -2870,11 +3729,21 @@ const getVehiclesReadyForTechnician = async (
 
 module.exports = {
   createServiceRequest,
+
+  // NEW - Major Walk-in Vehicle
+  createWalkInServiceRequest,
+
   getServiceRequests,
+
   getServiceRequestById,
+
   acceptServiceRequest,
+
   rejectServiceRequest,
+
   getLatestCustomerRequest,
+
   updateCustomerStage,
+
   getVehiclesReadyForTechnician,
 };
