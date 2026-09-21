@@ -421,7 +421,6 @@ const getAllGarages = async (req, res) => {
           MAX(gls.outside_vehicle_count),
           0
         ) AS outside_vehicle_count,
-
         CASE
           WHEN (
             COUNT(
