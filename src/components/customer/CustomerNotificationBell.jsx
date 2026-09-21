@@ -27,7 +27,7 @@ import {
 // CONFIG
 // ======================================================
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "/api";
 const POLLING_INTERVAL = 3000;
 const RECENT_NOTIFICATION_LIMIT = 8;
 

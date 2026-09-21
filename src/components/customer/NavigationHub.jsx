@@ -349,7 +349,7 @@ const customerLocation =
       setArrivalError("");
 
       const response = await fetch(
-        `http://localhost:5000/api/service-requests/${requestId}/customer-stage`,
+        `/api/service-requests/${requestId}/customer-stage`,
         {
           method: "PUT",
           headers: {
@@ -478,7 +478,7 @@ const customerLocation =
         try {
           const response =
             await fetch(
-              `http://localhost:5000/api/service-requests/customer/${encodeURIComponent(
+              `/api/service-requests/customer/${encodeURIComponent(
                 contactNumber
               )}/latest?vehicleNumber=${encodeURIComponent(
                 vehicleNumber
@@ -596,7 +596,7 @@ const customerLocation =
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/tow-dispatches/${dispatchId}`
+          `/api/tow-dispatches/${dispatchId}`
         );
 
         const result = await response.json();

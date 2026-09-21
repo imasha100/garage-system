@@ -23,7 +23,7 @@ import {
 import { motion } from "framer-motion";
 
 const API_BASE =
-  "http://localhost:5000";
+  "";
 
 const API_BASE_URL =
   `${API_BASE}/api`;

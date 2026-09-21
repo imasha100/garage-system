@@ -20,7 +20,7 @@ import {
   Copy,
 } from "lucide-react";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "";
 
 export default function TechRegistration({
   toggleSidebar,
@@ -428,7 +428,7 @@ export default function TechRegistration({
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/technicians",
+        "/api/technicians",
         {
           method: "POST",
           headers: {
@@ -570,7 +570,7 @@ export default function TechRegistration({
       }
 
       const response = await fetch(
-        `http://localhost:5000/api/technicians?garageId=${garageId}`
+        `/api/technicians?garageId=${garageId}`
       );
 
       const data = await response.json();
@@ -769,7 +769,7 @@ export default function TechRegistration({
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/technicians/${editData.technicianId}`,
+        `/api/technicians/${editData.technicianId}`,
         {
           method: "PUT",
           headers: {

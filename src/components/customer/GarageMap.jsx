@@ -317,7 +317,7 @@ export default function GarageMap({
         setGaragesError("");
 
         const response = await fetch(
-          "http://localhost:5000/api/garages"
+          "/api/garages"
         );
 
         const result = await response.json();
@@ -361,7 +361,7 @@ export default function GarageMap({
                 try {
                   const techResponse =
                     await fetch(
-                      `http://localhost:5000/api/technicians?garageId=${garageId}`
+                      `/api/technicians?garageId=${garageId}`
                     );
 
                   const techResult =
@@ -584,7 +584,7 @@ export default function GarageMap({
         setVehicleTypesError("");
 
         const response = await fetch(
-          "http://localhost:5000/api/vehicle-types"
+          "/api/vehicle-types"
         );
 
         const result = await response.json();
@@ -657,7 +657,7 @@ export default function GarageMap({
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/service-requests/customer/${encodeURIComponent(
+          `/api/service-requests/customer/${encodeURIComponent(
             contact
           )}/latest?vehicleNumber=${encodeURIComponent(
             vehicleNumber
@@ -931,7 +931,7 @@ The garage will contact you shortly. If you need immediate assistance, you may c
       };
 
       const response = await fetch(
-        "http://localhost:5000/api/service-requests",
+        "/api/service-requests",
         {
           method: "POST",
           headers: {

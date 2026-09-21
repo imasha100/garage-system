@@ -432,7 +432,7 @@ export default function TaskHistoryLogs({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/service-jobs/technician/${technicianId}`
+            `/api/service-jobs/technician/${technicianId}`
           );
 
         const result =

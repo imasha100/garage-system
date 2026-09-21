@@ -143,7 +143,7 @@ export default function ExternalDriverLogin({
       try {
         const response =
           await fetch(
-            "http://localhost:5000/api/external-driver/login",
+            "/api/external-driver/login",
             {
               method: "POST",
 

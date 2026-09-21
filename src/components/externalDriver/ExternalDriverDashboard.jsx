@@ -956,7 +956,7 @@ export default function ExternalDriverDashboard({
       try {
         const response =
           await fetch(
-            `http://localhost:5000/api/tow-dispatches/driver/${driverId}`
+            `/api/tow-dispatches/driver/${driverId}`
           );
 
         const data =
@@ -1049,7 +1049,7 @@ export default function ExternalDriverDashboard({
       try {
         const response =
           await fetch(
-            `http://localhost:5000/api/tow-dispatches/driver/${driverId}/history`
+            `/api/tow-dispatches/driver/${driverId}/history`
           );
 
         const data =
@@ -1115,7 +1115,7 @@ export default function ExternalDriverDashboard({
       try {
         const response =
           await fetch(
-            `http://localhost:5000/api/notifications/driver/${driverId}`
+            `/api/notifications/driver/${driverId}`
           );
 
         const data =
@@ -1489,7 +1489,7 @@ export default function ExternalDriverDashboard({
       try {
         const response =
           await fetch(
-            `http://localhost:5000/api/notifications/driver/${driverId}/read-all`,
+            `/api/notifications/driver/${driverId}/read-all`,
             {
               method:
                 "PUT",
@@ -1784,7 +1784,7 @@ export default function ExternalDriverDashboard({
       try {
         const response =
           await fetch(
-            "http://localhost:5000/api/external-driver/change-password",
+            "/api/external-driver/change-password",
             {
               method:
                 "PUT",
@@ -4226,7 +4226,7 @@ function RouteMapModal({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/tow-dispatches/${dispatchId}/journey-stage`,
+            `/api/tow-dispatches/${dispatchId}/journey-stage`,
             {
               method:
                 "PUT",

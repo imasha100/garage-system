@@ -22,7 +22,7 @@ import {
 
 import GarageOwnerNotifications from "./GarageOwnerNotifications";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "";
 
 export default function StockManagement({
   toggleSidebar,

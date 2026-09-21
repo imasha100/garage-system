@@ -19,7 +19,7 @@ import {
   LogIn,
 } from "lucide-react";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "";
 
 const API_URL =
   `${API_BASE}/api/external-truck-requests`;

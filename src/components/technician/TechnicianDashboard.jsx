@@ -438,11 +438,11 @@ export default function TechnicianDashboard({
         ] =
           await Promise.all([
             fetch(
-              `http://localhost:5000/api/technicians/${technicianId}`
+              `/api/technicians/${technicianId}`
             ),
 
             fetch(
-              `http://localhost:5000/api/service-jobs/technician/${technicianId}`
+              `/api/service-jobs/technician/${technicianId}`
             ),
           ]);
 
@@ -522,7 +522,7 @@ export default function TechnicianDashboard({
         setNotificationsLoading(true);
 
         const response = await fetch(
-          `http://localhost:5000/api/notifications/technician/${technicianId}`
+          `/api/notifications/technician/${technicianId}`
         );
 
         const result =
@@ -584,7 +584,7 @@ export default function TechnicianDashboard({
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/notifications/${numericNotificationId}/read`,
+          `/api/notifications/${numericNotificationId}/read`,
           {
             method: "PUT",
             headers: {
@@ -653,7 +653,7 @@ export default function TechnicianDashboard({
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/notifications/technician/${technicianId}/read-all`,
+          `/api/notifications/technician/${technicianId}/read-all`,
           {
             method: "PUT",
             headers: {

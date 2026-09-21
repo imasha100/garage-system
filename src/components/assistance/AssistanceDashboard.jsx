@@ -39,7 +39,7 @@ import garageImg from "../../assets/GarageCapacityimg.jpg";
 import carQueueImg from "../../assets/PendingVehicles.png";
 import techImg from "../../assets/Tech.jpg";
 
-const API_ORIGIN = "http://localhost:5000";
+const API_ORIGIN = "";
 const API_BASE_URL = `${API_ORIGIN}/api`;
 
 // ======================================================

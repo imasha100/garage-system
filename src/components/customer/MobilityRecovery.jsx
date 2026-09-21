@@ -394,7 +394,7 @@ export default function MobilityRecovery({
       setSelectedTruck(null);
 
       const response = await fetch(
-        `http://localhost:5000/api/trucks?garageId=${garageId}`
+        `/api/trucks?garageId=${garageId}`
       );
       const result = await response.json();
 
@@ -437,7 +437,7 @@ export default function MobilityRecovery({
     const checkTowTruckRequest = async () => {
       try {
         const response = await fetch(
-          `http://localhost:5000/api/tow-dispatches/${activeDispatchId}`
+          `/api/tow-dispatches/${activeDispatchId}`
         );
 
         const result = await response.json();
@@ -780,7 +780,7 @@ export default function MobilityRecovery({
       };
 
       const response = await fetch(
-        "http://localhost:5000/api/tow-dispatches",
+        "/api/tow-dispatches",
         {
           method: "POST",
           headers: {

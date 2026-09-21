@@ -20,7 +20,7 @@ import {
   Copy,
 } from "lucide-react";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "";
 
 export default function AssistRegistration({
   toggleSidebar,

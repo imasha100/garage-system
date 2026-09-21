@@ -22,7 +22,7 @@ import {
 import jsPDF from "jspdf";
 
 const API_BASE =
-  "http://localhost:5000";
+  "";
 
 // ======================================================
 // COUNTER RECEIPT
