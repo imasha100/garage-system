@@ -47,7 +47,6 @@ SEND_INTERVAL = 2
 # Main Detection Loop
 
 while True:
-
     success, frame = cap.read()
 
     if not success:
@@ -105,16 +104,13 @@ while True:
                     response.status_code,
                     response.text
                 )
-
         except requests.exceptions.RequestException as error:
             print(
                 "Backend connection error:",
                 error
             )
 
-   
     # Draw Detection Results
-    
     annotated_frame = results[0].plot()
 
     cv2.putText(
@@ -126,7 +122,6 @@ while True:
         (255, 255, 255),
         2
     )
-
     cv2.putText(
         annotated_frame,
         f"Garage ID: {GARAGE_ID}",
@@ -136,7 +131,6 @@ while True:
         (255, 255, 255),
         2
     )
-
     # Show Window
     
     cv2.imshow(
@@ -148,8 +142,6 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-
 # Cleanup
-
 cap.release()
 cv2.destroyAllWindows()
