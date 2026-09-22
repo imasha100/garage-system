@@ -37,4 +37,4 @@ jobs:
             echo "Checking containers..."
             docker compose ps
 
-            echo "===== Deployment completed ====="
+            echo "===== Deployment completed! ====="
