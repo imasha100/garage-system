@@ -11,7 +11,6 @@ import {
   Star,
   MessageSquare,
   Filter,
-  Cloud,
   RefreshCw,
   AlertCircle,
 } from "lucide-react";
@@ -41,9 +40,6 @@ export default function ServiceQuality({
     useState("");
 
   const [reviews, setReviews] =
-    useState([]);
-
-  const [complaints, setComplaints] =
     useState([]);
 
   const [summary, setSummary] =
@@ -440,62 +436,6 @@ export default function ServiceQuality({
           setReviews(
             formattedReviews
           );
-
-          // ==============================================
-          // COMPLAINTS
-          // ==============================================
-
-          const receivedComplaints =
-            Array.isArray(
-              feedbackResult
-                ?.complaints
-            )
-              ? feedbackResult
-                  .complaints
-              : [];
-
-          setComplaints(
-            receivedComplaints.map(
-              (
-                item,
-                index
-              ) => {
-                if (
-                  typeof item ===
-                  "string"
-                ) {
-                  return {
-                    id:
-                      index + 1,
-
-                    label:
-                      item,
-
-                    count:
-                      1,
-                  };
-                }
-
-                return {
-                  id:
-                    item.id ??
-                    item.complaintId ??
-                    index + 1,
-
-                  label:
-                    item.label ??
-                    item.name ??
-                    item.complaint ??
-                    "Other",
-
-                  count:
-                    Number(
-                      item.count
-                    ) || 0,
-                };
-              }
-            )
-          );
         } catch (error) {
           console.error(
             "Service Quality loading error:",
@@ -663,27 +603,6 @@ export default function ServiceQuality({
         ? profilePhotoPath
         : `${API_BASE}${profilePhotoPath}`
       : null;
-
-  // ======================================================
-  // COMPLAINT STYLE
-  // ======================================================
-
-  const getComplaintStyle = (
-    index
-  ) => {
-    const styles = [
-      "bg-indigo-500/20 text-indigo-300 border-indigo-400/30",
-      "bg-cyan-500/20 text-cyan-300 border-cyan-400/30",
-      "bg-red-500/20 text-red-300 border-red-400/30",
-      "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
-      "bg-amber-500/20 text-amber-300 border-amber-400/30",
-      "bg-purple-500/20 text-purple-300 border-purple-400/30",
-    ];
-
-    return styles[
-      index % styles.length
-    ];
-  };
 
   // ======================================================
   // UI
@@ -1307,94 +1226,6 @@ export default function ServiceQuality({
               </tbody>
 
             </table>
-
-          </div>
-
-        </div>
-
-        {/* ==================================================
-            COMMON CUSTOMER COMPLAINTS
-        ================================================== */}
-
-        <div className="flex justify-center">
-
-          <div className="bg-[#191923] border border-white/10 rounded-lg p-6 w-full max-w-3xl">
-
-            <div className="flex justify-between items-center mb-8">
-
-              <div>
-
-                <h2 className="text-[11px] font-bold tracking-[0.25em] text-gray-500 uppercase">
-                  Common Customer
-                  Complaints
-                </h2>
-
-                <p className="mt-2 text-[10px] text-gray-600">
-                  Complaint topics
-                  detected from
-                  customer feedback.
-                </p>
-
-              </div>
-
-              <Cloud
-                size={18}
-                className="text-gray-400"
-              />
-
-            </div>
-
-            {complaints.length >
-            0 ? (
-
-              <div className="flex flex-wrap gap-3 justify-center items-center">
-
-                {complaints.map(
-                  (
-                    item,
-                    index
-                  ) => (
-
-                    <span
-                      key={
-                        item.id
-                      }
-                      className={`px-4 py-2 rounded border text-sm font-bold ${getComplaintStyle(
-                        index
-                      )}`}
-                    >
-
-                      {item.label}
-
-                      {item.count >
-                        0 && (
-
-                        <span className="ml-2 opacity-60">
-                          ×{item.count}
-                        </span>
-
-                      )}
-
-                    </span>
-
-                  )
-                )}
-
-              </div>
-
-            ) : (
-
-              <div className="rounded-lg border border-white/5 bg-black/10 py-10 text-center">
-
-                <p className="text-xs text-gray-500 tracking-wider">
-                  NO COMMON
-                  COMPLAINTS
-                  IDENTIFIED
-                </p>
-
-              </div>
-
-            )}
 
           </div>
 
