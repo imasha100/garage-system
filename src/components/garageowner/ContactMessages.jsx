@@ -139,7 +139,7 @@ export default function ContactMessages({
 
           const response =
             await fetch(
-              `http://localhost:5000/api/owners/profile/${loginId}`
+              `/api/owners/profile/${loginId}`
             );
 
           const result =
@@ -237,7 +237,7 @@ export default function ContactMessages({
           "http"
         )
         ? profilePhotoPath
-        : `http://localhost:5000${profilePhotoPath}`
+        : `${profilePhotoPath}`
       : null;
 
   // ======================================================
@@ -268,7 +268,7 @@ export default function ContactMessages({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/contact-messages/garage/${selectedGarageId}`
+            `/api/contact-messages/garage/${selectedGarageId}`
           );
 
         const result =
@@ -618,7 +618,7 @@ export default function ContactMessages({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/contact-messages/${messageId}/status`,
+            `/api/contact-messages/${messageId}/status`,
             {
               method: "PUT",
 
@@ -780,7 +780,7 @@ export default function ContactMessages({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/contact-messages/${message.messageId}`,
+            `/api/contact-messages/${message.messageId}`,
             {
               method:
                 "DELETE",

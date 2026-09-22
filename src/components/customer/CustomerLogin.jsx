@@ -240,7 +240,7 @@ export default function CustomerLogin({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/service-requests/customer/${encodeURIComponent(
+            `/api/service-requests/customer/${encodeURIComponent(
               contactNumber
             )}/latest?vehicleNumber=${encodeURIComponent(
               vehicleNumber
@@ -556,7 +556,7 @@ export default function CustomerLogin({
           try {
             const towResponse =
               await fetch(
-                `http://localhost:5000/api/tow-dispatches/request/${serviceRequestId}/latest`
+                `/api/tow-dispatches/request/${serviceRequestId}/latest`
               );
 
             const towResult =

@@ -227,7 +227,7 @@ const IncidentDispatch = () => {
       setLoadError("");
 
       const response = await fetch(
-        "http://localhost:5000/api/tow-dispatches/pending"
+        "/api/tow-dispatches/pending"
       );
 
       const result = await response.json();
@@ -292,7 +292,7 @@ const IncidentDispatch = () => {
       }
 
       const response = await fetch(
-        `http://localhost:5000/api/tow-dispatches/history?assistanceId=${assistanceId}`
+        `/api/tow-dispatches/history?assistanceId=${assistanceId}`
       );
 
       const result = await response.json();
@@ -426,7 +426,7 @@ const IncidentDispatch = () => {
       }
 
       const response = await fetch(
-        `http://localhost:5000/api/tow-dispatches/${dispatchId}/status`,
+        `/api/tow-dispatches/${dispatchId}/status`,
         {
           method: "PUT",
           headers: {

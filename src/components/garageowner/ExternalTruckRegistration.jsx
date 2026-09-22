@@ -22,7 +22,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "";
 
 // ======================================================
 // SRI LANKAN VEHICLE NUMBER VALIDATION

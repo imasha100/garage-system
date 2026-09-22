@@ -579,7 +579,7 @@ export default function StartPage({
 
       try {
         const response = await fetch(
-          "http://localhost:5000/api/contact-messages",
+          "/api/contact-messages",
           {
             method: "POST",
             headers: {
@@ -1055,7 +1055,7 @@ export default function StartPage({
         try {
           const response =
             await fetch(
-              "http://localhost:5000/api/garages"
+              "/api/garages"
             );
 
           const data =
@@ -1150,7 +1150,7 @@ export default function StartPage({
       try {
         const response =
           await fetch(
-            `http://localhost:5000/api/external-truck-requests/${numericRegistrationId}`
+            `/api/external-truck-requests/${numericRegistrationId}`
           );
 
         const data =
@@ -1474,7 +1474,7 @@ export default function StartPage({
       try {
         const response =
           await fetch(
-            "http://localhost:5000/api/external-truck-requests",
+            "/api/external-truck-requests",
             {
               method: "POST",
 

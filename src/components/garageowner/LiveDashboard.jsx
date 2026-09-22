@@ -149,7 +149,7 @@ export default function LiveDashboard({
 
           const response =
             await fetch(
-              `http://localhost:5000/api/owners/profile/${loginId}`
+              `/api/owners/profile/${loginId}`
             );
 
           const result =
@@ -255,7 +255,7 @@ export default function LiveDashboard({
           "http"
         )
         ? profilePhotoPath
-        : `http://localhost:5000${profilePhotoPath}`
+        : `${profilePhotoPath}`
       : null;
 
   // ======================================================
@@ -288,7 +288,7 @@ export default function LiveDashboard({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/service-jobs/garage/${selectedGarageId}/live-dashboard`
+            `/api/service-jobs/garage/${selectedGarageId}/live-dashboard`
           );
 
         const result =
@@ -380,7 +380,7 @@ export default function LiveDashboard({
       setGarageLiveStatusError("");
 
       const response = await fetch(
-        `http://localhost:5000/api/garages/${selectedGarageId}/live-status`
+        `/api/garages/${selectedGarageId}/live-status`
       );
 
       const result = await response.json();
@@ -1098,7 +1098,7 @@ export default function LiveDashboard({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/service-jobs/${vehicle.jobId}/clear`,
+            `/api/service-jobs/${vehicle.jobId}/clear`,
             {
               method:
                 "PUT",

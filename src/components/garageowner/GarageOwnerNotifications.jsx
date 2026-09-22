@@ -102,7 +102,7 @@ export default function GarageOwnerNotifications({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/notifications/garage/${garageId}`
+            `/api/notifications/garage/${garageId}`
           );
 
         const result =
@@ -196,7 +196,7 @@ export default function GarageOwnerNotifications({
         ) {
           const response =
             await fetch(
-              `http://localhost:5000/api/notifications/${notification.notificationId}/read`,
+              `/api/notifications/${notification.notificationId}/read`,
               {
                 method:
                   "PUT",
@@ -322,7 +322,7 @@ export default function GarageOwnerNotifications({
       try {
         const response =
           await fetch(
-            `http://localhost:5000/api/notifications/garage/${garageId}/read-all`,
+            `/api/notifications/garage/${garageId}/read-all`,
             {
               method:
                 "PUT",

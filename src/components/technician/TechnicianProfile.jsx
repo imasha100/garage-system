@@ -364,10 +364,10 @@ export default function TechnicianProfile({
     if (
       photo.startsWith("/")
     ) {
-      return `http://localhost:5000${photo}`;
+      return `${photo}`;
     }
 
-    return `http://localhost:5000/${photo}`;
+    return `/${photo}`;
   };
 
   // ======================================================
@@ -398,7 +398,7 @@ export default function TechnicianProfile({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/technicians/${technicianId}`
+            `/api/technicians/${technicianId}`
           );
 
         const data =
@@ -747,7 +747,7 @@ export default function TechnicianProfile({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/technicians/${technicianId}/shift-status`,
+            `/api/technicians/${technicianId}/shift-status`,
             {
               method:
                 "PUT",
@@ -1058,7 +1058,7 @@ export default function TechnicianProfile({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/technicians/${technicianId}`,
+            `/api/technicians/${technicianId}`,
             {
               method:
                 "PUT",
@@ -1221,7 +1221,7 @@ export default function TechnicianProfile({
 
       const response =
         await fetch(
-          `http://localhost:5000/api/technicians/${technicianId}/change-password`,
+          `/api/technicians/${technicianId}/change-password`,
           {
             method: "PUT",
 

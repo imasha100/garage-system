@@ -719,7 +719,7 @@ const [techniciansError, setTechniciansError] = useState("");
       // Assistance officer details load කිරීම
       const assistanceResponse =
         await fetch(
-          `http://localhost:5000/api/assistances/${loggedAssistanceId}`
+          `/api/assistances/${loggedAssistanceId}`
         );
 
       const assistanceResult =
@@ -760,7 +760,7 @@ const [techniciansError, setTechniciansError] = useState("");
       }
 
       const garagesResponse = await fetch(
-  "http://localhost:5000/api/garages"
+  "/api/garages"
 );
 
 const garagesResult =
@@ -781,7 +781,7 @@ if (
 // ======================================================
 
 const readyVehiclesResponse = await fetch(
-  `http://localhost:5000/api/service-requests/garage/${relatedGarageId}/ready-for-technician`
+  `/api/service-requests/garage/${relatedGarageId}/ready-for-technician`
 );
 
 const readyVehiclesResult =
@@ -816,7 +816,7 @@ setTechniciansLoading(true);
 setTechniciansError("");
 
 const techniciansResponse = await fetch(
-  `http://localhost:5000/api/technicians?garageId=${relatedGarageId}`
+  `/api/technicians?garageId=${relatedGarageId}`
 );
 
 const techniciansResult =
@@ -917,7 +917,7 @@ const techniciansWithJobs =
         try {
           const jobsResponse =
             await fetch(
-              `http://localhost:5000/api/service-jobs/technician/${technician.technicianId}`
+              `/api/service-jobs/technician/${technician.technicianId}`
             );
 
           const jobsResult =
@@ -1011,7 +1011,7 @@ setActiveTechs(
 // Load support-technician assistance records.
 const technicianAssistanceResponse =
   await fetch(
-    `http://localhost:5000/api/technician-assistance/garage/${relatedGarageId}`
+    `/api/technician-assistance/garage/${relatedGarageId}`
   );
 
 const technicianAssistanceResult =
@@ -1067,7 +1067,7 @@ setCurrentCapacity(
       // Pending requests load කිරීම
       const pendingResponse =
         await fetch(
-          `http://localhost:5000/api/service-requests?garageId=${relatedGarageId}&status=Pending`
+          `/api/service-requests?garageId=${relatedGarageId}&status=Pending`
         );
 
       const pendingResult =
@@ -1086,7 +1086,7 @@ setCurrentCapacity(
       // Accepted requests load කිරීම
       const acceptedResponse =
         await fetch(
-          `http://localhost:5000/api/service-requests?garageId=${relatedGarageId}&status=Accepted`
+          `/api/service-requests?garageId=${relatedGarageId}&status=Accepted`
         );
 
       const acceptedResult =
@@ -1385,7 +1385,7 @@ setCurrentCapacity(
       setActionLoading(true);
 
       const response = await fetch(
-        "http://localhost:5000/api/service-jobs/assign",
+        "/api/service-jobs/assign",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1506,7 +1506,7 @@ setCurrentCapacity(
         setSupportActionLoading(true);
 
         const response = await fetch(
-          "http://localhost:5000/api/technician-assistance/assign",
+          "/api/technician-assistance/assign",
           {
             method: "POST",
             headers: {
@@ -1595,7 +1595,7 @@ setCurrentCapacity(
         );
 
         const response = await fetch(
-          `http://localhost:5000/api/technician-assistance/${recordId}/start`,
+          `/api/technician-assistance/${recordId}/start`,
           {
             method: "PUT",
           }
@@ -1667,7 +1667,7 @@ setCurrentCapacity(
         );
 
         const response = await fetch(
-          `http://localhost:5000/api/technician-assistance/${recordId}/complete`,
+          `/api/technician-assistance/${recordId}/complete`,
           {
             method: "PUT",
           }
@@ -1866,7 +1866,7 @@ setCurrentCapacity(
 
       const response =
         await fetch(
-          `http://localhost:5000/api/service-jobs/${jobId}/complete`,
+          `/api/service-jobs/${jobId}/complete`,
           {
             method: "PUT",
 
@@ -1987,7 +1987,7 @@ setCurrentCapacity(
 
     try {
       setExtensionLoading(true);
-      const response = await fetch("http://localhost:5000/api/time-extensions", {
+      const response = await fetch("/api/time-extensions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2087,7 +2087,7 @@ setCurrentCapacity(
 
       const response =
         await fetch(
-          `http://localhost:5000/api/service-requests/${selectedReq.requestId}/accept`,
+          `/api/service-requests/${selectedReq.requestId}/accept`,
           {
             method: "PUT",
 
@@ -2225,7 +2225,7 @@ setCurrentCapacity(
 
       const response =
         await fetch(
-          `http://localhost:5000/api/service-requests/${selectedReq.requestId}/reject`,
+          `/api/service-requests/${selectedReq.requestId}/reject`,
           {
             method: "PUT",
 

@@ -262,7 +262,7 @@ export default function VehicleIntake({
 
       const response =
         await fetch(
-          `http://localhost:5000/api/technicians/${technicianId}`
+          `/api/technicians/${technicianId}`
         );
 
       const result =
@@ -353,7 +353,7 @@ export default function VehicleIntake({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/service-jobs/technician/${technicianId}`
+            `/api/service-jobs/technician/${technicianId}`
           );
 
         const result =
@@ -640,7 +640,7 @@ export default function VehicleIntake({
 
         const response =
           await fetch(
-            `http://localhost:5000/api/service-jobs/${assignedJob.jobId}/start`,
+            `/api/service-jobs/${assignedJob.jobId}/start`,
             {
               method: "PUT",
 
@@ -726,7 +726,7 @@ export default function VehicleIntake({
       setCompletingJobId(numericJobId);
 
       const response = await fetch(
-        `http://localhost:5000/api/service-jobs/${numericJobId}/complete`,
+        `/api/service-jobs/${numericJobId}/complete`,
         {
           method: "PUT",
           headers: {

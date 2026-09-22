@@ -262,7 +262,7 @@ export default function CustomerSidebar({
 
       if (contact && vehicleNumber) {
         const response = await fetch(
-          `http://localhost:5000/api/service-requests/customer/${encodeURIComponent(
+          `/api/service-requests/customer/${encodeURIComponent(
             contact
           )}/latest?vehicleNumber=${encodeURIComponent(vehicleNumber)}`
         );

@@ -39,7 +39,7 @@ L.Icon.Default.mergeOptions({
     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = "/api";
 const DEFAULT_MAP_CENTER = [6.8728, 79.8887];
 
 const getStoredCustomerCoordinates = () => {

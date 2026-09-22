@@ -24,7 +24,7 @@ export default function AssistanceLogin({ onNavigate }) {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/login",
+        "/api/login",
         {
           method: "POST",
           headers: {

@@ -92,7 +92,7 @@ export default function GarageRegistration({ onNavigate }) {
 
   const loadNextGarageCode = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/garages");
+      const response = await fetch("/api/garages");
       const result = await response.json();
 
       if (!response.ok || !result.success) {
@@ -375,7 +375,7 @@ export default function GarageRegistration({ onNavigate }) {
     try {
       setSubmitting(true);
 
-      const response = await fetch("http://localhost:5000/api/garages/register", {
+      const response = await fetch("/api/garages/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
