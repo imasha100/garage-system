@@ -1042,74 +1042,60 @@ export default function StartPage({
   useEffect(() => {
     let isMounted = true;
 
-    const loadGarages =
-      async () => {
-        setIsLoadingGarages(
-          true
-        );
+    const loadGarages = async (showLoading = false) => {
+      if (showLoading) {
+        setIsLoadingGarages(true);
+      }
 
-        setGarageLoadError(
-          ""
-        );
+      try {
+        const response = await fetch("/api/garages", {
+          cache: "no-store",
+        });
 
-        try {
-          const response =
-            await fetch(
-              "/api/garages"
-            );
+        const data = await response.json();
 
-          const data =
-            await response.json();
-
-          if (
-            !response.ok ||
-            data.success === false
-          ) {
-            throw new Error(
-              data.message ||
-                "Unable to load registered garages."
-            );
-          }
-
-          const receivedGarages =
-            Array.isArray(data)
-              ? data
-              : data.data ||
-                data.garages ||
-                [];
-
-          if (isMounted) {
-            setGarages(
-              receivedGarages
-            );
-          }
-        } catch (error) {
-          console.error(
-            "Load garages error:",
-            error
+        if (!response.ok || data.success === false) {
+          throw new Error(
+            data.message ||
+              "Unable to load registered garages."
           );
-
-          if (isMounted) {
-            setGarageLoadError(
-              error.message ||
-                "Unable to load registered garages."
-            );
-
-            setGarages([]);
-          }
-        } finally {
-          if (isMounted) {
-            setIsLoadingGarages(
-              false
-            );
-          }
         }
-      };
 
-    loadGarages();
+        const receivedGarages = Array.isArray(data)
+          ? data
+          : data.data || data.garages || [];
+
+        if (isMounted) {
+          setGarages(receivedGarages);
+          setGarageLoadError("");
+        }
+      } catch (error) {
+        console.error("Load garages error:", error);
+
+        if (isMounted) {
+          setGarageLoadError(
+            error.message ||
+              "Unable to load registered garages."
+          );
+        }
+      } finally {
+        if (isMounted && showLoading) {
+          setIsLoadingGarages(false);
+        }
+      }
+    };
+
+    // Initial load
+    loadGarages(true);
+
+    // Refresh live garage workload every 2 seconds
+    const intervalId = window.setInterval(() => {
+      loadGarages(false);
+    }, 2000);
 
     return () => {
       isMounted = false;
+      window.clearInterval(intervalId);
     };
   }, []);
 
@@ -3142,6 +3128,22 @@ export default function StartPage({
                           : undefined
                       }
                     />
+
+                    <text
+                      x={point.x + 12}
+                      y={point.y - 8}
+                      fill="#ffffff"
+                      fontSize="11"
+                      fontWeight="700"
+                      paintOrder="stroke"
+                      stroke="#08111f"
+                      strokeWidth="3"
+                      strokeLinejoin="round"
+                    >
+                      {`Outside Queue: ${Number(
+                        garage?.outside_vehicle_count ?? 0
+                      )}`}
+                    </text>
                   </g>
                 );
               })}
